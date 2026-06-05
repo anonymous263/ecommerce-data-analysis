@@ -1,0 +1,2 @@
+payment_method,country_code,fee_percent,fixed_fee_usd,source,is_active
+fallback_default,,0.0000,0.00,placeholder_fallback_only,false

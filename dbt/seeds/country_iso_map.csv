@@ -1,0 +1,6 @@
+source_country,country_code,country_name,region,currency
+UK,GB,United Kingdom,Europe,GBP
+GB,GB,United Kingdom,Europe,GBP
+US,US,United States,North America,USD
+CA,CA,Canada,North America,CAD
+DE,DE,Germany,Europe,EUR

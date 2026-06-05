@@ -1,0 +1,2 @@
+site_code,site_name,domain,default_currency,timezone,reporting_timezone,is_active
+FOS,Fashion Open Studio,fashionopenstudio.com,GBP,UTC,Asia/Bangkok,true

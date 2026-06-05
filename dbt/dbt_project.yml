@@ -1,0 +1,52 @@
+name: ecommerce_analytics
+version: "1.0.0"
+config-version: 2
+
+profile: ecommerce_analytics
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  ecommerce_analytics:
+    staging:
+      +schema: staging
+      +materialized: view
+      woocommerce: {}
+      manual: {}
+      ga4: {}
+    marts:
+      core:
+        +schema: marts_core
+        +materialized: table
+      marketing:
+        +schema: marts_marketing
+        +materialized: table
+      operations:
+        +schema: marts_operations
+        +materialized: table
+      reconciliation:
+        +schema: marts_recon
+        +materialized: view
+
+seeds:
+  ecommerce_analytics:
+    +schema: staging
+    dim_site_seed:
+      +column_types:
+        site_code: text
+        site_name: text
+        domain: text
+        default_currency: text
+        timezone: text
+        reporting_timezone: text
+        is_active: boolean

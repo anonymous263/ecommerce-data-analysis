@@ -1,0 +1,42 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Private source data
+data/raw/
+Order Management.csv
+POD Management - Order*.csv
+
+# Service account / credential files.
+# Keep package/config JSON trackable; ignore credential-shaped JSON only.
+*service-account*.json
+*credentials*.json
+google-application-credentials*.json
+gcp-*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Power BI
+*.pbix.backup
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Large local/sample datasets
+E-commerce data sample/*.csv
+E-commerce data sample/*.docx

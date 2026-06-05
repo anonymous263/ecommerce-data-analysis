@@ -1,0 +1,2 @@
+supplier_code,supplier_name,supplier_store_id,sla_days,is_active
+printify,Printify,,,true
