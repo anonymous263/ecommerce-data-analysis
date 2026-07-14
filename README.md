@@ -2,7 +2,7 @@
 
 > A private business warehouse first, a portfolio second. **WooCommerce REST API is the source of truth** for revenue, orders, products, customers, refunds, and customer shipping charge. A **manual Order Management sheet** provides initial cost + fulfillment enrichment — COGS (which already includes supplier fulfillment/shipping fee where applicable), design fee, supplier, tracking, and operational flags. **GA4 BigQuery** delivers website behavior. **dbt** owns transforms. **Ads is optional future**, not part of the MVP.
 
-**Status:** Phase 0 — Setup, privacy, source audit (no pipeline implementation yet).
+**Status:** Phase 0 ~complete — environment live (Postgres + dbt + seeds green, `dbt build` PASS, pytest 12/12); entering Phase 1 (WooCommerce raw ingestion). Pipeline code not yet implemented. One owner action outstanding: rotate the leaked FOS Woo API key.
 
 ---
 
@@ -128,7 +128,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detail.
 - [x] Directory inspected, sources catalogued
 - [x] Strategy revised: WooCommerce-first + dbt + CSV cost-and-fulfillment enrichment + GA4 audit gate
 - [x] Phase 0 scaffold: privacy guards, `.env.example`, Docker/Postgres schema init, dbt project skeleton, site config, seed placeholders
-- [ ] Phase 0 remaining local setup: install full Python/dbt dependencies, run `dbt deps`, configure a real dbt profile, run `dbt debug`
+- [x] Phase 0 environment live: Python/dbt deps installed, `dbt deps` + `dbt debug` pass, `dbt seed` + `dbt build` green (7 seeds + 1 singular test), pytest 12/12, Maven data dictionary translated (`docs/MAVEN_DATA_DICTIONARY.md`)
+- [ ] Phase 0 owner action (security): rotate the FOS Woo API key (old key leaked to GitHub, force-scrubbed 2026-07-14), store in `.env`, curl-verify
 - [ ] Phase 1: WooCommerce raw ingestion + payload audit
 
 ## 9. Privacy / Ethics

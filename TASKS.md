@@ -18,30 +18,31 @@
 
 ### Postgres + dbt
 - [x] Write `docker-compose.yml` (Postgres 16)
-- [x] `docker compose up -d postgres`
-- [x] Create schemas `raw`, `staging`, `marts_core`, `marts_marketing`, `marts_operations`, `marts_recon`
-- [ ] `dbt init` in `dbt/`
-- [ ] Configure `~/.dbt/profiles.yml`
+- [x] `docker compose up -d postgres` (container `ecommerce_postgres`, healthy)
+- [x] Create schemas `raw`, `staging`, `marts_core`, `marts_marketing`, `marts_operations`, `marts_recon` (via `sql/init/01_create_schemas.sql`; all 6 confirmed present)
+- [x] `dbt init` in `dbt/` (project `ecommerce_analytics` scaffolded)
+- [x] Configure `~/.dbt/profiles.yml` (env-var driven; `dbt debug` → **all checks passed**)
 - [x] Configure `dbt/dbt_project.yml` (per-folder materializations)
 - [x] `dbt/packages.yml` with `dbt-labs/dbt_utils` + `calogica/dbt_expectations`
-- [ ] `dbt deps && dbt debug` (both must pass)
+- [x] `dbt deps && dbt debug` (both pass; dbt-core 1.10.21, adapter postgres 1.10.0)
 
 ### Multi-site config
 - [x] Create `config/sites.yaml` listing site `FOS` (multi-currency: USD/GBP/CAD/EUR), plus any others
 - [x] Create `dbt/seeds/dim_site_seed.csv` mirroring the same site list
-- [ ] Add a singular dbt test asserting site list matches between yaml and seed
+- [x] Add a singular dbt test asserting site list matches between yaml and seed — `dbt/tests/singular/assert_site_seed_matches_config.sql` (in-warehouse guard); yaml↔seed field parity enforced by `tests/test_site_config_matches_seed.py` (pytest), since dbt/SQL cannot read the yaml
 
 ### Source audit
-- [ ] Open `[Đọc cái này trước] Tài liệu Data Dictionary.docx` → save translated summary to `docs/MAVEN_DATA_DICTIONARY.md`
-- [ ] Fill `dbt/seeds/dim_supplier_seed.csv` with Printify SLA where known
+- [x] Open `[Đọc cái này trước] Tài liệu Data Dictionary.docx` → save translated summary to `docs/MAVEN_DATA_DICTIONARY.md`
+- [ ] Fill `dbt/seeds/dim_supplier_seed.csv` with Printify SLA where known — _deferred (not a Phase 0 blocker): Printify has no fixed contractual SLA, so `sla_days` is left null until an authoritative value is known_
 - [x] Fill `dbt/seeds/country_iso_map.csv` (`UK → GB`, etc.)
 - [x] Fill `dbt/seeds/fx_rates.csv` (`date, currency, usd_rate`) — static seed initially (replaceable by FX API later)
 - [x] Add `dbt/seeds/payment_fees.csv` placeholder (fallback only)
-- [ ] `dbt seed`
+- [x] `dbt seed` (all 7 seeds load via `--full-refresh`; `dbt build` green → PASS=8, 0 errors)
 
 ### WooCommerce credentials
-- [ ] Generate read-only consumer key/secret per site
-- [ ] Store as `WOO_<SITECODE>_KEY` / `WOO_<SITECODE>_SECRET` in `.env`
+> ⚠️ **Security (2026-07-14):** the FOS key/secret had been hardcoded in `config/sites.yaml` and pushed to GitHub. Fixed in-repo (sanitized to env-var references, single root commit history-scrubbed, force-pushed), but the exposed pair must be treated as **compromised**. `sites.yaml` now references env-var *names* only; real values live in `.env`.
+- [ ] Generate read-only consumer key/secret per site — **rotate FOS: the leaked key `ck_7d89f0…` must be revoked, not reused** _(owner action — needs WooCommerce login)_
+- [ ] Store new `WOO_<SITECODE>_KEY` / `WOO_<SITECODE>_SECRET` in `.env` (currently placeholders)
 - [ ] Verify with `curl 'https://<domain>/wp-json/wc/v3/orders?per_page=1' -u <key>:<secret>`
 
 ---

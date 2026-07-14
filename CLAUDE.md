@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A private analytics warehouse (portfolio second) for several **WooCommerce POD stores** (print-on-demand apparel fulfilled by external suppliers). It turns orders, costs, and web behavior into a Kimball star schema and Power BI dashboards.
 
-**Current state: planning/Phase 0.** The repo is documentation + an empty directory skeleton (`.gitkeep` placeholders under `src/`, `sql/`, `dbt/`-to-be, etc.). **No pipeline code, no dbt project, no Postgres, and no git repo exist yet.** Almost all work so far lives in `docs/`, `README.md`, and `TASKS.md`. When implementing, you are building these from scratch against the specs — read the relevant doc first, then create the files it describes.
+**Current state: end of Phase 0 (~95%), entering Phase 1.** The foundation is live: git repo (pushed to GitHub), Postgres 16 in Docker (`ecommerce_postgres`, healthy, all six schemas created), dbt scaffolded and connective (`dbt debug` passes on dbt-core 1.10.21 / postgres 1.10.0; `dbt build` green with 7 seeds + 1 singular test), `config/sites.yaml` defining site `FOS`, and a Python + pytest scaffold (12 tests passing). **Still empty (Phase 1+):** all pipeline code — `src/**` is `.gitkeep` only — plus `sql/ddl/` and every staging/mart model. **Remaining Phase 0 gaps (non-blocking):** rotate the FOS Woo API key + curl-verify (owner action — the old key was leaked and force-scrubbed on 2026-07-14) and the optional Printify SLA fill. When implementing Phase 1+, read the relevant doc first, then create the files it describes.
 
 ## Architecture (the big picture)
 
