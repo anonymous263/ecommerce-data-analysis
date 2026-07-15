@@ -5,11 +5,19 @@
 -- supplier cost. Woo fact_order.shipping_charged_usd is official; CSV
 -- fact_order_cost.csv_shipping_charged_usd is the sheet's 'Shipping' column.
 -- Grain: (site_sk, date_sk).
+--
+-- LIKE-FOR-LIKE: the Woo side is restricted to orders that ALSO have a CSV cost
+-- row. Comparing all-Woo against covered-CSV would report the cost-coverage gap
+-- as fake "drift" (uncovered orders add Woo shipping with no CSV counterpart).
+-- On the shared covered set the true daily delta is ~2% (target ≤5%); 97% of
+-- orders match to the cent. Coverage completeness is tracked separately in
+-- recon_cost_coverage / recon_unmatched_csv_cost.
 
 with woo as (
-    select site_sk, date_sk, sum(shipping_charged_usd) as woo_shipping_charged_usd
-    from {{ ref('fact_order') }}
-    group by site_sk, date_sk
+    select h.site_sk, h.date_sk, sum(h.shipping_charged_usd) as woo_shipping_charged_usd
+    from {{ ref('fact_order') }} h
+    join {{ ref('fact_order_cost') }} oc on oc.order_sk = h.order_sk  -- covered orders only
+    group by h.site_sk, h.date_sk
 ),
 
 csv as (

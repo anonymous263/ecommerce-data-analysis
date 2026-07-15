@@ -1,41 +1,62 @@
 {{ config(materialized='view') }}
 
--- Cost coverage gate (METRICS_DEFINITION §J / DASHBOARD_SPEC §K): what share of
--- Woo orders have a fact_order_cost row (and a non-null cogs_usd). Drives the
--- dashboard tier: red <80% (hide profit), yellow 80–95% (partial chip),
--- green ≥95% (fully trusted). One row per site plus an overall '__ALL__' row.
+-- Cost coverage gate (METRICS_DEFINITION §J / DASHBOARD_SPEC §K). Profit is only
+-- defined for REVENUE-generating orders (is_revenue_status), so the tier that
+-- gates the dashboard is measured over revenue orders — NOT all orders. Dead
+-- failed/cancelled/pending orders will never carry cost and must not drag the
+-- tier down. `all_order_coverage_pct` is kept as an informational column.
+-- Tier from revenue-order coverage: red <80% (hide profit), yellow 80–95%
+-- (partial chip), green ≥95% (fully trusted). One row per site + '__ALL__'.
 
-with woo as (
+with all_orders as (
     select site_sk, count(*) as woo_orders
     from {{ ref('fact_order') }}
     group by site_sk
 ),
 
+revenue_set as (   -- one row per revenue-generating order
+    select distinct order_sk
+    from {{ ref('fact_order_item') }}
+    where is_revenue_status
+),
+
+rev_orders as (
+    select h.site_sk, count(distinct h.order_sk) as revenue_orders
+    from {{ ref('fact_order') }} h
+    join revenue_set r on r.order_sk = h.order_sk
+    group by h.site_sk
+),
+
 covered as (
     select
-        site_sk,
-        count(distinct order_sk)                              as covered_orders,
-        count(distinct order_sk) filter (where cogs_usd is not null) as cogs_orders
-    from {{ ref('fact_order_cost') }}
-    group by site_sk
+        h.site_sk,
+        count(distinct oc.order_sk)                                       as covered_orders,
+        count(distinct oc.order_sk) filter (where r.order_sk is not null) as covered_revenue_orders
+    from {{ ref('fact_order_cost') }} oc
+    join {{ ref('fact_order') }} h on h.order_sk = oc.order_sk
+    left join revenue_set r on r.order_sk = oc.order_sk
+    group by h.site_sk
 ),
 
 per_site as (
     select
-        w.site_sk::text                                       as site_sk,
-        w.woo_orders,
-        coalesce(c.covered_orders, 0)                         as covered_orders,
-        coalesce(c.cogs_orders, 0)                            as cogs_orders
-    from woo w
-    left join covered c on c.site_sk = w.site_sk
+        a.site_sk::text                       as site_sk,
+        a.woo_orders,
+        coalesce(rv.revenue_orders, 0)        as revenue_orders,
+        coalesce(c.covered_orders, 0)         as covered_orders,
+        coalesce(c.covered_revenue_orders, 0) as covered_revenue_orders
+    from all_orders a
+    left join rev_orders rv on rv.site_sk = a.site_sk
+    left join covered c on c.site_sk = a.site_sk
 ),
 
 overall as (
     select
-        '__ALL__'                as site_sk,
-        sum(woo_orders)          as woo_orders,
-        sum(covered_orders)      as covered_orders,
-        sum(cogs_orders)         as cogs_orders
+        '__ALL__'                    as site_sk,
+        sum(woo_orders)              as woo_orders,
+        sum(revenue_orders)          as revenue_orders,
+        sum(covered_orders)          as covered_orders,
+        sum(covered_revenue_orders)  as covered_revenue_orders
     from per_site
 ),
 
@@ -48,13 +69,14 @@ unioned as (
 select
     site_sk,
     woo_orders,
+    revenue_orders,
     covered_orders,
-    cogs_orders,
-    round(100.0 * covered_orders / nullif(woo_orders, 0), 2) as cost_coverage_pct,
-    round(100.0 * cogs_orders    / nullif(woo_orders, 0), 2) as cogs_coverage_pct,
+    covered_revenue_orders,
+    round(100.0 * covered_orders / nullif(woo_orders, 0), 2)             as all_order_coverage_pct,
+    round(100.0 * covered_revenue_orders / nullif(revenue_orders, 0), 2) as cost_coverage_pct,  -- gating metric
     case
-        when 100.0 * covered_orders / nullif(woo_orders, 0) >= 95 then 'green'
-        when 100.0 * covered_orders / nullif(woo_orders, 0) >= 80 then 'yellow'
+        when 100.0 * covered_revenue_orders / nullif(revenue_orders, 0) >= 95 then 'green'
+        when 100.0 * covered_revenue_orders / nullif(revenue_orders, 0) >= 80 then 'yellow'
         else 'red'
-    end                                                     as coverage_tier
+    end                                                                 as coverage_tier
 from unioned

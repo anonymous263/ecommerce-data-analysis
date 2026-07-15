@@ -182,7 +182,7 @@ F2 Conversion Rate by Channel — same.
 
 | Metric | Formula | Target | Model phase | Dashboard phase |
 |---|---|---|---|---|
-| H1. Cost Coverage % | `COUNT(orders with fact_order_cost) / COUNT(fact_order)` | tiered, see §J | 3 | 4 |
+| H1. Cost Coverage % | `COUNT(revenue orders with fact_order_cost) / COUNT(revenue orders)` where *revenue order* = has ≥1 `is_revenue_status` line. Profit only applies to revenue orders, so dead failed/cancelled orders are excluded from the denominator. `all_order_coverage_pct` (÷ all orders) is kept as an informational column. | tiered, see §J | 3 | 4 |
 | H2. Cost Allocation Coverage % | `COUNT(line items with cost_allocation_method='line_exact') / COUNT(fact_order_item)` | informational | 3 | 4 |
 | H3. COGS Coverage % | `COUNT(fact_order_cost WHERE cogs_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 3 | 4 |
 | H4. Payment Fee Coverage % | `COUNT(fact_order WHERE payment_fee_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 2 | 4 |
@@ -223,7 +223,9 @@ F2 Conversion Rate by Channel — same.
 
 **Tiered visibility for profit metrics (B1–B8):**
 
-| Cost Coverage % (H1) | Profit metric visibility | UI treatment |
+Cost Coverage % here is H1 measured over **revenue orders** (see H1 note) — not all orders — because profit is only defined for orders that generated revenue.
+
+| Cost Coverage % (H1, revenue-order basis) | Profit metric visibility | UI treatment |
 |---|---|---|
 | `< 80%` | **Hidden** | Profit cards and charts hidden in the published `.pbix`; a "Profit unavailable — cost coverage too low" banner appears on the Executive Overview page. |
 | `80% – 95%` | **Visible with warning** | Cards/charts shown, but every profit visual gets a yellow "Partial cost coverage (XX%)" chip. Numbers are usable but not owner-trusted. |
