@@ -1,5 +1,7 @@
 # WooCommerce Payload Audit — Phase 1 Deliverable
 
+> **Status: PENDING — requires a live pull after FOS key rotation.** Every field table below is **blocked** and intentionally left as `(TBD)`. Filling them requires the 20-order sample pull in §1, which cannot run until (a) the leaked FOS Woo consumer key is rotated and the new `WOO_FOS_KEY`/`WOO_FOS_SECRET` are in `.env`, and (b) the `ecommerce_postgres` container is up. No findings on this page are fabricated; each `(TBD)` marker means "awaiting live data". The extractor (`src/extract/woo_api.py`) that produces the sample is complete and tested.
+
 > **Placeholder doc.** This document is populated during Phase 1 by inspecting real WooCommerce REST API responses. Until then, every section is a question to answer, not a fact to copy.
 
 > **Scope note:** this doc covers **WooCommerce only** — Acowebs metadata, payment fee fields, custom statuses, refund grain, and currency fields. GA4-specific audit (transaction_id coverage, item array, traffic source fields) belongs in [GA4_BIGQUERY_AUDIT.md](GA4_BIGQUERY_AUDIT.md).

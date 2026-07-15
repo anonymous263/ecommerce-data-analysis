@@ -50,28 +50,31 @@
 ## Phase 1 — WooCommerce API Raw Ingestion + Payload Audit
 
 ### Helpers
-- [ ] `src/utils/http.py` (httpx + exponential backoff)
-- [ ] `src/utils/logging.py`
-- [ ] `src/load/db.py` (SQLAlchemy engine factory)
-- [ ] `src/load/upsert.py` (idempotent UPSERT on `(site_code, woo_<entity>_id)`)
+- [x] `src/utils/http.py` (httpx + exponential backoff on 429/5xx, page-based `paginate` generator)
+- [x] `src/utils/logging.py`
+- [x] `src/load/db.py` (SQLAlchemy engine factory + `apply_sql_file` DDL runner)
+- [x] `src/load/upsert.py` (idempotent UPSERT on `(site_code, woo_<entity>_id)`; PK excluded from SET; JSONB cast)
+- [x] `src/utils/config.py` (loads `config/sites.yaml` → `Site`; resolves creds via `key_env`/`secret_env` indirection) — supporting helper
+- [x] `conftest.py` (puts project root on `sys.path` so tests can `import src`) — supporting
 
 ### Raw DDL
-- [ ] `sql/ddl/01_raw_woo.sql`: `raw.woo_orders`, `raw.woo_order_items`, `raw.woo_products`, `raw.woo_customers`, `raw.woo_refunds`, `raw.woo_coupons`, `raw.pipeline_state`, `raw.pipeline_runs`
-- [ ] Each carries `site_code`, `extracted_at`, `_payload JSONB`, PK on `(site_code, woo_<entity>_id)`
+- [x] `sql/ddl/01_raw_woo.sql`: `raw.woo_orders`, `raw.woo_order_items`, `raw.woo_products`, `raw.woo_customers`, `raw.woo_refunds`, `raw.woo_coupons`, `raw.pipeline_state`, `raw.pipeline_runs`
+- [x] Each carries `site_code`, `extracted_at`, `_payload JSONB`, PK on `(site_code, woo_<entity>_id)`
+- [x] Apply to Postgres — all 8 raw tables created in `ecommerce_postgres` (2026-07-15): `woo_orders`, `woo_order_items`, `woo_products`, `woo_customers`, `woo_refunds`, `woo_coupons`, `pipeline_state`, `pipeline_runs`
 
 ### Extractor
-- [ ] `src/extract/woo_api.py`:
-  - [ ] paginate orders with `modified_after=<watermark>`
-  - [ ] for each order fetch `/refunds`
-  - [ ] paginate products, customers, coupons
-  - [ ] upsert idempotently
-  - [ ] update watermark only on success
-  - [ ] log to `raw.pipeline_runs`
-- [ ] `tests/test_woo_api.py` with mocked payloads (idempotency)
-- [ ] `pytest -q` passes
-- [ ] Backfill site `FOS`
-- [ ] Re-run extractor → no duplicates, row count unchanged
-- [ ] Reconcile `raw.woo_orders` row count vs WP admin (≤0.1%)
+- [x] `src/extract/woo_api.py`:
+  - [x] paginate orders with `modified_after=<watermark>`
+  - [x] for each order fetch `/refunds`
+  - [x] paginate products, customers, coupons
+  - [x] upsert idempotently
+  - [x] update watermark only on success
+  - [x] log to `raw.pipeline_runs`
+- [x] `tests/test_woo_api.py` with mocked payloads (idempotency) — httpx `MockTransport` + fake engine, no DB/network
+- [x] `pytest -q` passes — **56 passed** (12 existing + 44 Phase 1); implementation independently Opus-reviewed and hardened (watermark same-second overlap, orphan-free order-item replace, Retry-After cap)
+- [ ] Backfill site `FOS` — _blocked: needs rotated FOS Woo key in `.env` + live Postgres_
+- [ ] Re-run extractor → no duplicates, row count unchanged — _blocked: needs live Postgres_
+- [ ] Reconcile `raw.woo_orders` row count vs WP admin (≤0.1%) — _blocked: needs live pull_
 
 ### Payload Audit — `docs/WOO_PAYLOAD_AUDIT.md`
 - [ ] Pull 20 recent orders per active site to `data/raw/audit/<site_code>/orders_sample.json` (gitignored)
