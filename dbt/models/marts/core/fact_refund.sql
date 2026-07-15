@@ -1,8 +1,11 @@
 {{ config(materialized='table') }}
 
 -- Refund fact, ORDER-LEVEL grain (WOO_PAYLOAD_AUDIT §7: line_items empty on all
--- refunds, so order_item_sk is always NULL). refund_amount FX-converted via the
--- parent order currency. event_type derived from the parent order status.
+-- refunds, so order_item_sk is always NULL). refund_amount FX-converted using
+-- the REAL daily ECB rate for the parent order's currency on the REFUND date
+-- (not the order date — a refund can post on a different day than the order,
+-- per DATA_MODEL §9 "book on refund date"). event_type derived from the
+-- parent order status.
 
 with refunds as (
     select * from {{ ref('stg_woo_refunds') }}
@@ -18,11 +21,13 @@ orders as (
 ),
 
 fx as (
-    select distinct on (upper(currency))
-        upper(currency) as currency,
-        usd_rate
+    -- one usd_rate per (date, currency); the seed is forward-filled daily so
+    -- every refund date has an exact match for every supported currency
+    select
+        date               as rate_date,
+        upper(currency)    as currency,
+        usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
-    order by upper(currency), date desc
 )
 
 select
@@ -44,3 +49,4 @@ left join orders o
     on o.site_code = r.site_code and o.woo_order_id = r.woo_order_id
 left join fx
     on fx.currency = o.currency_source
+   and fx.rate_date = r.refund_date

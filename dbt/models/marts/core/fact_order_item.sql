@@ -1,7 +1,10 @@
 {{ config(materialized='table') }}
 
 -- Line-item fact. INVARIANT: this is the ONE place revenue lives —
--- line_revenue_usd = line_total_src (net line total) FX-converted to USD.
+-- line_revenue_usd = line_total_src (net line total) FX-converted to USD using
+-- the REAL daily ECB rate for the order's currency on the order's calendar
+-- date (date-aware join against the forward-filled fx_rates seed; no fan-out,
+-- exactly one seed row per date/currency).
 -- Currency/date/order_sk come from the parent order (items carry no currency).
 -- Sold variant attributes (size/color/style/fit/print_location) live here per
 -- the dim_product grain decision (products are simple; attrs are order-time).
@@ -27,11 +30,13 @@ orders as (
 ),
 
 fx as (
-    select distinct on (upper(currency))
-        upper(currency) as currency,
-        usd_rate
+    -- one usd_rate per (date, currency); the seed is forward-filled daily so
+    -- every order date has an exact match for every supported currency
+    select
+        date               as rate_date,
+        upper(currency)    as currency,
+        usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
-    order by upper(currency), date desc
 )
 
 select
@@ -64,3 +69,4 @@ left join orders o
     on o.site_code = i.site_code and o.woo_order_id = i.woo_order_id
 left join fx
     on fx.currency = o.currency_source
+   and fx.rate_date = o.order_date

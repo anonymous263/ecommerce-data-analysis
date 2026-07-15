@@ -3,22 +3,28 @@
 -- Order header fact. INVARIANT: NO revenue_usd column here (revenue lives once
 -- on fact_order_item) — this prevents the order x item double-count.
 -- shipping_charged_* is the CUSTOMER shipping charge (revenue-side), never a
--- cost. Money is FX-converted to USD via the fx_rates seed (placeholder = 1.0
--- today, but the join + fx_rate_to_usd column are real). Payment fee is
--- finalized here: plugin_parser (from order meta) -> seed_estimate -> missing.
+-- cost. Money is FX-converted to USD via the fx_rates seed, which now carries
+-- REAL daily ECB-backed rates (Frankfurter, forward-filled to every calendar
+-- day) keyed by (date, currency) — the join below is DATE-AWARE (order date),
+-- not "latest rate". The seed is forward-filled to every order date, so this
+-- is a clean equality join with exactly one seed row per (date, currency) —
+-- no fan-out. Payment fee is finalized here: plugin_parser (from order meta)
+-- -> seed_estimate -> missing; the plugin fee FX also uses the order date
+-- (the fee is charged same-day as the order) but keys off the processor's own
+-- currency (_cs_*_currency), not the order currency.
 
 with orders as (
     select * from {{ ref('stg_woo_orders') }}
 ),
 
 fx as (
-    -- one usd_rate per currency (latest effective date); avoids fan-out when
-    -- real dated rates replace the placeholders
-    select distinct on (upper(currency))
-        upper(currency) as currency,
-        usd_rate
+    -- one usd_rate per (date, currency); the seed is forward-filled daily so
+    -- every order date has an exact match for every supported currency
+    select
+        date               as rate_date,
+        upper(currency)    as currency,
+        usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
-    order by upper(currency), date desc
 ),
 
 pay_seed as (
@@ -40,8 +46,12 @@ joined as (
         ps.fee_percent               as seed_fee_percent,
         ps.fixed_fee_usd             as seed_fixed_fee_usd
     from orders o
-    left join fx fo on fo.currency = o.currency_source
-    left join fx fp on fp.currency = o.plugin_payment_fee_currency
+    left join fx fo
+        on fo.currency = o.currency_source
+       and fo.rate_date = o.order_date
+    left join fx fp
+        on fp.currency = o.plugin_payment_fee_currency
+       and fp.rate_date = o.order_date
     left join pay_seed ps on ps.payment_method = o.payment_method
 ),
 
