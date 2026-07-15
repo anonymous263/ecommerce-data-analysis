@@ -93,45 +93,45 @@
 ## Phase 2 — dbt Staging + Core Marts
 
 ### Sources
-- [ ] `dbt/models/staging/woocommerce/_sources.yml` for all `raw.woo_*`
-- [ ] Source `not_null`/`unique` tests
+- [x] `dbt/models/staging/woocommerce/_sources.yml` for all `raw.woo_*`
+- [x] Source `not_null`/`unique` tests
 
 ### Macros
-- [ ] `dbt/macros/hash_pii.sql` — SHA-256 + `env_var('PII_SALT')`
+- [x] `dbt/macros/hash_pii.sql` — SHA-256 + `env_var('PII_SALT')` (Postgres built-in `sha256(bytea)`, NULL on blank)
 
 ### Staging models
-- [ ] `stg_woo_orders.sql` — parse status, currency, per-order FX→USD via seed, drop PII, **map Woo shipping field → `shipping_charged_src/usd`** (per Phase 1 audit), set `payment_fee_usd` + `payment_fee_source` (`api_exact`/`plugin_parser`/`seed_estimate`/`missing`)
-- [ ] `stg_woo_order_items.sql` — unnest, attach `site_sk`, **wire Acowebs variant parsing** per `WOO_PAYLOAD_AUDIT.md`
-- [ ] `stg_woo_products.sql`
-- [ ] `stg_woo_customers.sql` — hash email; drop names/phones/addresses
-- [ ] `stg_woo_refunds.sql` — order-level grain by default; `order_item_sk` nullable
-- [ ] `stg_woo_coupons.sql`
+- [x] `stg_woo_orders.sql` — status, currency, FX→USD via seed, PII hashed/dropped, `shipping_total → shipping_charged_src/usd`, `payment_fee_usd`+`payment_fee_source` from `_cs_*_fee` meta (`plugin_parser`/`missing`; `seed_estimate` deferred — seed placeholder)
+- [x] `stg_woo_order_items.sql` — exploded, `site_sk`, WCPA variant parsing (Size/Color/Style/Fit Type/Print location, price-suffix stripped)
+- [x] `stg_woo_products.sql`
+- [x] `stg_woo_customers.sql` — hash email; drop names/phones/addresses (source empty — guest checkout)
+- [x] `stg_woo_refunds.sql` — order-level grain; `order_item_sk` NULL
+- [x] `stg_woo_coupons.sql`
 
 ### Mart models (core)
-- [ ] `marts/core/dim_date.sql`
-- [ ] `marts/core/dim_site.sql` (from seed)
-- [ ] `marts/core/dim_country.sql`
-- [ ] `marts/core/dim_product.sql`
-- [ ] `marts/core/dim_customer_anonymized.sql` (no aggregate fields)
-- [ ] `marts/core/dim_payment_method.sql`
-- [ ] `marts/core/fact_order.sql` — header amounts only (no `revenue_usd`); includes `shipping_charged_src/usd`, `payment_fee_usd`, `payment_fee_source`
-- [ ] `marts/core/fact_order_item.sql` — official revenue
-- [ ] `marts/core/fact_refund.sql` — order-level grain
-- [ ] `marts/core/mart_customer_summary.sql`
+- [x] `marts/core/dim_date.sql`
+- [x] `marts/core/dim_site.sql` (from seed)
+- [x] `marts/core/dim_country.sql` (from order data + `XX` unknown; seed enriches)
+- [x] `marts/core/dim_product.sql` — catalog grain `(site, woo_product_id)`; variant attrs live on `fact_order_item` (documented deviation from DATA_MODEL §5.3)
+- [x] `marts/core/dim_customer_anonymized.sql` (hash only, no aggregates)
+- [x] `marts/core/dim_payment_method.sql`
+- [x] `marts/core/fact_order.sql` — header amounts only (**no `revenue_usd`**); `shipping_charged_src/usd`, `payment_fee_usd`, `payment_fee_source`
+- [x] `marts/core/fact_order_item.sql` — official revenue; `order_status` + `is_revenue_status` flag
+- [x] `marts/core/fact_refund.sql` — order-level grain
+- [x] `marts/core/mart_customer_summary.sql` — `total_profit_usd` NULL until Phase 3
 
 ### Tests
-- [ ] Author `dbt/models/schema.yml`:
-  - [ ] `unique` + `not_null` on PKs
-  - [ ] `relationships` FK → dim
-  - [ ] `accepted_values` on status, currency
-  - [ ] `expression_is_true: line_revenue_usd >= 0`
-  - [ ] `expression_is_true: quantity > 0`
-- [ ] `dbt build` green
+- [x] Author `dbt/models/schema.yml`:
+  - [x] `unique` + `not_null` on PKs
+  - [x] `relationships` FK → dim
+  - [x] `accepted_values` on status, currency, `payment_fee_source`, `event_type`, `order_status`
+  - [x] `expression_is_true: line_revenue_usd >= 0` (+ `refund_amount_usd >= 0`, `fx_rate_to_usd not_null`)
+  - [x] `expression_is_true: quantity > 0`
+- [x] `dbt build` green — **PASS=141, WARN=0, ERROR=0**
 
 ### Verify & commit
-- [ ] Hand-calc 5 orders' Woo revenue → match `fact_order_item`
-- [ ] `dbt docs generate && dbt docs serve` — verify lineage
-- [ ] Commit + push
+- [x] Hand-calc 5 orders' Woo revenue → match `fact_order_item` (5/5 match; incl. EUR order)
+- [ ] `dbt docs generate && dbt docs serve` — verify lineage _(optional; deferred)_
+- [x] Commit (`<phase2>`); [ ] push _(pending)_
 
 ---
 
