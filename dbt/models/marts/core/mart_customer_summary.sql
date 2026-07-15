@@ -1,9 +1,10 @@
 {{ config(materialized='table') }}
 
 -- Per-customer behavioral summary. Grain: one row per customer_hash. Revenue is
--- rolled up from fact_order_item (the single revenue source). total_profit_usd
--- (Phase 3) sums contribution profit from mart_order_profit over the customer's
--- cost-covered orders; NULL when the customer has no cost-enriched orders yet.
+-- rolled up from fact_order_item (the single revenue source), NET of refunds.
+-- total_profit_usd (Phase 3) sums contribution profit from mart_order_profit
+-- over the customer's cost-covered orders; NULL when the customer has no
+-- cost-enriched orders yet.
 
 with order_rev as (
     -- filtered by is_revenue_status to match every other revenue rollup
@@ -11,8 +12,18 @@ with order_rev as (
     -- per-customer revenue and was inconsistent with total_profit_usd below.
     select
         order_sk,
-        sum(line_revenue_usd) filter (where is_revenue_status) as order_revenue_usd
+        sum(line_revenue_usd) filter (where is_revenue_status) as gross_revenue_usd
     from {{ ref('fact_order_item') }}
+    group by order_sk
+),
+
+order_refunds as (
+    -- refunds are a Woo-native concept independent of manual cost coverage, so
+    -- they are pulled straight from fact_refund (not mart_order_profit) —
+    -- total_revenue_usd nets refunds for EVERY order, not just cost-covered
+    -- ones, keeping this summary's revenue coverage as broad as before.
+    select order_sk, sum(refund_amount_usd) as refunds_usd
+    from {{ ref('fact_refund') }}
     group by order_sk
 ),
 
@@ -38,10 +49,14 @@ joined as (
         b.country_code,
         b.order_date,
         b.order_sk,
-        coalesce(r.order_revenue_usd, 0) as order_revenue_usd,
+        -- net of refunds, floored at 0 per order: Woo refunds are full-order
+        -- (incl. shipping) so an uncapped subtraction from line-revenue-only would
+        -- push a fully-refunded order's revenue negative (see mart_order_profit).
+        greatest(coalesce(r.gross_revenue_usd, 0) - coalesce(rf.refunds_usd, 0), 0) as order_revenue_usd,
         p.contribution_profit_usd        as order_profit_usd
     from base b
     left join order_rev r on r.order_sk = b.order_sk
+    left join order_refunds rf on rf.order_sk = b.order_sk
     left join order_profit p on p.order_sk = b.order_sk
 ),
 

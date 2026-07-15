@@ -73,13 +73,14 @@
 ### B5. Contribution Profit *(locked formula)*
 - **Formula:**
   ```
-  Contribution Profit = Revenue − COGS − Payment Fee − Design Fee
+  Contribution Profit = Net Revenue − COGS − Payment Fee − Design Fee
   ```
+  where **Net Revenue = A2 = gross Revenue (A1) − refunds** (`SUM(fact_refund.refund_amount_usd)` per order). `mart_order_profit` exposes `gross_revenue_usd`, `refunds_usd`, and `net_revenue_usd`; `revenue_usd` is an alias for **net**. Refunds are booked on the refund date.
 - **Critical caveat (must appear on every profit visual):**
-  > COGS from the manual sheet **already includes** supplier fulfillment/shipping fee where applicable, so shipping cost is **not** subtracted again. The CSV `Shipping` column is the *customer* shipping charge, not a supplier cost.
+  > COGS from the manual sheet **already includes** supplier fulfillment/shipping fee where applicable, so shipping cost is **not** subtracted again. The CSV `Shipping` column is the *customer* shipping charge, not a supplier cost. Revenue here is **net of refunds** — a refunded sale is not counted at full value.
 
 ### B6. Profit Margin
-- **Formula:** `Contribution Profit / Revenue`
+- **Formula:** `Contribution Profit / Net Revenue`
 
 ### B7. ROI (POD definition)
 - **Formula:** `Contribution Profit / COGS`
@@ -182,7 +183,7 @@ F2 Conversion Rate by Channel — same.
 
 | Metric | Formula | Target | Model phase | Dashboard phase |
 |---|---|---|---|---|
-| H1. Cost Coverage % | `COUNT(revenue orders with fact_order_cost) / COUNT(revenue orders)` where *revenue order* = has ≥1 `is_revenue_status` line. Profit only applies to revenue orders, so dead failed/cancelled orders are excluded from the denominator. `all_order_coverage_pct` (÷ all orders) is kept as an informational column. | tiered, see §J | 3 | 4 |
+| H1. Cost Coverage % | `COUNT(revenue orders with fact_order_cost AND cogs_usd > 0) / COUNT(revenue orders)` where *revenue order* = has ≥1 `is_revenue_status` line. A `fact_order_cost` row with `cogs_usd` 0/null is **cost unknown**, not covered — row existence alone does not count. Profit only applies to revenue orders, so dead failed/cancelled orders are excluded from the denominator. `cogs_coverage_pct` is the same figure, exposed under its own name for clarity; `all_order_coverage_pct` (÷ all orders, row-existence only) is kept as an informational column. | tiered, see §J | 3 | 4 |
 | H2. Cost Allocation Coverage % | `COUNT(line items with cost_allocation_method='line_exact') / COUNT(fact_order_item)` | informational | 3 | 4 |
 | H3. COGS Coverage % | `COUNT(fact_order_cost WHERE cogs_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 3 | 4 |
 | H4. Payment Fee Coverage % | `COUNT(fact_order WHERE payment_fee_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 2 | 4 |
@@ -223,7 +224,7 @@ F2 Conversion Rate by Channel — same.
 
 **Tiered visibility for profit metrics (B1–B8):**
 
-Cost Coverage % here is H1 measured over **revenue orders** (see H1 note) — not all orders — because profit is only defined for orders that generated revenue.
+Cost Coverage % here is H1 measured over **revenue orders** (see H1 note) — not all orders — because profit is only defined for orders that generated revenue, and requires a real `cogs_usd > 0` value, not merely a `fact_order_cost` row existing.
 
 | Cost Coverage % (H1, revenue-order basis) | Profit metric visibility | UI treatment |
 |---|---|---|

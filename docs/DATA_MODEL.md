@@ -56,11 +56,20 @@ Profit is **computed in dbt marts** by joining WooCommerce revenue with manual C
 
 ```
 contribution_profit_usd =
-    revenue_usd
+    net_revenue_usd
   − cogs_usd          -- from manual CSV; INCLUDES supplier fulfillment/shipping fee where applicable
   − design_fee_usd    -- from manual CSV
   − payment_fee_usd   -- from Woo payload audit; fallbacks tracked via payment_fee_source
+
+net_revenue_usd = gross_revenue_usd − effective_refund_usd
+  gross_revenue_usd    = SUM(fact_order_item.line_revenue_usd) over the order, filtered by is_revenue_status
+  refunds_usd          = SUM(fact_refund.refund_amount_usd) over the order (POSITIVE; 0 when none) — the TRUE amount returned, incl. shipping
+  effective_refund_usd = LEAST(refunds_usd, gross_revenue_usd) — the portion applied to product revenue
+
+Refund netting is CAPPED at gross revenue. Woo refunds are full-order (product + shipping + tax; confirmed against the data), but this revenue base is line revenue only (shipping lives in fact_order.shipping_charged_usd, never here). Subtracting a shipping-inclusive refund uncapped would push product revenue negative, so effective_refund floors net at 0: a full refund reverses the sale to 0 (not below), and the order then shows a COGS loss — correct, because the item WAS produced before the refund (unlike failed/cancelled orders, which never incurred COGS).
 ```
+
+**Why net of refunds?** `is_revenue_status` treats `'refunded'` orders as revenue-bearing (they did sell), so without subtracting `refunds_usd`, a refunded order would show full gross revenue and full positive profit despite the money having been returned to the customer. `revenue_usd` is exposed in `mart_order_profit` as an **alias of `net_revenue_usd`**, so any consumer reading "revenue_usd" gets the net figure. `fact_refund` (built in Phase 1/2, order-level grain) is consumed here for the first time.
 
 **Why no separate shipping cost subtraction?**
 The CSV `Shipping` column is **shipping charged to the customer**, not supplier shipping cost. The supplier fulfillment/shipping fee is already inside `CoGS` in the manual sheet. Subtracting a "shipping cost" again would double-count.
@@ -71,16 +80,22 @@ If a future supplier/carrier API exposes a supplier shipping fee as a *separate*
 
 ```
 mart_order_profit per Woo order:
-  revenue_usd               = SUM(fact_order_item.line_revenue_usd) over order
-  cogs_usd                  = fact_order_cost.cogs_usd
-  design_fee_usd            = fact_order_cost.design_fee_usd
-  payment_fee_usd           = fact_order.payment_fee_usd
-  contribution_profit_usd   = revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd
-  profit_margin             = contribution_profit_usd / revenue_usd
-  cost_confidence           = fact_order_cost.cost_confidence
-  cost_allocation_method    = fact_order_cost.cost_allocation_method
-  payment_fee_source        = fact_order.payment_fee_source
+  gross_revenue_usd         = SUM(fact_order_item.line_revenue_usd) filtered by is_revenue_status
+  refunds_usd                = SUM(fact_refund.refund_amount_usd) over order (0 when none) -- true amount returned
+  effective_refund_usd       = LEAST(refunds_usd, gross_revenue_usd)   -- capped; applied to product revenue
+  net_revenue_usd            = gross_revenue_usd − effective_refund_usd -- floored at 0
+  revenue_usd                = net_revenue_usd   -- alias; downstream reads NET
+  cogs_usd                   = fact_order_cost.cogs_usd
+  design_fee_usd              = fact_order_cost.design_fee_usd
+  payment_fee_usd             = coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0)
+  contribution_profit_usd     = net_revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd
+  profit_margin               = contribution_profit_usd / nullif(net_revenue_usd, 0)   -- NULL when fully refunded
+  cost_confidence             = fact_order_cost.cost_confidence
+  cost_allocation_method      = fact_order_cost.cost_allocation_method
+  payment_fee_source          = fact_order.payment_fee_source
 ```
+
+Scope: an order is in `mart_order_profit` only when it has cost enrichment AND `gross_revenue_usd > 0` (pre-refund) — an order whose lines are all failed/cancelled/pending never enters. A **fully refunded** order stays in scope (it did sell) with `net_revenue_usd` floored at zero (not negative), so it correctly shows a COGS loss rather than being dropped.
 
 ### 4.3 Product-level profit (`mart_product_profit`)
 
@@ -92,10 +107,13 @@ COGS may be available **only at order level** in the sheet. Allocate to lines:
 | Allocated by revenue share | Default fallback when only order-level cost exists | `'allocated_by_revenue_share'` | `0.60` |
 | Allocated by quantity share | Opt-in alternative | `'allocated_by_quantity_share'` | `0.50` |
 
-For revenue-share allocation:
+For revenue-share allocation, EVERY order-level term (COGS, design fee, payment fee, and the capped `effective_refund_usd`) is allocated to lines by the same share:
 ```
-line_cogs_usd = order.cogs_usd * (line.line_revenue_usd / order.revenue_usd)
+line_<term>_usd = order.<term>_usd * (line.line_revenue_usd / order.revenue_usd)
+line_net_revenue_usd = line.line_revenue_usd − line_refund_usd
+line_profit_usd       = line_net_revenue_usd − line_cogs_usd − line_design_fee_usd − line_payment_fee_usd
 ```
+`SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent).
 
 Every product-profit row carries `cost_allocation_method` and `cost_confidence`. Dashboards displaying product-level profit show a caveat tag whenever `cost_allocation_method != 'line_exact'`.
 

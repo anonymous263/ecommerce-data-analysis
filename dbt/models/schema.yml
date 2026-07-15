@@ -300,14 +300,32 @@ models:
 
   # ----------------------------------------------------- core: profit marts
   - name: mart_order_profit
-    description: Order-level contribution profit (revenue − cogs − design_fee − payment_fee).
+    description: >
+      Order-level contribution profit (net_revenue_usd − cogs − design_fee −
+      payment_fee), where net_revenue_usd = gross_revenue_usd − effective_refund_usd
+      and effective_refund_usd = LEAST(refunds_usd, gross_revenue_usd) (Woo refunds
+      are full-order/shipping-inclusive, so the netting is capped at gross revenue
+      and floors net at 0). revenue_usd is an alias of net_revenue_usd.
     columns:
       - name: order_sk
         tests:
           - unique
           - not_null
           - relationships: { to: ref('fact_order'), field: order_sk }
+      - name: gross_revenue_usd
+        description: SUM(fact_order_item.line_revenue_usd) filtered by is_revenue_status, PRE-refund.
+        tests: [not_null]
+      - name: refunds_usd
+        description: SUM(fact_refund.refund_amount_usd) for this order (TRUE amount returned, incl. shipping); 0 when no refunds.
+        tests: [not_null]
+      - name: effective_refund_usd
+        description: LEAST(refunds_usd, gross_revenue_usd) — portion of the refund applied to product revenue (capped at gross so net floors at 0).
+        tests: [not_null]
+      - name: net_revenue_usd
+        description: gross_revenue_usd − effective_refund_usd; the basis for contribution_profit_usd. Floored at 0.
+        tests: [not_null]
       - name: revenue_usd
+        description: Alias of net_revenue_usd (kept so existing consumers of "revenue_usd" get NET).
         tests: [not_null]
       - name: payment_fee_source
         tests:
@@ -319,7 +337,10 @@ models:
               values: [line_exact, allocated_by_revenue_share, allocated_by_quantity_share, order_only]
 
   - name: mart_product_profit
-    description: Line-grain profit with revenue-share allocated cost.
+    description: >
+      Line-grain profit: cogs/design_fee/payment_fee/refunds allocated from
+      mart_order_profit by revenue share. line_profit_usd sums exactly to the
+      order's contribution_profit_usd across all lines of a revenue-bearing order.
     columns:
       - name: order_item_sk
         tests:
@@ -330,6 +351,10 @@ models:
         tests:
           - not_null
           - relationships: { to: ref('fact_order'), field: order_sk }
+      - name: line_net_revenue_usd
+        description: line_revenue_usd minus this line's revenue-share of the order's effective_refund_usd (capped refund).
+      - name: line_profit_usd
+        description: line_net_revenue_usd − line_cogs_usd − line_design_fee_usd − line_payment_fee_usd.
       - name: cost_allocation_method
         tests:
           - accepted_values:

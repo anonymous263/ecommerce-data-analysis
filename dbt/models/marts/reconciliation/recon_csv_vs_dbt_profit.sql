@@ -2,7 +2,10 @@
 
 -- Drift monitor: CSV observed Profit vs dbt contribution profit, per order.
 -- CSV Profit is NEVER an official metric — informational only (DATA_MODEL §12).
--- dbt profit = mart_order_profit.contribution_profit_usd.
+-- dbt profit = mart_order_profit.contribution_profit_usd, which is now NET of
+-- refunds; the CSV's own Profit figure uses whatever basis the sheet owner
+-- used (not necessarily refund-aware), so some of the drift this view surfaces
+-- for refunded orders is expected and not a dbt bug.
 
 with csv as (
     select order_sk, csv_profit_observed_usd
