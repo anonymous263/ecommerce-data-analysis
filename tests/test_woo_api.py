@@ -13,7 +13,12 @@ import httpx
 import pytest
 
 from src.extract import woo_api
-from src.load.upsert import _encode_row, build_upsert_sql, upsert_rows
+from src.load.upsert import (
+    _encode_row,
+    build_bulk_upsert_sql,
+    build_upsert_sql,
+    upsert_rows,
+)
 from src.utils.config import Site
 from src.utils.http import (
     DEFAULT_USER_AGENT,
@@ -36,6 +41,8 @@ SAMPLE_ORDER = {
         {"id": 5001, "product_id": 42, "quantity": 2},
         {"id": 5002, "product_id": 43, "quantity": 1},
     ],
+    # Non-empty refunds summary -> the extractor will fetch /orders/1001/refunds.
+    "refunds": [{"id": 9001, "total": "-5.00"}],
 }
 
 
@@ -120,6 +127,27 @@ def test_build_upsert_sql_is_idempotent_and_excludes_pk():
 def test_build_upsert_sql_rejects_unknown_conflict_col():
     with pytest.raises(ValueError):
         build_upsert_sql("raw.woo_orders", ["site_code"], ["woo_order_id"])
+
+
+def test_build_bulk_upsert_sql_has_single_values_placeholder_and_jsonb_cast():
+    sql, template = build_bulk_upsert_sql(
+        "raw.woo_products",
+        ["site_code", "woo_product_id", "_payload"],
+        ["site_code", "woo_product_id"],
+    )
+    # execute_values requires exactly one VALUES %s placeholder.
+    assert sql.count("%s") == 1
+    assert "VALUES %s" in sql
+    assert "ON CONFLICT (site_code, woo_product_id)" in sql
+    # PK excluded from the update set; payload updated and cast to JSONB per row.
+    assert "site_code = EXCLUDED.site_code" not in sql
+    assert "_payload = EXCLUDED._payload" in sql
+    assert template == "(%s, %s, CAST(%s AS JSONB))"
+
+
+def test_build_bulk_upsert_sql_rejects_unknown_conflict_col():
+    with pytest.raises(ValueError):
+        build_bulk_upsert_sql("raw.woo_products", ["site_code"], ["woo_product_id"])
 
 
 # --- credentials ------------------------------------------------------------
@@ -534,6 +562,36 @@ def test_extract_orders_failure_mid_pull_leaves_watermark_unchanged(monkeypatch)
         woo_api._extract_orders_and_refunds(_site(), object(), object(), full_refresh=False)
 
     assert watermarks.calls == []  # invariant: no advance on partial failure
+
+
+def test_extract_orders_only_fetches_refunds_for_orders_with_refunds_summary(monkeypatch):
+    # One order has a non-empty refunds summary, one has none -> only the first
+    # should trigger the (slow) /orders/<id>/refunds sub-request.
+    with_refunds = {"id": 2001, "date_modified_gmt": "2026-07-10T00:00:00",
+                    "line_items": [], "refunds": [{"id": 7001, "total": "-3.00"}]}
+    without_refunds = {"id": 2002, "date_modified_gmt": "2026-07-11T00:00:00",
+                       "line_items": [], "refunds": []}
+    fetched_refund_paths: list[str] = []
+
+    def fake_paginate(client, path, params=None, **_kwargs):
+        if path == "/orders":
+            return iter([with_refunds, without_refunds])
+        fetched_refund_paths.append(path)
+        return iter([{"id": 7001, "date_created_gmt": "2026-07-10T01:00:00"}])
+
+    monkeypatch.setattr(woo_api, "read_watermark", lambda *a, **k: None)
+    monkeypatch.setattr(woo_api, "paginate", fake_paginate)
+    monkeypatch.setattr(woo_api, "_load_order_items", lambda *a, **k: 0)
+    upserts = _UpsertRecorder()
+    monkeypatch.setattr(woo_api, "upsert_rows", upserts)
+    monkeypatch.setattr(woo_api, "write_watermark", lambda *a, **k: None)
+
+    woo_api._extract_orders_and_refunds(_site(), object(), object(), full_refresh=False)
+
+    # Only order 2001's refunds endpoint is hit; 2002 is skipped entirely.
+    assert fetched_refund_paths == ["/orders/2001/refunds"]
+    refund_calls = [n for table, n in upserts.calls if table == "raw.woo_refunds"]
+    assert refund_calls == [1]  # exactly the one refund landed
 
 
 # --- _load_order_items: authoritative delete-then-insert (FIX 2) -----------

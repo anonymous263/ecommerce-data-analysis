@@ -11,6 +11,7 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from psycopg2.extras import execute_values
 from sqlalchemy import Engine, text
 
 from src.utils.logging import get_logger
@@ -18,6 +19,7 @@ from src.utils.logging import get_logger
 logger = get_logger(__name__)
 
 DEFAULT_JSON_COLUMNS = ("_payload",)
+BULK_PAGE_SIZE = 1000  # rows per multi-VALUES statement in execute_values
 
 
 def build_upsert_sql(
@@ -65,6 +67,39 @@ def _encode_row(row: Mapping[str, Any], json_columns: Sequence[str]) -> dict[str
     return encoded
 
 
+def build_bulk_upsert_sql(
+    table: str,
+    columns: Sequence[str],
+    conflict_cols: Sequence[str],
+    json_columns: Sequence[str] = DEFAULT_JSON_COLUMNS,
+) -> tuple[str, str]:
+    """Return ``(sql, template)`` for a batched ``execute_values`` UPSERT.
+
+    ``sql`` carries the single ``VALUES %s`` placeholder execute_values expands;
+    ``template`` renders one row, casting ``json_columns`` to JSONB. Conflict/PK
+    columns are excluded from the UPDATE set (idempotent re-run).
+    """
+    if not conflict_cols:
+        raise ValueError("conflict_cols must be non-empty for an idempotent upsert")
+    unknown = [c for c in conflict_cols if c not in columns]
+    if unknown:
+        raise ValueError(f"conflict_cols not in columns: {unknown}")
+
+    json_set = set(json_columns)
+    conflict_set = set(conflict_cols)
+    insert_cols = ", ".join(columns)
+    conflict = ", ".join(conflict_cols)
+    update_cols = [c for c in columns if c not in conflict_set]
+    assignments = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+    action = f"DO UPDATE SET {assignments}" if assignments else "DO NOTHING"
+
+    sql = f"INSERT INTO {table} ({insert_cols}) VALUES %s ON CONFLICT ({conflict}) {action}"
+    template = "(" + ", ".join(
+        "CAST(%s AS JSONB)" if c in json_set else "%s" for c in columns
+    ) + ")"
+    return sql, template
+
+
 def upsert_rows(
     engine: Engine,
     table: str,
@@ -72,17 +107,34 @@ def upsert_rows(
     conflict_cols: Sequence[str],
     json_columns: Sequence[str] = DEFAULT_JSON_COLUMNS,
 ) -> int:
-    """UPSERT ``rows`` into ``table``; returns the number of rows submitted.
+    """UPSERT ``rows`` into ``table`` via batched ``execute_values``; returns the
+    number of rows submitted.
 
     Column list is taken from the first row (all rows must share keys). A no-op
-    when ``rows`` is empty.
+    when ``rows`` is empty. Batched at ``BULK_PAGE_SIZE`` so a 58k-row load is a
+    handful of multi-VALUES statements, not one round trip per row.
     """
     if not rows:
         return 0
     columns = list(rows[0].keys())
-    sql = build_upsert_sql(table, columns, conflict_cols, json_columns)
-    params = [_encode_row(row, json_columns) for row in rows]
+    json_set = set(json_columns)
+    sql, template = build_bulk_upsert_sql(table, columns, conflict_cols, json_columns)
+
+    def to_tuple(row: Mapping[str, Any]) -> tuple[Any, ...]:
+        values: list[Any] = []
+        for col in columns:
+            value = row.get(col)
+            if col in json_set and not isinstance(value, (str, type(None))):
+                value = json.dumps(value, ensure_ascii=False, default=str)
+            values.append(value)
+        return tuple(values)
+
+    argslist = [to_tuple(row) for row in rows]
     with engine.begin() as conn:
-        conn.execute(text(sql), params)
-    logger.info("Upserted %d rows into %s", len(params), table)
-    return len(params)
+        cursor = conn.connection.cursor()
+        try:
+            execute_values(cursor, sql, argslist, template=template, page_size=BULK_PAGE_SIZE)
+        finally:
+            cursor.close()
+    logger.info("Upserted %d rows into %s", len(argslist), table)
+    return len(argslist)

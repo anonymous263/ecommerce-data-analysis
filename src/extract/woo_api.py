@@ -46,6 +46,10 @@ RAW_DDL_PATH = PROJECT_ROOT / "sql" / "ddl" / "01_raw_woo.sql"
 WATERMARK_OVERLAP_SECONDS = 1
 WATERMARK_OVERLAP = timedelta(seconds=WATERMARK_OVERLAP_SECONDS)
 
+# Full-pull list endpoints (products/customers/coupons) upsert in batches of this
+# size as pages stream in, bounding memory for large catalogues (e.g. 58k products).
+STREAM_BATCH_SIZE = 500
+
 # entity -> (raw table, conflict/PK columns)
 ENTITY_TARGETS: dict[str, tuple[str, tuple[str, ...]]] = {
     "orders": ("raw.woo_orders", ("site_code", "woo_order_id")),
@@ -283,6 +287,11 @@ def _extract_orders_and_refunds(
 
     refund_rows: list[dict[str, Any]] = []
     for order in orders:
+        # The order payload carries a `refunds` summary array; only orders with
+        # a non-empty summary need the (slow) per-order /refunds sub-request. This
+        # avoids one GET per order across the whole store (e.g. 4757 -> 34).
+        if not order.get("refunds"):
+            continue
         order_id = int(order["id"])
         refunds = list(paginate(client, f"/orders/{order_id}/refunds"))
         refund_rows.extend(
@@ -341,11 +350,25 @@ def _extract_simple(
     entity: str,
     mapper: Callable[[dict[str, Any], str, datetime], dict[str, Any]],
 ) -> int:
+    """Full-pull a list endpoint (products/customers/coupons), streaming pages.
+
+    Rows are upserted in batches of ``STREAM_BATCH_SIZE`` as pages arrive, so a
+    large catalogue (e.g. 58k products) never loads fully into memory and each
+    batch commits independently — a mid-run stop loses at most one batch, which
+    the idempotent upsert re-lands on the next run.
+    """
     table, conflict = ENTITY_TARGETS[entity]
     extracted_at = datetime.now(timezone.utc)
-    records = list(paginate(client, f"/{entity}"))
-    rows = [mapper(record, site.site_code, extracted_at) for record in records]
-    return upsert_rows(engine, table, rows, conflict)
+    total = 0
+    batch: list[dict[str, Any]] = []
+    for record in paginate(client, f"/{entity}"):
+        batch.append(mapper(record, site.site_code, extracted_at))
+        if len(batch) >= STREAM_BATCH_SIZE:
+            total += upsert_rows(engine, table, batch, conflict)
+            batch = []
+    if batch:
+        total += upsert_rows(engine, table, batch, conflict)
+    return total
 
 
 # ---------------------------------------------------------------------------
