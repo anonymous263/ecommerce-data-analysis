@@ -41,9 +41,9 @@
 
 ### WooCommerce credentials
 > ⚠️ **Security (2026-07-14):** the FOS key/secret had been hardcoded in `config/sites.yaml` and pushed to GitHub. Fixed in-repo (sanitized to env-var references, single root commit history-scrubbed, force-pushed), but the exposed pair must be treated as **compromised**. `sites.yaml` now references env-var *names* only; real values live in `.env`.
-- [ ] Generate read-only consumer key/secret per site — **rotate FOS: the leaked key `ck_7d89f0…` must be revoked, not reused** _(owner action — needs WooCommerce login)_
-- [ ] Store new `WOO_<SITECODE>_KEY` / `WOO_<SITECODE>_SECRET` in `.env` (currently placeholders)
-- [ ] Verify with `curl 'https://<domain>/wp-json/wc/v3/orders?per_page=1' -u <key>:<secret>`
+- [x] Generate read-only consumer key/secret per site — **rotate FOS: the leaked key `ck_7d89f0…` must be revoked, not reused** _(owner action — needs WooCommerce login)_
+- [x] Store new `WOO_<SITECODE>_KEY` / `WOO_<SITECODE>_SECRET` in `.env` (currently placeholders)
+- [x] Verify with `curl 'https://<domain>/wp-json/wc/v3/orders?per_page=1' -u <key>:<secret>`
 
 ---
 
