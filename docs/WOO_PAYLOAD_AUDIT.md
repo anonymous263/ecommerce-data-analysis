@@ -96,6 +96,7 @@ Distribution across 4,757 orders — **all are standard WooCommerce core statuse
 - `seed_estimate` — fall back to `dbt/seeds/payment_fees.csv` for the ~20.5% without a plugin fee (mostly `ppcp-gateway`, `failed`/`cancelled`).
 - `missing` — set `payment_fee_usd = NULL` where neither applies.
 - **FX note:** the fee is in `_cs_*_currency` (processor currency), so staging must FX-convert the fee to USD, not assume order currency.
+- **Phase 2 implementation status:** `dbt/seeds/payment_fees.csv` currently ships as a placeholder with its only row `is_active = false`, so `fact_order.fee_fx_rate`/seed join never matches and `seed_estimate` is **currently unreachable** — the live path is `plugin_parser` (3,782 orders, 79.5%) → `missing` (975 orders, 20.5%). `seed_estimate` activates only once real per-method fee-percent/fixed-fee estimates are seeded (no fabricated numbers added in Phase 2).
 
 ## 7. Refund fields & grain
 
@@ -139,7 +140,7 @@ Single currency per order; four across the site (matches `config/sites.yaml` `su
 ## 11. Summary & dbt staging implications
 
 - **Variant parsing:** from `line_items[].meta_data` `display_key` → `Size`, `Color`, `Style` (product_type proxy), `Fit Type` (gender proxy), `Print on the`. Ignore `variation_id`. Free-text personalization (`Customize Text`, `Upload your design`) = PII → hash/drop.
-- **Payment fee:** `plugin_parser` from order meta `_cs_stripe_fee` / `_cs_paypal_fee` (79.5% coverage → "estimated payment fee" chip until ≥80%); `seed_estimate` fallback; FX from `_cs_*_currency`. `payment_fee_source ∈ {plugin_parser, seed_estimate, missing}` (no `api_exact` — no native field).
+- **Payment fee:** `plugin_parser` from order meta `_cs_stripe_fee` / `_cs_paypal_fee` (79.5% coverage → "estimated payment fee" chip until ≥80%); `seed_estimate` fallback; FX from `_cs_*_currency`. `payment_fee_source ∈ {plugin_parser, seed_estimate, missing}` (no `api_exact` — no native field). **As implemented in Phase 2, `seed_estimate` is unreachable** (`dbt/seeds/payment_fees.csv` is placeholder-only, `is_active = false`) — live distribution is `plugin_parser` 3,782 / `missing` 975 (79.5% / 20.5%); `seed_estimate` is deferred until real per-method estimates are seeded.
 - **Refund grain:** order-level (`amount`); item-level disabled.
 - **Custom statuses:** none — 1:1 canonical mapping.
 - **Shipping charged:** `shipping_total` → `shipping_charged_usd` (FX). Recon vs CSV `Shipping`.

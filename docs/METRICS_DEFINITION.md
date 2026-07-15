@@ -15,8 +15,8 @@
 *Tables: `marts_core.fact_order`, `fact_order_item`, `fact_refund`.*
 
 ### A1. Revenue (gross)
-- **Formula:** `SUM(fact_order_item.line_revenue_usd)`
-- **Caveats:** Gross of refunds. CSV `Revenue` is not used — drift only in `recon_csv_vs_dbt_revenue`.
+- **Formula:** `SUM(fact_order_item.line_revenue_usd) WHERE is_revenue_status`
+- **Caveats:** Gross of refunds. Revenue counts only orders with `is_revenue_status = true` (Woo status `completed`/`processing`/`refunded`, per `WOO_PAYLOAD_AUDIT.md` §5) — `failed`/`cancelled`/`pending` orders are excluded even though their line items still carry a non-null `line_revenue_usd`. CSV `Revenue` is not used — drift only in `recon_csv_vs_dbt_revenue`.
 
 ### A2. Net Revenue
 - **Formula:** `Revenue − SUM(fact_refund.refund_amount_usd)`
@@ -40,7 +40,7 @@
 - **Caveats:** This is **revenue-side** (what the customer paid for shipping). It is **not** a cost. Supplier shipping fee is inside `cogs_usd`. The CSV `Shipping` column represents the same concept and is compared in `recon_woo_vs_csv_shipping_charged`.
 
 ### A8. Shipping Charged / Revenue
-- **Formula:** `SUM(shipping_charged_usd) / SUM(line_revenue_usd)`
+- **Formula:** `SUM(shipping_charged_usd) / SUM(line_revenue_usd) WHERE is_revenue_status` (denominator = A1 Revenue)
 - **Use:** spot countries where shipping is a large share of order value (priced-in vs not).
 
 ---
@@ -163,16 +163,16 @@ F2 Conversion Rate by Channel — same.
 *Source: WooCommerce. **Model-available: Phase 2. Dashboard-visible: Phase 4.***
 
 ### G1. Revenue per Site
-`SUM(line_revenue_usd) GROUP BY site_sk`
+`SUM(line_revenue_usd) WHERE is_revenue_status GROUP BY site_sk` (= A1 Revenue, grouped)
 
 ### G2. Revenue per Country
-`SUM(line_revenue_usd) GROUP BY country_sk`
+`SUM(line_revenue_usd) WHERE is_revenue_status GROUP BY country_sk` (= A1 Revenue, grouped)
 
 ### G3. AOV per Country
 - Sample-size guard: hide countries with < 10 orders.
 
 ### G4. Shipping Charged Ratio by Country
-- **Formula:** `SUM(shipping_charged_usd) / SUM(line_revenue_usd) GROUP BY country_sk`
+- **Formula:** `SUM(shipping_charged_usd) / SUM(line_revenue_usd) WHERE is_revenue_status GROUP BY country_sk`
 - **Not** a cost ratio — this is what customers are *paying for shipping* relative to revenue.
 
 ---
@@ -190,7 +190,7 @@ F2 Conversion Rate by Channel — same.
 | H5. Fulfillment Enrichment Coverage % | `COUNT(orders with fact_fulfillment) / COUNT(fact_order)` | ≥ 80% | 5 | 5 |
 | H6. GA4 ↔ Woo Order Count Ratio | `COUNTIF(ga4.purchase, day) / COUNT(woo.orders, day)` | report only | 6 | 6 |
 | H7. GA4 transaction_id Match Rate | `COUNT(ga4.purchase joined to fact_order) / COUNT(ga4.purchase)` | gate at 85% | 6 | 6 |
-| H8. CSV vs Woo Revenue Drift | `(csv.revenue − fact_order_item.line_revenue_usd) / fact_order_item.line_revenue_usd` | report only | 3 | 4 |
+| H8. CSV vs Woo Revenue Drift | `(csv.revenue − A1 Revenue) / A1 Revenue` (Woo side filtered `WHERE is_revenue_status`) | report only | 3 | 4 |
 | H9. CSV vs dbt Profit Drift | `(csv.profit − mart_order_profit.contribution_profit_usd) / mart_order_profit.contribution_profit_usd` | report only | 3 | 4 |
 | H10. Woo vs CSV Shipping Charged Drift | `(csv.shipping − fact_order.shipping_charged_usd) / fact_order.shipping_charged_usd` | report only | 3 | 4 |
 

@@ -1,0 +1,76 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      WooCommerce landing tables written by the Python EL layer. Every row
+      carries site_code, the Woo natural key, extracted_at, and the full
+      source object in _payload (JSONB). No business logic lives here.
+    tables:
+      - name: woo_orders
+        description: One row per Woo order header (site_code + woo_order_id).
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_order_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_order_id]
+
+      - name: woo_order_items
+        description: One row per order line item (exploded from orders[].line_items).
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_order_id
+            tests: [not_null]
+          - name: woo_order_item_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_order_id, woo_order_item_id]
+
+      - name: woo_products
+        description: One row per Woo product master (all type=simple for this store).
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_product_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_product_id]
+
+      - name: woo_customers
+        description: One row per Woo customer (currently empty; guest checkout dominates).
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_customer_id
+            tests: [not_null]
+
+      - name: woo_refunds
+        description: One row per Woo refund (order-level grain; line_items empty in source).
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_refund_id
+            tests: [not_null]
+          - name: woo_order_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_refund_id]
+
+      - name: woo_coupons
+        description: One row per Woo coupon.
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_coupon_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_coupon_id]
