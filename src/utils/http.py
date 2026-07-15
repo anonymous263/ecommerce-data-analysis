@@ -19,10 +19,13 @@ logger = get_logger(__name__)
 
 MAX_RETRIES = 5
 BACKOFF_BASE_SECONDS = 1.0
-RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+# 429/5xx plus Cloudflare-specific 520-524 (origin/edge hiccups fronting the store).
+RETRY_STATUS = frozenset({429, 500, 502, 503, 504, 520, 521, 522, 523, 524})
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_PER_PAGE = 100
 MAX_RETRY_AFTER_SECONDS = 60  # cap a hostile/huge Retry-After so a run can't stall for hours
+# Cloudflare's WAF rejects the bare python-httpx UA with a 520; a real UA is required.
+DEFAULT_USER_AGENT = "EcommerceWarehouse/1.0 (Phase 1 EL; +https://github.com/anonymous263)"
 
 
 def backoff_seconds(attempt: int, base: float = BACKOFF_BASE_SECONDS) -> float:
@@ -36,7 +39,7 @@ def make_client(base_url: str, key: str, secret: str, timeout: float = DEFAULT_T
         base_url=base_url.rstrip("/") + "/wp-json/wc/v3",
         auth=(key, secret),
         timeout=timeout,
-        headers={"Accept": "application/json"},
+        headers={"Accept": "application/json", "User-Agent": DEFAULT_USER_AGENT},
     )
 
 

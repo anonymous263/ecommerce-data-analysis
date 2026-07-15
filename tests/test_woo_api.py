@@ -15,7 +15,13 @@ import pytest
 from src.extract import woo_api
 from src.load.upsert import _encode_row, build_upsert_sql, upsert_rows
 from src.utils.config import Site
-from src.utils.http import MAX_RETRY_AFTER_SECONDS, get_with_retries, paginate
+from src.utils.http import (
+    DEFAULT_USER_AGENT,
+    MAX_RETRY_AFTER_SECONDS,
+    get_with_retries,
+    make_client,
+    paginate,
+)
 
 FIXED_TS = datetime(2026, 7, 15, 8, 0, 0, tzinfo=timezone.utc)
 
@@ -251,6 +257,34 @@ def test_get_with_retries_raises_transport_error_after_exhausting():
     with _client(handler) as client:
         with pytest.raises(httpx.ConnectError):
             get_with_retries(client, "/orders", sleep=lambda _s: None)
+
+
+def test_make_client_sets_user_agent_and_wc_base_url():
+    # Cloudflare's WAF 520s the bare python-httpx UA, so make_client MUST send a real one.
+    client = make_client("https://example.test/", "ck_x", "cs_y")
+    try:
+        assert client.headers["User-Agent"] == DEFAULT_USER_AGENT
+        assert client.headers["Accept"] == "application/json"
+        assert str(client.base_url).rstrip("/") == "https://example.test/wp-json/wc/v3"
+    finally:
+        client.close()
+
+
+def test_get_with_retries_retries_cloudflare_520():
+    calls = {"n": 0}
+    slept: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return httpx.Response(520)  # Cloudflare origin/edge hiccup — transient
+        return httpx.Response(200, json={"ok": True})
+
+    with _client(handler) as client:
+        response = get_with_retries(client, "/orders", sleep=slept.append)
+    assert response.status_code == 200
+    assert calls["n"] == 3
+    assert len(slept) == 2
 
 
 def test_paginate_empty_result_yields_nothing():
