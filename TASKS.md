@@ -72,9 +72,9 @@
   - [x] log to `raw.pipeline_runs`
 - [x] `tests/test_woo_api.py` with mocked payloads (idempotency) — httpx `MockTransport` + fake engine, no DB/network
 - [x] `pytest -q` passes — **56 passed** (12 existing + 44 Phase 1); implementation independently Opus-reviewed and hardened (watermark same-second overlap, orphan-free order-item replace, Retry-After cap)
-- [ ] Backfill site `FOS` — _blocked: needs rotated FOS Woo key in `.env` + live Postgres_
-- [ ] Re-run extractor → no duplicates, row count unchanged — _blocked: needs live Postgres_
-- [ ] Reconcile `raw.woo_orders` row count vs WP admin (≤0.1%) — _blocked: needs live pull_
+- [x] Backfill site `FOS` (2026-07-15) — 4757 orders, 5190 items, 34 refunds, 58168 products, 79 coupons, 0 customers (guest checkout); run logged `success` in `raw.pipeline_runs` (~30 min), watermark `FOS/orders → 2026-07-15T00:00:39Z`
+- [x] Re-run extractor → no duplicates, row count unchanged — orders loaded in the first (killed) run **and** re-loaded on backfill, yet `raw.woo_orders` = 4757 with **0 duplicate keys** (idempotent upsert proven)
+- [x] Reconcile `raw.woo_orders` row count vs WP admin (≤0.1%) — 4757 landed = 4757 `X-WP-Total` (exact, 0% delta)
 
 ### Payload Audit — `docs/WOO_PAYLOAD_AUDIT.md`
 - [ ] Pull 20 recent orders per active site to `data/raw/audit/<site_code>/orders_sample.json` (gitignored)
