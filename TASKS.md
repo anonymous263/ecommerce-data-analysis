@@ -76,17 +76,17 @@
 - [x] Re-run extractor → no duplicates, row count unchanged — orders loaded in the first (killed) run **and** re-loaded on backfill, yet `raw.woo_orders` = 4757 with **0 duplicate keys** (idempotent upsert proven)
 - [x] Reconcile `raw.woo_orders` row count vs WP admin (≤0.1%) — 4757 landed = 4757 `X-WP-Total` (exact, 0% delta)
 
-### Payload Audit — `docs/WOO_PAYLOAD_AUDIT.md`
-- [ ] Pull 20 recent orders per active site to `data/raw/audit/<site_code>/orders_sample.json` (gitignored)
-- [ ] Fill order-level fields table
-- [ ] Fill `line_items[]` fields table
-- [ ] Document Acowebs `meta_data` keys (size, type, color, addons)
-- [ ] Document whether product_type / gender / size can be parsed automatically
-- [ ] Document custom order statuses
-- [ ] Document payment fee field location (`meta_data` / `fee_lines` / absent)
-- [ ] Document refund fields and confirm grain (order-level confirmed?)
-- [ ] Write summary + dbt staging implications
-- [ ] Commit + push
+### Payload Audit — `docs/WOO_PAYLOAD_AUDIT.md` ✅ COMPLETE (2026-07-15)
+- [x] ~~Pull 20 recent orders~~ → audited over the **full backfill** in `raw.woo_*` (4757 orders etc.) — stronger basis than a 20-order sample; introspected `_payload` structurally (keys/meta-keys/enums only, no PII)
+- [x] Fill order-level fields table (§2)
+- [x] Fill `line_items[]` fields table (§3)
+- [x] Document Acowebs/WCPA `meta_data` keys (§4) — `Size`/`Color`/`Style`/`Fit Type`/`Print on the` + `_WCPA_order_meta_data`; all products `simple` (variants via addons, not Woo variations)
+- [x] Document product_type / gender / size parseability (§4) — size/color/style parseable from item meta; gender only a `Fit Type` proxy
+- [x] Document custom order statuses (§5) — **none**; all 6 are standard Woo statuses
+- [x] Document payment fee field location (§6) — order `meta_data` `_cs_stripe_fee`/`_cs_paypal_fee` (79.5% coverage → `plugin_parser`); `fee_lines` = tips, not fees
+- [x] Document refund fields + grain (§7) — **order-level confirmed** (0/34 refunds have `line_items`)
+- [x] Write summary + dbt staging implications (§11)
+- [ ] Push (commits `f1e392e`, `5c789b6`, `7797964`, `473f2fc` + audit not yet pushed to GitHub)
 
 ---
 
