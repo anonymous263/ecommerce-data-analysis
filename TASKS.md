@@ -141,19 +141,19 @@
 
 > **Manual CSV PII rule:** for the manual Order Management CSV, unnecessary PII columns such as `Name`, `Email`, `Phone`, and `Ship to` are dropped **before** loading into `raw.csv_order_management`. Therefore `raw.csv_order_management` is **not** a byte-for-byte copy of the full sheet; it is a private raw operational extract with PII removed at ingestion. Tracking IDs and fulfillment URLs may be loaded to raw but **must** be hashed before staging/marts.
 
-- [ ] `src/extract/csv_order_management.py`:
-  - [ ] `pd.read_csv(skiprows=[1,2])`
-  - [ ] **drop PII (`Name`, `Email`, `Phone`, `Ship to`) BEFORE writing to `raw.csv_order_management`** — raw is not a full copy of the sheet
-  - [ ] normalize column names (whitespace, ASCII-fold diacritics)
-  - [ ] derive `(site_code, woo_order_id)` from `Project` + `Order Code`
-  - [ ] forward-fill order-level fields
-  - [ ] upsert into `raw.csv_order_management` with `extracted_at`
-  - [ ] keep `Tracking ID`, `Tracking Deliver URL`, `Fulfill URL` raw at this stage (hashed in staging, not at load)
-- [ ] `tests/test_csv_order_management.py` — header skip + PII drop (`Name`/`Email`/`Phone`/`Ship to` absent from raw output)
+- [x] `src/extract/csv_order_management.py`:
+  - [x] `pd.read_csv(skiprows=[1,2])`
+  - [x] **drop PII (`Name`, `Email`, `Phone`, `Ship to`) BEFORE writing to `raw.csv_order_management`** — raw is not a full copy of the sheet
+  - [x] normalize column names (whitespace, ASCII-fold diacritics)
+  - [x] derive `(site_code, woo_order_id)` from `Project` + `Order Code`
+  - [x] forward-fill order-level fields (by `Order Code`), then dedupe to order grain
+  - [x] TRUNCATE-and-reload `raw.csv_order_management` with `extracted_at` (snapshot semantics, per locked CSV rules)
+  - [x] keep `Tracking ID`, `Tracking Deliver URL`, `Fulfill URL` in `_payload` at this stage (hashed in Phase 5 staging, not at load)
+- [x] `tests/test_csv_order_management.py` — header skip + PII drop + forward-fill + dedupe + symbol strip + currency classification (20 tests, DB-free)
 
 ### dbt staging
-- [ ] `dbt/models/staging/manual/_sources.yml`
-- [ ] `stg_manual_order_cost_enrichment.sql` — outputs:
+- [x] `dbt/models/staging/manual/_sources.yml`
+- [x] `stg_manual_order_cost_enrichment.sql` — outputs (order-currency money kept as `*_src`, FX applied in `fact_order_cost`, matching the Woo staging→fact pattern):
   - `cogs_usd` (includes supplier fulfillment/shipping fee)
   - `design_fee_usd`
   - `payment_fee_fallback_usd` (only used when Woo cannot provide exact value)
@@ -166,35 +166,36 @@
 - [ ] `stg_manual_fulfillment_enrichment.sql` — parse supplier `#<store>.<order>`; hash tracking ID + URL
 
 ### dbt marts
-- [ ] `marts/operations/fact_order_cost.sql` — order-level cost with `cost_source`, `cost_allocation_method`, `cost_confidence` (no `actual_shipping_cost_usd`)
-- [ ] `marts/core/mart_order_profit.sql` — contribution profit = `revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd` (no shipping subtraction)
-- [ ] `marts/core/mart_product_profit.sql` — revenue-share allocation default
-- [ ] `marts/core/mart_country_profit.sql`
+- [x] `marts/operations/fact_order_cost.sql` — order-level cost with `cost_source`, `cost_allocation_method`, `cost_confidence` (no separate supplier-shipping cost field)
+- [x] `marts/core/mart_order_profit.sql` — contribution profit = `revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd` (no shipping subtraction)
+- [x] `marts/core/mart_product_profit.sql` — revenue-share allocation default
+- [x] `marts/core/mart_country_profit.sql`
+- [x] `marts/core/mart_customer_summary.sql` — `total_profit_usd` wired from `mart_order_profit` (was NULL pending Phase 3)
 
 ### Reconciliation
-- [ ] `marts/reconciliation/recon_csv_vs_dbt_revenue.sql`
-- [ ] `marts/reconciliation/recon_csv_vs_dbt_profit.sql`
-- [ ] **`marts/reconciliation/recon_woo_vs_csv_shipping_charged.sql`** — daily delta of Woo `shipping_charged_usd` vs CSV `csv_shipping_charged_usd` per site
-- [ ] `marts/reconciliation/recon_cost_coverage.sql`
-- [ ] `marts/reconciliation/recon_payment_fee_coverage.sql` — overall % + breakdown by `payment_fee_source`
+- [x] `marts/reconciliation/recon_csv_vs_dbt_revenue.sql`
+- [x] `marts/reconciliation/recon_csv_vs_dbt_profit.sql`
+- [x] **`marts/reconciliation/recon_woo_vs_csv_shipping_charged.sql`** — daily delta of Woo `shipping_charged_usd` vs CSV `csv_shipping_charged_usd` per site
+- [x] `marts/reconciliation/recon_cost_coverage.sql`
+- [x] `marts/reconciliation/recon_payment_fee_coverage.sql` — overall % + breakdown by `payment_fee_source`
 
 ### Tests
-- [ ] `not_null(order_sk)` on `fact_order_cost`
-- [ ] `relationships(order_sk → fact_order)` on `fact_order_cost`
-- [ ] `accepted_values(cost_allocation_method)` on `fact_order_cost`
-- [ ] `accepted_values(cost_source: manual_csv, supplier_api)` on `fact_order_cost`
-- [ ] `accepted_values(payment_fee_source: api_exact, plugin_parser, seed_estimate, missing)` on `fact_order`
-- [ ] `expression_is_true: cost_confidence BETWEEN 0 AND 1`
-- [ ] Singular: `assert_cost_coverage_tiers.sql` — warns at <80% (red) and at <95% (info) per [METRICS_DEFINITION.md §J](docs/METRICS_DEFINITION.md)
-- [ ] Singular: `assert_payment_fee_coverage_at_least_80.sql` (warn)
-- [ ] `dbt build` green
+- [x] `not_null(order_sk)` on `fact_order_cost`
+- [x] `relationships(order_sk → fact_order)` on `fact_order_cost`
+- [x] `accepted_values(cost_allocation_method)` on `fact_order_cost`
+- [x] `accepted_values(cost_source: manual_csv, supplier_api)` on `fact_order_cost`
+- [x] `accepted_values(payment_fee_source: api_exact, plugin_parser, seed_estimate, missing)` on `fact_order`
+- [x] `expression_is_true: cost_confidence BETWEEN 0 AND 1`
+- [x] Singular: `assert_cost_coverage_tiers.sql` — warns while below the green (<95%) tier per [METRICS_DEFINITION.md §J](docs/METRICS_DEFINITION.md)
+- [x] Singular: `assert_payment_fee_coverage_at_least_80.sql` (warn)
+- [x] `dbt build` green — **PASS=190, WARN=2 (both intended coverage warnings), ERROR=0**
 
 ### Verify
 - [ ] Verify whether WooCommerce shipping total matches CSV `Shipping` per order using `recon_woo_vs_csv_shipping_charged` (target daily delta ≤ 5%)
-- [ ] Cost coverage tier confirmed (record: red <80% / yellow 80–95% / green ≥95%)
+- [x] Cost coverage tier confirmed — **81.02% (3854/4757 FOS orders) → yellow (80–95%)**; payment-fee coverage 79.50% (plugin_parser), below the 80% chip threshold
 - [ ] CSV revenue vs Woo daily delta ≤ 5%
 - [ ] Hand-reconcile 5 sample orders end-to-end (revenue from Woo, cost from CSV, profit from mart, customer shipping charge from Woo)
-- [ ] Confirm no `actual_shipping_cost_usd` references remain anywhere in dbt models or DAX
+- [x] Confirm no `actual_shipping_cost_usd` references remain anywhere in dbt models (guarded by `tests/test_repo_scaffold.py::test_no_forbidden_shipping_cost_field_in_implementation_scaffold`)
 - [ ] Commit + push
 
 ---

@@ -242,3 +242,117 @@ models:
         tests: [not_null]
       - name: total_revenue_usd
         tests: [not_null]
+
+  # ============================================================ Phase 3 — cost
+  # ------------------------------------------------------- staging: manual cost
+  - name: stg_manual_order_cost_enrichment
+    description: Typed manual cost enrichment (order grain); no PII, money in *_src / already-USD.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [site_code, woo_order_id]
+    columns:
+      - name: site_code
+        tests: [not_null]
+      - name: woo_order_id
+        tests: [not_null]
+      - name: cost_source
+        tests:
+          - not_null
+          - accepted_values:
+              values: [manual_csv, supplier_api]
+      - name: cost_allocation_method
+        tests:
+          - not_null
+          - accepted_values:
+              values: [line_exact, allocated_by_revenue_share, allocated_by_quantity_share, order_only]
+
+  # -------------------------------------------------- operations: fact_order_cost
+  - name: fact_order_cost
+    description: Order-level cost enrichment (Phase 3). INVARIANT — no separate supplier-shipping cost field.
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "cost_confidence between 0 and 1"
+    columns:
+      - name: order_cost_sk
+        tests: [unique, not_null]
+      - name: order_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('fact_order'), field: order_sk }
+      - name: site_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_site'), field: site_sk }
+      - name: date_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_date'), field: date_sk }
+      - name: cost_source
+        tests:
+          - not_null
+          - accepted_values:
+              values: [manual_csv, supplier_api]
+      - name: cost_allocation_method
+        tests:
+          - not_null
+          - accepted_values:
+              values: [line_exact, allocated_by_revenue_share, allocated_by_quantity_share, order_only]
+
+  # ----------------------------------------------------- core: profit marts
+  - name: mart_order_profit
+    description: Order-level contribution profit (revenue − cogs − design_fee − payment_fee).
+    columns:
+      - name: order_sk
+        tests:
+          - unique
+          - not_null
+          - relationships: { to: ref('fact_order'), field: order_sk }
+      - name: revenue_usd
+        tests: [not_null]
+      - name: payment_fee_source
+        tests:
+          - accepted_values:
+              values: [api_exact, plugin_parser, seed_estimate, missing]
+      - name: cost_allocation_method
+        tests:
+          - accepted_values:
+              values: [line_exact, allocated_by_revenue_share, allocated_by_quantity_share, order_only]
+
+  - name: mart_product_profit
+    description: Line-grain profit with revenue-share allocated cost.
+    columns:
+      - name: order_item_sk
+        tests:
+          - unique
+          - not_null
+          - relationships: { to: ref('fact_order_item'), field: order_item_sk }
+      - name: order_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('fact_order'), field: order_sk }
+      - name: cost_allocation_method
+        tests:
+          - accepted_values:
+              values: [line_exact, allocated_by_revenue_share, allocated_by_quantity_share, order_only]
+
+  - name: mart_country_profit
+    description: Country × day profit roll-up.
+    columns:
+      - name: country_profit_sk
+        tests: [unique, not_null]
+      - name: country_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_country'), field: country_sk }
+
+  # -------------------------------------------------- reconciliation: coverage
+  - name: recon_unmatched_csv_cost
+    description: >
+      FOS manual-sheet cost rows whose Order Code matches no Woo order (typo,
+      deleted order, or not-yet-ingested) — dropped by fact_order_cost's INNER
+      JOIN with no other signal. Investigate/fix at the source sheet.
+    columns:
+      - name: site_code
+        tests: [not_null]
+      - name: order_code
+        tests: [not_null]

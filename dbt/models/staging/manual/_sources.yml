@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      Manual Order Management landing table written by the Python EL layer
+      (src/extract/csv_order_management.py). Order grain, PII already dropped at
+      load. Order-currency amounts land as *_src (FX->USD in dbt); CoGS/Design
+      fee/Revenue/Profit are already USD. No business logic lives here.
+    tables:
+      - name: csv_order_management
+        description: One row per Woo order (site_code + woo_order_id) from the manual sheet.
+        columns:
+          - name: site_code
+            tests: [not_null]
+          - name: woo_order_id
+            tests: [not_null]
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [site_code, woo_order_id]

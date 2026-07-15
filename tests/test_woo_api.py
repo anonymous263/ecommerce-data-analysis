@@ -13,6 +13,7 @@ import httpx
 import pytest
 
 from src.extract import woo_api
+from src.load import upsert as upsert_module
 from src.load.upsert import (
     _encode_row,
     build_bulk_upsert_sql,
@@ -402,6 +403,86 @@ def test_encode_row_leaves_string_and_none_payload_untouched():
 def test_upsert_rows_empty_is_noop_without_touching_engine():
     # engine=None proves no connection is opened for an empty batch.
     assert upsert_rows(None, "raw.woo_orders", [], ["site_code", "woo_order_id"]) == 0
+
+
+# --- upsert_rows(truncate_first=True): atomic truncate-reload (MEDIUM-2) ----
+class _FakeTruncateConn:
+    """Records exec_driver_sql / cursor() calls in order; no real DB."""
+
+    def __init__(self, calls: list[tuple[str, object]]) -> None:
+        self._calls = calls
+        self.connection = self  # upsert_rows does conn.connection.cursor()
+
+    def exec_driver_sql(self, sql: str) -> None:
+        self._calls.append(("exec_driver_sql", sql))
+
+    def cursor(self):
+        self._calls.append(("cursor", None))
+        return SimpleNamespace(close=lambda: self._calls.append(("cursor_close", None)))
+
+
+class _FakeTruncateEngineCtx:
+    def __init__(self, conn: _FakeTruncateConn) -> None:
+        self._conn = conn
+
+    def __enter__(self) -> _FakeTruncateConn:
+        return self._conn
+
+    def __exit__(self, *exc) -> bool:
+        return False
+
+
+class _FakeTruncateEngine:
+    """A single engine.begin() call reuses the same connection/transaction."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object]] = []
+        self._conn = _FakeTruncateConn(self.calls)
+
+    def begin(self) -> _FakeTruncateEngineCtx:
+        return _FakeTruncateEngineCtx(self._conn)
+
+
+def test_upsert_rows_truncate_first_with_no_rows_still_truncates():
+    engine = _FakeTruncateEngine()
+
+    total = upsert_rows(
+        engine, "raw.csv_order_management", [], ["site_code", "woo_order_id"], truncate_first=True
+    )
+
+    assert total == 0
+    assert engine.calls == [("exec_driver_sql", "TRUNCATE TABLE raw.csv_order_management")]
+
+
+def test_upsert_rows_truncate_first_runs_truncate_and_insert_in_one_transaction(monkeypatch):
+    captured: dict = {}
+
+    def fake_execute_values(cursor, sql, argslist, template=None, page_size=None):
+        captured["argslist"] = argslist
+
+    monkeypatch.setattr(upsert_module, "execute_values", fake_execute_values)
+    engine = _FakeTruncateEngine()
+    rows = [{"site_code": "FOS", "woo_order_id": 1, "_payload": {"a": 1}}]
+
+    total = upsert_rows(
+        engine, "raw.csv_order_management", rows, ["site_code", "woo_order_id"], truncate_first=True
+    )
+
+    assert total == 1
+    assert captured["argslist"] == [("FOS", 1, '{"a": 1}')]
+    # TRUNCATE and the insert's cursor() both happen inside ONE engine.begin()
+    # call (same fake connection) — proves atomicity, not two transactions.
+    assert engine.calls[0] == ("exec_driver_sql", "TRUNCATE TABLE raw.csv_order_management")
+    assert engine.calls[1] == ("cursor", None)
+    assert engine.calls[-1] == ("cursor_close", None)
+
+
+def test_upsert_rows_without_truncate_first_does_not_truncate():
+    engine = _FakeTruncateEngine()
+
+    upsert_rows(engine, "raw.csv_order_management", [], ["site_code", "woo_order_id"])
+
+    assert engine.calls == []  # untouched — default behaviour is unchanged
 
 
 # --- orchestration: watermark advances only on a fully successful pull ------

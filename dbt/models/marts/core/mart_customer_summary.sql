@@ -2,13 +2,23 @@
 
 -- Per-customer behavioral summary. Grain: one row per customer_hash. Revenue is
 -- rolled up from fact_order_item (the single revenue source). total_profit_usd
--- is intentionally NULL: cost (COGS/design fee) does not exist until Phase 3's
--- fact_order_cost, so contribution profit cannot be computed yet.
+-- (Phase 3) sums contribution profit from mart_order_profit over the customer's
+-- cost-covered orders; NULL when the customer has no cost-enriched orders yet.
 
 with order_rev as (
-    select order_sk, sum(line_revenue_usd) as order_revenue_usd
+    -- filtered by is_revenue_status to match every other revenue rollup
+    -- (fact_order_item, mart_order_profit) — an unfiltered sum here overstated
+    -- per-customer revenue and was inconsistent with total_profit_usd below.
+    select
+        order_sk,
+        sum(line_revenue_usd) filter (where is_revenue_status) as order_revenue_usd
     from {{ ref('fact_order_item') }}
     group by order_sk
+),
+
+order_profit as (
+    select order_sk, contribution_profit_usd
+    from {{ ref('mart_order_profit') }}
 ),
 
 base as (
@@ -28,9 +38,11 @@ joined as (
         b.country_code,
         b.order_date,
         b.order_sk,
-        coalesce(r.order_revenue_usd, 0) as order_revenue_usd
+        coalesce(r.order_revenue_usd, 0) as order_revenue_usd,
+        p.contribution_profit_usd        as order_profit_usd
     from base b
     left join order_rev r on r.order_sk = b.order_sk
+    left join order_profit p on p.order_sk = b.order_sk
 ),
 
 agg as (
@@ -38,6 +50,7 @@ agg as (
         customer_hash,
         count(distinct order_sk)                              as total_orders,
         round(sum(order_revenue_usd), 6)                      as total_revenue_usd,
+        round(sum(order_profit_usd), 6)                       as total_profit_usd,
         min(order_date)                                       as first_order_date,
         max(order_date)                                       as last_order_date,
         mode() within group (order by site_code)             as preferred_site_code,
@@ -53,7 +66,7 @@ select
     last_order_date,
     total_orders,
     total_revenue_usd,
-    cast(null as numeric)                                             as total_profit_usd,
+    total_profit_usd,
     (total_orders > 1)                                                as is_repeat,
     {{ dbt_utils.generate_surrogate_key(['preferred_site_code']) }}    as preferred_site_sk,
     {{ dbt_utils.generate_surrogate_key(['preferred_country_code']) }} as preferred_country_sk

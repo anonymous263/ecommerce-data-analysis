@@ -106,15 +106,28 @@ def upsert_rows(
     rows: Sequence[Mapping[str, Any]],
     conflict_cols: Sequence[str],
     json_columns: Sequence[str] = DEFAULT_JSON_COLUMNS,
+    *,
+    truncate_first: bool = False,
 ) -> int:
     """UPSERT ``rows`` into ``table`` via batched ``execute_values``; returns the
     number of rows submitted.
 
     Column list is taken from the first row (all rows must share keys). A no-op
-    when ``rows`` is empty. Batched at ``BULK_PAGE_SIZE`` so a 58k-row load is a
-    handful of multi-VALUES statements, not one round trip per row.
+    when ``rows`` is empty and ``truncate_first`` is False. Batched at
+    ``BULK_PAGE_SIZE`` so a 58k-row load is a handful of multi-VALUES
+    statements, not one round trip per row.
+
+    ``truncate_first=True`` runs ``TRUNCATE TABLE`` in the SAME transaction as
+    the insert (snapshot-reload sources such as the manual CSV pipeline), so a
+    mid-load failure rolls back to the prior good snapshot instead of leaving
+    the table empty — a TRUNCATE committed in its own transaction followed by a
+    separately-failed insert would otherwise lose the whole table.
     """
     if not rows:
+        if truncate_first:
+            with engine.begin() as conn:
+                conn.exec_driver_sql(f"TRUNCATE TABLE {table}")
+            logger.info("Truncated %s (no rows to reload)", table)
         return 0
     columns = list(rows[0].keys())
     json_set = set(json_columns)
@@ -131,10 +144,17 @@ def upsert_rows(
 
     argslist = [to_tuple(row) for row in rows]
     with engine.begin() as conn:
+        if truncate_first:
+            conn.exec_driver_sql(f"TRUNCATE TABLE {table}")
         cursor = conn.connection.cursor()
         try:
             execute_values(cursor, sql, argslist, template=template, page_size=BULK_PAGE_SIZE)
         finally:
             cursor.close()
-    logger.info("Upserted %d rows into %s", len(argslist), table)
+    logger.info(
+        "%s %d rows into %s",
+        "Truncated and reloaded" if truncate_first else "Upserted",
+        len(argslist),
+        table,
+    )
     return len(argslist)

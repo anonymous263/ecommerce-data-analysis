@@ -40,3 +40,6 @@ Thumbs.db
 # Large local/sample datasets
 E-commerce data sample/*.csv
 E-commerce data sample/*.docx
+# OMC operational state (keep project skills only)
+.omc/
+!.omc/skills/

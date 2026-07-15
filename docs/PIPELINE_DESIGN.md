@@ -224,6 +224,35 @@ contribution_profit_usd = revenue_usd − cogs_usd − design_fee_usd − paymen
 - `accepted_values('api_exact','plugin_parser','seed_estimate','missing')` on `payment_fee_source`
 - Singular tests with tiered warnings on cost coverage (see [METRICS_DEFINITION.md §J](METRICS_DEFINITION.md))
 
+### 5.7 Refreshing the warehouse (runbook)
+
+Full refresh cycle, run from the repo root (Windows PowerShell, using the venv
+Python). WooCommerce is incremental; the manual CSV is a truncate-reload
+snapshot; dbt rebuilds every model + test.
+
+```powershell
+# 1. WooCommerce raw ingestion (incremental high-watermark; idempotent upsert)
+.\.venv\Scripts\python.exe -m src.extract.woo_api
+
+# 2. Manual cost enrichment (TRUNCATE-and-reload of raw.csv_order_management;
+#    reads CSV_ORDER_MANAGEMENT_PATH or data/raw/manual/order_management.csv)
+.\.venv\Scripts\python.exe -m src.extract.csv_order_management
+
+# 3. dbt transform + test (raw -> staging -> marts). Run from dbt/ with .env
+#    loaded so PII_SALT is present for the hashing macro.
+dbt build
+```
+
+Notes:
+- Step 2 is a snapshot: rows deleted from the sheet disappear from raw on the
+  next run (unlike the incremental Woo upsert). Pass `--apply-ddl` the first
+  time to create `raw.csv_order_management`.
+- Cost coverage and payment-fee coverage are surfaced by
+  `marts_recon.recon_cost_coverage` / `recon_payment_fee_coverage`; the singular
+  tests `assert_cost_coverage_tiers` and `assert_payment_fee_coverage_at_least_80`
+  **warn** (never error) when below their thresholds — low coverage is a
+  data-completeness signal, not a pipeline failure.
+
 ---
 
 ## 6. Ads Pipeline (Optional Future)
