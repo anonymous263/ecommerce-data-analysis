@@ -175,7 +175,7 @@ CALCULATE (
 )
 
 // [Payment Fee Coverage %]  |  format: 0.00\%
-// All-sources payment-fee coverage percentage from marts_recon.recon_payment_fee_coverage on the '__ALL__' roll-up row, stored on a 0–100 scale (e.g. 79.50). When below 80 it activates [Payment Fee Chip] per invariant #6. See docs/METRICS_DEFINITION.md §K.
+// Payment-fee coverage percentage (revenue-order basis, same as H1) from marts_recon.recon_payment_fee_coverage on the '__ALL__' roll-up row, stored on a 0–100 scale (e.g. 98.03). When below 80 it activates [Payment Fee Chip] per invariant #6. See docs/METRICS_DEFINITION.md §H4/§K + METRIC_CHANGES.md.
 Payment Fee Coverage % =
 CALCULATE (
     MAX ( recon_payment_fee_coverage[fee_coverage_pct] ),
@@ -218,7 +218,7 @@ IF (
 )
 
 // [Payment Fee Chip]  |  format: (none — text measure)
-// Second chip shown on every profit visual when payment-fee coverage <80% (79.50% for FOS → chip ACTIVE). Reports the estimated share (100 − coverage, e.g. 20.5%) sourced from seed_estimate/missing. Per invariant #6 / §K. See docs/METRICS_DEFINITION.md §K.
+// Second chip shown on every profit visual when payment-fee coverage <80% (98.03% revenue-order basis for FOS → chip OFF). Reports the estimated share (100 − coverage) sourced from seed_estimate/missing. Per invariant #6 / §K. See docs/METRICS_DEFINITION.md §K.
 Payment Fee Chip =
 IF (
     [Payment Fee Coverage %] < 80,
@@ -373,7 +373,7 @@ RETURN
 
 // [Cost Coverage %] — reuses group B definition (recon_cost_coverage '__ALL__' row, pre-scaled 0–100). Consumed here for the coverage sub-page; not redefined. Live value 98.79% (GREEN).
 
-// [Payment Fee Coverage %] — reuses group B definition (recon_payment_fee_coverage '__ALL__' row, pre-scaled 0–100). Consumed here; not redefined. Live value 79.50% (<80% → payment-fee chip ON).
+// [Payment Fee Coverage %] — reuses group B definition (recon_payment_fee_coverage '__ALL__' row, pre-scaled 0–100). Consumed here; not redefined. Live value 98.03% revenue-order basis (≥80% → payment-fee chip OFF).
 
 // [COGS Coverage %]  |  format: 0.0"%"
 // COGS Coverage % (§H3): share of orders with a non-null cogs_usd, read straight from the dbt-computed recon '__ALL__' row (cogs_coverage_pct, e.g. 98.79) so the value matches dbt exactly rather than being recomputed in DAX. Target ≥ 80%. Value is pre-scaled 0–100, so the literal-percent format (0.0"%") avoids a ×100. See docs/METRICS_DEFINITION.md §H3.

@@ -18,9 +18,9 @@ The tier-gating you wire up in Step 6 is driven by two live coverage numbers. As
 | Coverage | Live value | Tier | Effect on dashboard |
 |---|---|---|---|
 | Cost Coverage % (H1, revenue-order basis) | **98.79%** | GREEN (≥ 95%) | Profit visuals **shown**, **no** partial-coverage chip |
-| Payment Fee Coverage % (H4) | **79.50%** | < 80% | Payment-fee chip **IS shown** on every profit visual |
+| Payment Fee Coverage % (H4, revenue-order basis) | **98.03%** | ≥ 80% | Payment-fee chip **NOT shown** (all-orders 79.50% is informational only) |
 
-So in the finished MVP: profit cards and charts are visible and untagged for coverage, but each profit visual still carries the "Estimated payment fee" chip because payment-fee coverage sits just under 80%. Build and verify against that expected state.
+So in the finished MVP: profit cards and charts are **visible and fully untagged** — no partial-coverage chip and no payment-fee chip, because both coverages clear their thresholds on a revenue-order basis. Build and verify against that expected state.
 
 ---
 
@@ -226,7 +226,7 @@ Rename tab to **Data Quality**. Always-on operational view.
 **Cards / gauges (from the disconnected recon tables, `'__ALL__'` row):**
 - **Cost Coverage %** `[Cost Coverage %]` with tier indicator (red < 80 / yellow 80–95 / green ≥ 95). Live: **98.79% green**.
 - **Cost Allocation Coverage %** and **COGS Coverage %** (from `recon_cost_coverage` columns `cost_coverage_pct` / `cogs_coverage_pct`).
-- **Payment Fee Coverage %** `[Payment Fee Coverage %]` with source split (`recon_payment_fee_coverage` by `payment_fee_source`: `api_exact` / `plugin_parser` / `seed_estimate` / `missing`). Live: **79.50%** — below target, drives the payment-fee chip.
+- **Payment Fee Coverage %** `[Payment Fee Coverage %]` with source split (`recon_payment_fee_coverage` by `payment_fee_source`: `api_exact` / `plugin_parser` / `seed_estimate` / `missing`). Live: **98.03%** (revenue-order basis) — above target, so the payment-fee chip stays off. (`recon_payment_fee_coverage` also exposes `all_order_coverage_pct` = 79.50% as informational.)
 
 **Drift tables/charts (disconnected recon tables):**
 - CSV vs Woo revenue daily drift — `recon_csv_vs_dbt_revenue`.
@@ -258,7 +258,7 @@ Each of these is a **Card (text) visual** bound to a measure that returns the me
 |---|---|---|---|
 | Profit Unavailable Banner | `[Profit Unavailable Banner]` | `[Cost Coverage %] < 80` | Hidden (coverage 98.79%) |
 | Partial Coverage Chip | `[Partial Coverage Chip]` | `80 <= [Cost Coverage %] < 95` | Hidden (coverage ≥ 95%) |
-| Payment Fee Chip | `[Payment Fee Chip]` | `[Payment Fee Coverage %] < 80` | **Shown** (79.50%) |
+| Payment Fee Chip | `[Payment Fee Chip]` | `[Payment Fee Coverage %] < 80` | **Hidden** (98.03%) |
 | Profit Caveat Banner | `[Profit Caveat Banner]` | any profit visual shown (`[Profit Visible Flag] = 1`) | **Shown** |
 
 Placement:
@@ -268,7 +268,7 @@ Placement:
 
 ### 6.3 Expected live rendering
 
-With coverage **98.79% (GREEN)** and payment-fee **79.50% (< 80%)**: all profit cards/charts **visible**, **no** partial-coverage chip, Profit Unavailable banner **hidden**, Profit Caveat Banner **visible**, Payment Fee Chip **visible**. Verify this exact combination before saving.
+With coverage **98.79% (GREEN)** and payment-fee **98.03% (≥ 80%)**: all profit cards/charts **visible**, **no** partial-coverage chip, Profit Unavailable banner **hidden**, Profit Caveat Banner **visible**, Payment Fee Chip **hidden**. Verify this exact combination before saving.
 
 ---
 
@@ -299,7 +299,7 @@ With coverage **98.79% (GREEN)** and payment-fee **79.50% (< 80%)**: all profit 
 - [ ] Theme applied from `ecommerce_theme.json`.
 - [ ] Pages 1–4 and 9 built per spec; Pages 5–8 hidden.
 - [ ] Profit visuals gated by `[Profit Visible Flag]`; live state shows profit (98.79% GREEN).
-- [ ] Payment Fee Chip visible (79.50% < 80%); Partial Coverage Chip and Profit Unavailable banner hidden.
+- [ ] Payment Fee Chip **hidden** (98.03% ≥ 80%); Partial Coverage Chip and Profit Unavailable banner also hidden.
 - [ ] Profit Caveat Banner visible on Page 1.
 - [ ] Guest-checkout disclosure on Page 4; "shipping charged to customer / revenue (NOT cost)" labeling on Page 3.
 - [ ] No reference anywhere to `actual_shipping_cost_usd`, and no `revenue_usd` column pulled from `fact_order` (revenue rolls up from `fact_order_item[line_revenue_usd]`).

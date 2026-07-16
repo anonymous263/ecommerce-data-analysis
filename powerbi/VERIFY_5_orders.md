@@ -19,7 +19,7 @@
 | Contribution Profit | `[Contribution Profit]` (§B5) | **$47,535.65** |
 | Profit Margin | `[Profit Margin]` (§B6) | **40.19%** |
 | **Cost Coverage %** | `[Cost Coverage %]` (§H1) | **98.79% → GREEN** (profit shown, no partial chip) |
-| **Payment Fee Coverage %** | `[Payment Fee Coverage %]` (§H4) | **79.50% → <80%, payment-fee chip ACTIVE** |
+| **Payment Fee Coverage %** | `[Payment Fee Coverage %]` (§H4, revenue-order basis) | **98.03% → ≥80%, payment-fee chip OFF** (all-orders 79.50% is informational) |
 
 ## 5 sample orders (spread: normal profit, loss, fully-refunded ×2, refunded-with-COGS)
 

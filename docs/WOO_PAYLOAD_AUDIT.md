@@ -89,7 +89,7 @@ Distribution across 4,757 orders — **all are standard WooCommerce core statuse
 | order `meta_data` (PayPal) | `_cs_paypal_fee`, `_cs_paypal_payout`, `_cs_paypal_currency` | 1,906 | fee in processor currency |
 | `fee_lines[]` | `Tip (...)` | 662 | **tips, not fees** — exclude from payment fee |
 
-**Coverage:** 1,876 + 1,906 = **3,782 / 4,757 = 79.5%** of orders carry an exact plugin fee. Just below the 80% gate → per [DASHBOARD_SPEC §K], profit shows with an **"estimated payment fee"** chip until coverage ≥80%.
+**Coverage:** 1,876 + 1,906 = **3,782 / 4,757 = 79.5%** of *all* orders carry an exact plugin fee — this is the true raw source-capture rate. But the §K gate is measured over **revenue orders** (same basis as cost coverage H1): 900 of the 975 uncovered orders are failed/cancelled/pending that never charged a gateway fee, so on a revenue basis coverage is **3,740 / 3,815 = 98.03% (≥80% → no chip)**. See [METRIC_CHANGES.md](METRIC_CHANGES.md) (2026-07-16). The genuine capture gap is 75 revenue orders.
 
 **Decision → `payment_fee_source`:**
 - `plugin_parser` — parse `_cs_stripe_fee` / `_cs_paypal_fee` from order `meta_data` (primary; 79.5%).

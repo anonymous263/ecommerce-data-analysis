@@ -201,4 +201,4 @@ Per [METRICS_DEFINITION.md §J](METRICS_DEFINITION.md), profit cards and charts 
 | `80% – 95%` | Profit visuals visible with a yellow chip: "Partial cost coverage (XX%) — numbers are usable but not owner-trusted". |
 | `≥ 95%` | Fully trusted; no chip. |
 
-Additionally, if Payment Fee Coverage % is `< 80%`, every profit visual gets a second chip: "Estimated payment fee — XX% from `seed_estimate` or `missing`".
+Additionally, if Payment Fee Coverage % (revenue-order basis, see [METRICS_DEFINITION.md §H4](METRICS_DEFINITION.md)) is `< 80%`, every profit visual gets a second chip: "Estimated payment fee — XX% from `seed_estimate` or `missing`". *(Live FOS: 98.03% → chip off.)*

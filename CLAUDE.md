@@ -52,7 +52,7 @@ These are the project's load-bearing invariants. Violating them silently corrupt
 
 ## Data-quality gating (drives dashboards)
 
-Coverage thresholds aren't just tests — they gate what the dashboard shows. Cost coverage is tiered: **<80% → hide profit visuals + "Profit unavailable" banner; 80–95% → show with yellow "partial coverage" chip; ≥95% → fully trusted.** Payment-fee coverage <80% adds an "estimated payment fee" chip. `payment_fee_source` is always one of `'api_exact' | 'plugin_parser' | 'seed_estimate' | 'missing'`. See `docs/METRICS_DEFINITION.md §J` and `docs/DASHBOARD_SPEC.md §K`.
+Coverage thresholds aren't just tests — they gate what the dashboard shows. Cost coverage is tiered: **<80% → hide profit visuals + "Profit unavailable" banner; 80–95% → show with yellow "partial coverage" chip; ≥95% → fully trusted.** Payment-fee coverage <80% (measured over **revenue orders**, same basis as cost coverage) adds an "estimated payment fee" chip. `payment_fee_source` is always one of `'api_exact' | 'plugin_parser' | 'seed_estimate' | 'missing'`. See `docs/METRICS_DEFINITION.md §J` and `docs/DASHBOARD_SPEC.md §K`.
 
 ## Phased build order
 

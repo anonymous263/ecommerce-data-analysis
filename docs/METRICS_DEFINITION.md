@@ -186,7 +186,7 @@ F2 Conversion Rate by Channel — same.
 | H1. Cost Coverage % | `COUNT(revenue orders with fact_order_cost AND cogs_usd > 0) / COUNT(revenue orders)` where *revenue order* = has ≥1 `is_revenue_status` line. A `fact_order_cost` row with `cogs_usd` 0/null is **cost unknown**, not covered — row existence alone does not count. Profit only applies to revenue orders, so dead failed/cancelled orders are excluded from the denominator. `cogs_coverage_pct` is the same figure, exposed under its own name for clarity; `all_order_coverage_pct` (÷ all orders, row-existence only) is kept as an informational column. | tiered, see §J | 3 | 4 |
 | H2. Cost Allocation Coverage % | `COUNT(line items with cost_allocation_method='line_exact') / COUNT(fact_order_item)` | informational | 3 | 4 |
 | H3. COGS Coverage % | `COUNT(fact_order_cost WHERE cogs_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 3 | 4 |
-| H4. Payment Fee Coverage % | `COUNT(fact_order WHERE payment_fee_usd IS NOT NULL) / COUNT(fact_order)` | ≥ 80% | 2 | 4 |
+| H4. Payment Fee Coverage % | `COUNT(revenue orders WHERE payment_fee_usd IS NOT NULL) / COUNT(revenue orders)` where *revenue order* = has ≥1 `is_revenue_status` line (**same basis as H1** — rebased 2026-07-16, see [METRIC_CHANGES.md](METRIC_CHANGES.md)). Failed/cancelled/pending orders never settled a payment, so their (correctly) NULL `payment_fee_usd` is excluded from the denominator; `all_order_coverage_pct` (÷ all orders) is kept as an informational column. Live FOS: 98.03% revenue-basis (79.50% all-orders). | ≥ 80% | 2 | 4 |
 | H4b. Payment Fee Source Mix | `COUNT BY payment_fee_source / COUNT(*)` | informational | 2 | 4 |
 | H5. Fulfillment Enrichment Coverage % | `COUNT(orders with fact_fulfillment) / COUNT(fact_order)` | ≥ 80% | 5 | 5 |
 | H6. GA4 ↔ Woo Order Count Ratio | `COUNTIF(ga4.purchase, day) / COUNT(woo.orders, day)` | report only | 6 | 6 |
@@ -232,7 +232,7 @@ Cost Coverage % here is H1 measured over **revenue orders** (see H1 note) — no
 | `80% – 95%` | **Visible with warning** | Cards/charts shown, but every profit visual gets a yellow "Partial cost coverage (XX%)" chip. Numbers are usable but not owner-trusted. |
 | `≥ 95%` | **Fully trusted** | Visible without warning. Owner-facing profit dashboard considered authoritative. |
 
-Additionally, if **Payment Fee Coverage (H4)** is `< 80%`, all profit visuals add a second chip: "Estimated payment fee — XX% from `seed_estimate` or `missing`".
+Additionally, if **Payment Fee Coverage (H4, revenue-order basis)** is `< 80%`, all profit visuals add a second chip: "Estimated payment fee — XX% from `seed_estimate` or `missing`". *(On live FOS data this is 98.03% — chip off; the 79.50% all-orders figure is informational only.)*
 
 ---
 
