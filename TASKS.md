@@ -163,7 +163,7 @@
   - `cost_source`, `cost_allocation_method`, `cost_confidence`
   - **Drops** CSV Revenue/Profit/ROI/Profit Margin as official metrics
   - **Does NOT produce** an `actual_shipping_cost_usd` field
-- [ ] `stg_manual_fulfillment_enrichment.sql` — parse supplier `#<store>.<order>`; hash tracking ID + URL
+- [ ] `stg_manual_fulfillment_enrichment.sql` — parse supplier `#<store>.<order>`; hash tracking ID + URL — _deferred to **Phase 5** (fulfillment enrichment): tracking IDs are hashed in Phase 5 staging per the Extract note above (L151), not a Phase 3 gate_
 
 ### dbt marts
 - [x] `marts/operations/fact_order_cost.sql` — order-level cost with `cost_source`, `cost_allocation_method`, `cost_confidence` (no separate supplier-shipping cost field)
@@ -191,12 +191,12 @@
 - [x] `dbt build` green — **PASS=190, WARN=2 (both intended coverage warnings), ERROR=0**
 
 ### Verify
-- [ ] Verify whether WooCommerce shipping total matches CSV `Shipping` per order using `recon_woo_vs_csv_shipping_charged` (target daily delta ≤ 5%)
-- [x] Cost coverage tier confirmed — **81.02% (3854/4757 FOS orders) → yellow (80–95%)**; payment-fee coverage 79.50% (plugin_parser), below the 80% chip threshold
-- [ ] CSV revenue vs Woo daily delta ≤ 5%
-- [ ] Hand-reconcile 5 sample orders end-to-end (revenue from Woo, cost from CSV, profit from mart, customer shipping charge from Woo)
+- [x] Verify whether WooCommerce shipping total matches CSV `Shipping` per order using `recon_woo_vs_csv_shipping_charged` (target daily delta ≤ 5%) — **overall delta 2.24% ✅** (like-for-like covered set; 958/1047 days = 91.5% within ≤5%)
+- [x] Cost coverage tier confirmed — **98.79% (3769/3815 revenue orders with real COGS) → green (≥95%)** (post-`727055c`: coverage requires `cogs_usd > 0` over revenue orders); payment-fee coverage 79.50% (plugin_parser), below the 80% chip threshold
+- [x] CSV revenue vs Woo daily delta ≤ 5% — **overall delta 3.80% ✅** (CSV Revenue is gross ≈ line + shipping; compared vs dbt gross = line revenue + `shipping_charged_usd`)
+- [x] Hand-reconcile 5 sample orders end-to-end (revenue from Woo, cost from CSV, profit from mart, customer shipping charge from Woo) — **all 5 reconcile exactly: `contribution_profit_usd == net_rev − cogs − design_fee − payment_fee`**
 - [x] Confirm no `actual_shipping_cost_usd` references remain anywhere in dbt models (guarded by `tests/test_repo_scaffold.py::test_no_forbidden_shipping_cost_field_in_implementation_scaffold`)
-- [ ] Commit + push
+- [x] Commit + push — **pushed; `origin/main` @ `727055c` (631c8c1 feat + 9914ca6 + 727055c), zero unpushed commits**
 
 ---
 
