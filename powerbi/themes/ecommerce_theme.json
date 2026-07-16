@@ -1,0 +1,91 @@
+{
+  "name": "Ecommerce POD Analytics",
+  "dataColors": [
+    "#0072B2",
+    "#E69F00",
+    "#009E73",
+    "#CC79A7",
+    "#56B4E9",
+    "#D55E00",
+    "#484848",
+    "#F0E442",
+    "#8C61FF",
+    "#117733"
+  ],
+  "good": "#2E8B4F",
+  "neutral": "#E8B300",
+  "bad": "#C0392B",
+  "maximum": "#0072B2",
+  "center": "#E8B300",
+  "minimum": "#C0392B",
+  "null": "#9AA0A6",
+  "background": "#FFFFFF",
+  "secondaryBackground": "#F4F5F7",
+  "foreground": "#1A1A2E",
+  "foregroundNeutralSecondary": "#5A5F6A",
+  "foregroundNeutralTertiary": "#9AA0A6",
+  "tableAccent": "#0072B2",
+  "hyperlink": "#0060A0",
+  "visitedHyperlink": "#5A3E9E",
+  "textClasses": {
+    "title": {
+      "fontFace": "Segoe UI Semibold",
+      "fontSize": 20,
+      "color": "#1A1A2E"
+    },
+    "header": {
+      "fontFace": "Segoe UI Semibold",
+      "fontSize": 14,
+      "color": "#1A1A2E"
+    },
+    "callout": {
+      "fontFace": "Segoe UI",
+      "fontSize": 32,
+      "color": "#0072B2"
+    },
+    "label": {
+      "fontFace": "Segoe UI",
+      "fontSize": 10,
+      "color": "#5A5F6A"
+    }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [
+          {
+            "show": true,
+            "color": { "solid": { "color": "#FFFFFF" } },
+            "transparency": 0
+          }
+        ],
+        "border": [
+          {
+            "show": true,
+            "color": { "solid": { "color": "#E3E5E8" } },
+            "radius": 6
+          }
+        ],
+        "title": [
+          {
+            "show": true,
+            "fontColor": { "solid": { "color": "#1A1A2E" } },
+            "fontSize": 13,
+            "fontFamily": "Segoe UI Semibold",
+            "alignment": "left"
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          { "color": { "solid": { "color": "#F4F5F7" } }, "transparency": 0 }
+        ],
+        "outspace": [
+          { "color": { "solid": { "color": "#F4F5F7" } }, "transparency": 0 }
+        ]
+      }
+    }
+  }
+}

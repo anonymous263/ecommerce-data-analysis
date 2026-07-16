@@ -202,11 +202,19 @@
 
 ## Phase 4 — Power BI MVP
 
+> **Agent-authored artifacts (2026-07-16, Opus 4.8 workflow — 14 agents, adversarially reviewed):** the non-GUI deliverables are done and in `powerbi/`:
+> - `measures/dax_measures.txt` — 48 DAX measures (§A/B+gating/C/G/H/I), 3 HIGH review fixes applied
+> - `themes/ecommerce_theme.json` — accessible theme, tier green/yellow/red triad
+> - `BUILD_GUIDE.md` — click-by-click Power BI Desktop assembly guide (306 lines)
+> - `VERIFY_5_orders.md` — live ground-truth for the L225 hand-calc (aggregate cards + 5 reconciled orders)
+>
+> **Remaining Phase 4 work is GUI-only** (cannot be automated): connect/import, relationships, paste measures into `_Measures`, build the report pages, wire the tier-gating visuals, and save the `.pbix` — all per `BUILD_GUIDE.md`. Live gating state: cost coverage **98.79% GREEN** (profit shown, no partial chip); payment-fee **79.50% <80%** (payment-fee chip active).
+
 ### Connect & measures
 - [ ] Connect Power BI Desktop to Postgres `marts_core` + `marts_operations`
 - [ ] Relationships dim → fact, single direction
 - [ ] `_Measures` table
-- [ ] Author DAX measures from `METRICS_DEFINITION.md` §A (incl. **A7 Shipping Charged to Customer**, **A8 Shipping Charged/Revenue**), §B (gated), §C, §G (incl. **G4 Shipping Charged Ratio by Country** — labeled "shipping charged to customer / revenue", not cost), §I, §H
+- [x] Author DAX measures from `METRICS_DEFINITION.md` §A (incl. **A7 Shipping Charged to Customer**, **A8 Shipping Charged/Revenue**), §B (gated), §C, §G (incl. **G4 Shipping Charged Ratio by Country** — labeled "shipping charged to customer / revenue", not cost), §I, §H — **48 measures in `powerbi/measures/dax_measures.txt`** (paste into `_Measures` per BUILD_GUIDE.md)
 - [ ] Implement **tiered profit visibility** per [DASHBOARD_SPEC.md §K](docs/DASHBOARD_SPEC.md):
   - `< 80% Cost Coverage` → hide profit visuals + show "Profit unavailable" banner
   - `80–95%` → show with yellow "Partial cost coverage" chip
@@ -223,7 +231,7 @@
 
 ### Verify
 - [ ] Hand-calc 5 orders end-to-end → match cards
-- [ ] Save `.pbix`; export DAX to `powerbi/measures/dax_measures.txt`
+- [ ] Save `.pbix` (manual GUI step per BUILD_GUIDE.md) — **DAX already exported to `powerbi/measures/dax_measures.txt` ✅ (48 measures, reviewed)**
 - [ ] Commit + push
 
 ---

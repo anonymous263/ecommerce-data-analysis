@@ -1,0 +1,473 @@
+// =============================================================================
+// Power BI DAX Measure Library — Ecommerce Analytics (Phase 4 MVP)
+// =============================================================================
+// Source of truth for every formula: docs/METRICS_DEFINITION.md
+// All measures live in the `_Measures` table.
+//
+// Assembled from the multi-agent authoring + adversarial-review workflow.
+// CRITICAL/HIGH review corrections are applied inline (flagged // REVIEW … applied).
+// MEDIUM/LOW review issues keep the original formula with a // REVIEW note above it.
+// Reuse / visual-only items are emitted as one-line comments, not redefined.
+// =============================================================================
+
+
+// =============================================================================
+// A. Sales
+// =============================================================================
+
+// [Revenue]  |  format: \$#,0.00
+// Gross revenue (before refunds). Sum of line_revenue_usd on revenue-status order items only. Revenue lives once at the item grain — never read from fact_order (no revenue column there, deliberate anti-double-count). See docs/METRICS_DEFINITION.md §A1.
+Revenue =
+CALCULATE(
+    SUM(fact_order_item[line_revenue_usd]),
+    fact_order_item[is_revenue_status] = TRUE()
+)
+
+// [Net Revenue]  |  format: \$#,0.00
+// Gross Revenue (§A1) minus refunds. [Refund Amount] is defined in group C (Refunds). This is the profit-margin denominator; for exact tie-out to the mart use SUM(mart_order_profit[net_revenue_usd]). See docs/METRICS_DEFINITION.md §A2.
+Net Revenue =
+[Revenue] - [Refund Amount]
+
+// [Orders]  |  format: #,0
+// Distinct count of revenue-status orders (processing, completed, on-hold). Denominator for AOV. See docs/METRICS_DEFINITION.md §A3.
+Orders =
+CALCULATE(
+    DISTINCTCOUNT(fact_order[order_sk]),
+    fact_order[status] IN { "processing", "completed", "on-hold" }
+)
+
+// [Quantity Sold]  |  format: #,0
+// REVIEW (HIGH — applied): original SUM(fact_order_item[quantity]) had no is_revenue_status filter, counting units on cancelled/refunded/failed/pending orders and mismatching the Revenue population (understating AIV). Corrected to filter is_revenue_status = TRUE().
+// Total units sold across order items. Denominator for AIV. See docs/METRICS_DEFINITION.md §A4.
+Quantity Sold =
+CALCULATE(
+    SUM(fact_order_item[quantity]),
+    fact_order_item[is_revenue_status] = TRUE()
+)
+
+// [AOV]  |  format: \$#,0.00
+// Average Order Value = gross Revenue (§A1) / Orders (§A3). Safe divide returns blank on zero orders. See docs/METRICS_DEFINITION.md §A5.
+AOV =
+DIVIDE([Revenue], [Orders])
+
+// [AIV]  |  format: \$#,0.00
+// Average Item Value = gross Revenue (§A1) / Quantity Sold (§A4). See docs/METRICS_DEFINITION.md §A6.
+AIV =
+DIVIDE([Revenue], [Quantity Sold])
+
+// [Shipping Charged to Customer]  |  format: \$#,0.00
+// Revenue-side shipping — what the customer paid at checkout (Woo). This is NOT a cost and must never enter a profit or COGS formula; there is no actual_shipping_cost_usd field. See docs/METRICS_DEFINITION.md §A7.
+Shipping Charged to Customer =
+SUM(fact_order[shipping_charged_usd])
+
+// [Shipping Charged % of Revenue]  |  format: 0.0%
+// Shipping charged to customer (§A7) / gross Revenue (§A1). Labeled 'shipping charged to customer / revenue' — NOT shipping cost. See docs/METRICS_DEFINITION.md §A8.
+Shipping Charged % of Revenue =
+DIVIDE([Shipping Charged to Customer], [Revenue])
+
+// [Open Order Backlog]  |  format: #,0
+// Count of orders still in 'processing' status (awaiting fulfillment) — operational backlog available in Phase 4. See docs/METRICS_DEFINITION.md §D4.
+Open Order Backlog =
+CALCULATE(
+    DISTINCTCOUNT(fact_order[order_sk]),
+    fact_order[status] = "processing"
+)
+
+// [Revenue MoM %]  |  format: 0.0%
+// Month-over-month change in gross Revenue (§A1) vs the prior month via DATEADD on dim_date. Exec card delta. Requires a contiguous dim_date marked as the date table. See docs/METRICS_DEFINITION.md §A1.
+Revenue MoM % =
+VAR CurrentPeriod = [Revenue]
+VAR PriorPeriod =
+    CALCULATE(
+        [Revenue],
+        DATEADD(dim_date[date_day], -1, MONTH)
+    )
+RETURN
+    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
+
+// [Net Revenue MoM %]  |  format: 0.0%
+// Month-over-month change in Net Revenue (§A2, gross minus refunds) vs the prior month via DATEADD on dim_date. Exec card delta. See docs/METRICS_DEFINITION.md §A2.
+Net Revenue MoM % =
+VAR CurrentPeriod = [Net Revenue]
+VAR PriorPeriod =
+    CALCULATE(
+        [Net Revenue],
+        DATEADD(dim_date[date_day], -1, MONTH)
+    )
+RETURN
+    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
+
+// [Shipping Charged MoM %]  |  format: 0.0%
+// Month-over-month change in Shipping Charged to Customer (§A7, revenue-side) vs the prior month via DATEADD on dim_date. Exec card delta. See docs/METRICS_DEFINITION.md §A7.
+Shipping Charged MoM % =
+VAR CurrentPeriod = [Shipping Charged to Customer]
+VAR PriorPeriod =
+    CALCULATE(
+        [Shipping Charged to Customer],
+        DATEADD(dim_date[date_day], -1, MONTH)
+    )
+RETURN
+    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
+
+// [Contribution Profit MoM %]  |  format: 0.0%
+// Month-over-month change in Contribution Profit vs the prior month via DATEADD on dim_date. Exec card delta. [Contribution Profit] itself is defined in group B (Profit). See docs/METRICS_DEFINITION.md §B.
+Contribution Profit MoM % =
+VAR CurrentPeriod = [Contribution Profit]
+VAR PriorPeriod =
+    CALCULATE(
+        [Contribution Profit],
+        DATEADD(dim_date[date_day], -1, MONTH)
+    )
+RETURN
+    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
+
+
+// =============================================================================
+// B. Profitability + tier gating
+// =============================================================================
+
+// [COGS]  |  format: \$#,0.00
+// Total cost of goods sold in USD, summed from the order-profit mart (marts_core.mart_order_profit). Per METRICS_DEFINITION §B1, cogs_usd ALREADY includes the supplier fulfillment/shipping fee — do NOT add any shipping term on top of this. See docs/METRICS_DEFINITION.md §B1.
+COGS =
+SUM ( mart_order_profit[cogs_usd] )
+
+// [Payment Fee]  |  format: \$#,0.00
+// Total payment-processor fees in USD at the order grain (marts_core.fact_order[payment_fee_usd]). Coverage/exactness of this figure is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip]. See docs/METRICS_DEFINITION.md §B2.
+Payment Fee =
+SUM ( fact_order[payment_fee_usd] )
+
+// [Design Fee]  |  format: \$#,0.00
+// Total design fee in USD summed from marts_core.mart_order_profit[design_fee_usd]. One of the three cost components subtracted from net revenue to reach contribution profit. See docs/METRICS_DEFINITION.md §B3.
+Design Fee =
+SUM ( mart_order_profit[design_fee_usd] )
+
+// [Gross Profit]  |  format: \$#,0.00
+// Gross profit = gross Revenue (A1) minus COGS (B1). This deliberately does NOT subtract design fee or payment fee (that is Contribution Profit, B5) and never subtracts shipping. See docs/METRICS_DEFINITION.md §B4.
+Gross Profit =
+[Revenue] - [COGS]
+
+// [Profit Base Net Revenue]  |  format: \$#,0.00
+// Exact net-revenue denominator used for profit margin: gross Revenue minus refunds, read directly from the pre-computed marts_core.mart_order_profit[net_revenue_usd] so it reconciles to the mart (117,911.47 for FOS). Prefer this over recomputing Revenue − Refunds in DAX. Underpins §B6. See docs/METRICS_DEFINITION.md §B6.
+Profit Base Net Revenue =
+SUM ( mart_order_profit[net_revenue_usd] )
+
+// [Contribution Profit]  |  format: \$#,0.00
+// Contribution profit in USD, summed from the pre-computed marts_core.mart_order_profit[contribution_profit_usd] (47,535.65 for FOS). Locked formula = net_revenue − cogs − design_fee − payment_fee, with NO shipping term because supplier shipping is already inside cogs_usd. See docs/METRICS_DEFINITION.md §B5.
+Contribution Profit =
+SUM ( mart_order_profit[contribution_profit_usd] )
+
+// [Profit Margin]  |  format: 0.0%
+// Contribution profit margin = Contribution Profit (B5) ÷ Net Revenue (Profit Base Net Revenue), safe-divided. Denominator is net revenue per invariant #4 (40.19% for FOS). See docs/METRICS_DEFINITION.md §B6.
+Profit Margin =
+DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )
+
+// [ROI]  |  format: 0.0%
+// Return on cost of goods = Contribution Profit (B5) ÷ COGS (B1), safe-divided. Expresses profit generated per dollar of product cost. See docs/METRICS_DEFINITION.md §B7.
+ROI =
+DIVIDE ( [Contribution Profit], [COGS] )
+
+// [Cost Coverage %]  |  format: 0.00\%
+// All-sites cost coverage percentage, read from the reconciliation view marts_recon.recon_cost_coverage on the '__ALL__' roll-up row. Stored on a 0–100 scale (e.g. 98.79). Drives every tier-gating measure in §J/§K. See docs/METRICS_DEFINITION.md §J.
+Cost Coverage % =
+CALCULATE (
+    MAX ( recon_cost_coverage[cost_coverage_pct] ),
+    recon_cost_coverage[site_sk] = "__ALL__"
+)
+
+// [Payment Fee Coverage %]  |  format: 0.00\%
+// All-sources payment-fee coverage percentage from marts_recon.recon_payment_fee_coverage on the '__ALL__' roll-up row, stored on a 0–100 scale (e.g. 79.50). When below 80 it activates [Payment Fee Chip] per invariant #6. See docs/METRICS_DEFINITION.md §K.
+Payment Fee Coverage % =
+CALCULATE (
+    MAX ( recon_payment_fee_coverage[fee_coverage_pct] ),
+    recon_payment_fee_coverage[payment_fee_source] = "__ALL__"
+)
+
+// [Coverage Tier]  |  format: (none — text measure)
+// Data-quality tier driving dashboard gating: green (≥95%, fully trusted, no chip), yellow (80–95%, partial-coverage chip), red (<80%, profit visuals hidden + 'Profit unavailable' banner). Thresholds per invariant #5. See docs/METRICS_DEFINITION.md §J.
+Coverage Tier =
+SWITCH (
+    TRUE (),
+    [Cost Coverage %] >= 95, "green",
+    [Cost Coverage %] >= 80, "yellow",
+    "red"
+)
+
+// [Profit Visible Flag]  |  format: #,0
+// Returns 1 when cost coverage ≥80% (profit is trustworthy enough to show), else 0. Apply as a visual-level filter (keep rows where flag = 1) to hide profit visuals when coverage is in the red tier, per invariant #5 / §J. See docs/METRICS_DEFINITION.md §J.
+Profit Visible Flag =
+IF ( [Cost Coverage %] >= 80, 1, 0 )
+
+// [Profit Unavailable Banner]  |  format: (none — text measure)
+// Red-tier banner text shown only when cost coverage <80%; BLANK otherwise so the banner card collapses. Pairs with [Profit Visible Flag] = 0 to explain why profit visuals are hidden (§J, invariant #5). See docs/METRICS_DEFINITION.md §J.
+Profit Unavailable Banner =
+IF (
+    [Cost Coverage %] < 80,
+    "Profit unavailable — cost coverage too low",
+    BLANK ()
+)
+
+// [Partial Coverage Chip]  |  format: (none — text measure)
+// Yellow-tier chip text shown only when cost coverage is in the 80–95% band; BLANK otherwise. Divides the 0–100 coverage value by 100 before the 0.0% format so it renders correctly (e.g. '(90.0%)'). Per invariant #5 / §J. See docs/METRICS_DEFINITION.md §J.
+Partial Coverage Chip =
+IF (
+    AND ( [Cost Coverage %] >= 80, [Cost Coverage %] < 95 ),
+    "Partial cost coverage ("
+        & FORMAT ( [Cost Coverage %] / 100, "0.0%" )
+        & ") — usable but not owner-trusted",
+    BLANK ()
+)
+
+// [Payment Fee Chip]  |  format: (none — text measure)
+// Second chip shown on every profit visual when payment-fee coverage <80% (79.50% for FOS → chip ACTIVE). Reports the estimated share (100 − coverage, e.g. 20.5%) sourced from seed_estimate/missing. Per invariant #6 / §K. See docs/METRICS_DEFINITION.md §K.
+Payment Fee Chip =
+IF (
+    [Payment Fee Coverage %] < 80,
+    "Estimated payment fee — "
+        & FORMAT ( ( 100 - [Payment Fee Coverage %] ) / 100, "0.0%" )
+        & " from seed_estimate or missing",
+    BLANK ()
+)
+
+// [Profit Caveat Banner]  |  format: (none — text measure)
+// Static explanatory caveat displayed alongside profit visuals, encoding invariants #2/#4/#6: supplier shipping is already inside COGS (no double subtraction) and the CSV Shipping column is a customer charge, not a cost. See docs/METRICS_DEFINITION.md §B5.
+Profit Caveat Banner =
+"COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again. The CSV Shipping column is the customer shipping charge, not a cost."
+
+// [Product Profit Allocation Chip]  |  format: (none — text measure)
+// Product-page chip shown when any product rows in the current filter context have a cost_allocation_method other than 'line_exact' (i.e. cost was spread by revenue share rather than measured per line) in marts_core.mart_product_profit; BLANK when every selected row is line-exact. See docs/METRICS_DEFINITION.md §B8.
+Product Profit Allocation Chip =
+VAR NonExactRows =
+    CALCULATE (
+        COUNTROWS ( mart_product_profit ),
+        mart_product_profit[cost_allocation_method] <> "line_exact"
+    )
+RETURN
+    IF (
+        NOT ISBLANK ( NonExactRows ) && NonExactRows > 0,
+        "Profit allocated by revenue share — not exact line-level cost",
+        BLANK ()
+    )
+
+
+// =============================================================================
+// C. Refund / Cancellation
+// =============================================================================
+
+// [Refunded Order Count]  |  format: #,0
+// REVIEW (LOW): counts refund event ROWS, not distinct refunded ORDERS. Currently coincide (34 rows = 34 distinct order_sk), so the value is correct; fact_refund grain permits >1 refund row per order, so this can overcount if any order gets multiple refunds. Original kept; consider DISTINCTCOUNT(fact_refund[order_sk]) for robustness.
+// Count of refund rows in fact_refund (one row per Woo refund event). See docs/METRICS_DEFINITION.md §C1. Expected whole-dataset value: 34.
+Refunded Order Count =
+COUNTROWS ( fact_refund )
+
+// [Refund Amount]  |  format: \$#,0.00
+// Total refunded value in USD from fact_refund. See docs/METRICS_DEFINITION.md §C2. Expected whole-dataset value: $1,465.51.
+Refund Amount =
+SUM ( fact_refund[refund_amount_usd] )
+
+// [Eligible Orders]  |  format: #,0
+// Distinct orders that reached a settleable state (excludes 'failed' and 'pending'); the denominator for refund/cancellation rates. See docs/METRICS_DEFINITION.md §C3.
+Eligible Orders =
+CALCULATE (
+    DISTINCTCOUNT ( fact_order[order_sk] ),
+    NOT ( fact_order[status] IN { "failed", "pending" } )
+)
+
+// [Refunded or Cancelled Orders]  |  format: #,0
+// Distinct orders that either have at least one refund row (fact_refund) OR carry status = 'cancelled' in fact_order, de-duplicated so an order counted once even if both. TREATAS remaps fact_refund[order_sk] onto fact_order[order_sk] so UNION/DISTINCT share lineage. Numerator of Refund Rate. See docs/METRICS_DEFINITION.md §C3.
+Refunded or Cancelled Orders =
+VAR CancelledKeys =
+    CALCULATETABLE (
+        VALUES ( fact_order[order_sk] ),
+        fact_order[status] = "cancelled"
+    )
+VAR RefundedKeys =
+    TREATAS (
+        VALUES ( fact_refund[order_sk] ),
+        fact_order[order_sk]
+    )
+VAR CombinedKeys =
+    DISTINCT ( UNION ( CancelledKeys, RefundedKeys ) )
+RETURN
+    COUNTROWS ( CombinedKeys )
+
+// [Refund Rate]  |  format: 0.0%
+// Order-level refund/cancellation rate = Refunded or Cancelled Orders / Eligible Orders. Order grain (not line or amount). See docs/METRICS_DEFINITION.md §C3.
+Refund Rate =
+DIVIDE (
+    [Refunded or Cancelled Orders],
+    [Eligible Orders]
+)
+
+// [Cancellation Rate]  |  format: 0.0%
+// Share of eligible orders with status = 'cancelled' = distinct cancelled orders / Eligible Orders. See docs/METRICS_DEFINITION.md §C4.
+Cancellation Rate =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( fact_order[order_sk] ),
+        fact_order[status] = "cancelled"
+    ),
+    [Eligible Orders]
+)
+
+// [Refund Revenue Share]  |  format: 0.0%
+// Refunded dollars as a share of gross Revenue = Refund Amount / Revenue. [Revenue] is the group-A gross revenue measure (SUM fact_order_item[line_revenue_usd] filtered to is_revenue_status = TRUE()). See docs/METRICS_DEFINITION.md §C5.
+Refund Revenue Share =
+DIVIDE (
+    [Refund Amount],
+    [Revenue]
+)
+
+
+// =============================================================================
+// G. Site & Geography
+// =============================================================================
+
+// [Revenue per Site] — reuses group A [Revenue] (§A1); place dim_site[site_name]/site_code on the visual axis/legend. No separate measure. Do NOT read revenue from fact_order.
+
+// [Revenue per Country]  |  format: \$#,0.00
+// REVIEW (HIGH — applied): a plain [Revenue] reuse with dim_country on the visual returns the grand total per country because fact_order_item has no country_sk (country_sk lives on fact_order and does not propagate under single-direction relationships). Corrected to transfer the country-filtered fact_order rows to fact_order_item via order_sk (TREATAS), so per-country revenue still sums fact_order_item[line_revenue_usd].
+// Per-country gross revenue grouped correctly by country while preserving invariant #1 (revenue from fact_order_item). See docs/METRICS_DEFINITION.md §G2.
+Revenue per Country =
+CALCULATE (
+    [Revenue],
+    TREATAS ( VALUES ( fact_order[order_sk] ), fact_order_item[order_sk] )
+)
+-- Transfers the country-filtered fact_order rows to fact_order_item via order_sk,
+-- so per-country revenue still sums fact_order_item[line_revenue_usd] (is_revenue_status = TRUE inside [Revenue]).
+-- Alternative: enable a country_sk bridge / bidirectional cross-filter dim_country -> fact_order -> fact_order_item.
+-- Do NOT read revenue from fact_order (no revenue column) and do NOT substitute mart_country_profit[revenue_usd] (that is NET revenue, not gross A1).
+
+// [AOV (min 10 orders)]  |  format: \$#,0.00
+// AOV per country/site with a sample-size guard: returns the average order value only when at least 10 orders are present in the current filter context, otherwise BLANK() so thin slices are hidden from the visual. Reuses [AOV] and [Orders]. See docs/METRICS_DEFINITION.md §G3.
+AOV (min 10 orders) =
+VAR OrderCount = [Orders]
+RETURN
+    IF (
+        OrderCount >= 10,
+        [AOV],
+        BLANK ()
+    )
+
+// [Shipping Charged Ratio by Country] — reuses group A [Shipping Charged % of Revenue] (§A8); place dim_country[country_name] on the visual. Revenue-side only — label 'shipping charged to customer / revenue', never a cost ratio (invariants 3/7).
+// REVIEW (MEDIUM): as a plain §A8 reuse, the numerator SUM(fact_order[shipping_charged_usd]) filters by country but the denominator [Revenue] (fact_order_item, no country_sk) does not, giving country-shipping / TOTAL-revenue. To fix per-country, use a dedicated measure that filters both sides to the same country orders, e.g.:
+//   Shipping Charged Ratio by Country =
+//   VAR ShipByCountry = SUM ( fact_order[shipping_charged_usd] )
+//   VAR RevByCountry = CALCULATE ( [Revenue], TREATAS ( VALUES ( fact_order[order_sk] ), fact_order_item[order_sk] ) )
+//   RETURN DIVIDE ( ShipByCountry, RevByCountry )
+
+// [Refund Rate (min 10 orders)]  |  format: 0.0%
+// By-country (or by-site) order-level refund rate with a sample-size guard: returns [Refund Rate] only when at least 10 eligible orders exist in context, otherwise BLANK() to suppress noisy low-volume slices. Reuses [Refund Rate] (§C3) and [Eligible Orders]. See docs/METRICS_DEFINITION.md §G4 / §C3.
+Refund Rate (min 10 orders) =
+VAR EligibleOrderCount = [Eligible Orders]
+RETURN
+    IF (
+        EligibleOrderCount >= 10,
+        [Refund Rate],
+        BLANK ()
+    )
+
+
+// =============================================================================
+// H. Data Quality & Coverage
+// =============================================================================
+
+// [Cost Coverage %] — reuses group B definition (recon_cost_coverage '__ALL__' row, pre-scaled 0–100). Consumed here for the coverage sub-page; not redefined. Live value 98.79% (GREEN).
+
+// [Payment Fee Coverage %] — reuses group B definition (recon_payment_fee_coverage '__ALL__' row, pre-scaled 0–100). Consumed here; not redefined. Live value 79.50% (<80% → payment-fee chip ON).
+
+// [COGS Coverage %]  |  format: 0.0"%"
+// COGS Coverage % (§H3): share of orders with a non-null cogs_usd, read straight from the dbt-computed recon '__ALL__' row (cogs_coverage_pct, e.g. 98.79) so the value matches dbt exactly rather than being recomputed in DAX. Target ≥ 80%. Value is pre-scaled 0–100, so the literal-percent format (0.0"%") avoids a ×100. See docs/METRICS_DEFINITION.md §H3.
+COGS Coverage % =
+CALCULATE (
+    MAX ( recon_cost_coverage[cogs_coverage_pct] ),
+    recon_cost_coverage[site_sk] = "__ALL__"
+)
+
+// [Cost Allocation Coverage %]  |  format: 0.0%
+// Cost Allocation Coverage % (§H2, informational): share of product-profit line items whose cost was allocated by exact line match (cost_allocation_method = 'line_exact') rather than an order-level split. A quality signal for cost granularity, not a gate. Computed live from mart_product_profit → 0–1 fraction, so standard 0.0% (×100) is correct here. See docs/METRICS_DEFINITION.md §H2.
+Cost Allocation Coverage % =
+VAR LineExactRows =
+    CALCULATE (
+        COUNTROWS ( mart_product_profit ),
+        mart_product_profit[cost_allocation_method] = "line_exact"
+    )
+VAR TotalRows =
+    COUNTROWS ( mart_product_profit )
+RETURN
+    DIVIDE ( LineExactRows, TotalRows )
+
+// [Payment Fee Source Mix] — VISUAL, not a measure. Build a table/bar over recon_payment_fee_coverage with payment_fee_source on the axis and order_count + fee_coverage_pct as values; add a visual-level filter payment_fee_source <> '__ALL__'. Pair with [Payment Fee Source Share] for a normalized proportion. (§H4b)
+
+// [Payment Fee Source Share]  |  format: 0.0%
+// REVIEW (HIGH — applied): the numerator's predicate on payment_fee_source REPLACED the visual's row-context filter (rather than intersecting), so the numerator equaled the denominator and every source row returned 100%. Corrected by wrapping the '__ALL__' exclusion in KEEPFILTERS so the current row's source filter is retained.
+// Payment Fee Source Share (§H4b helper): the current payment_fee_source's share of all orders across the real source rows (excludes the '__ALL__' aggregate). Feeds the Payment Fee Source Mix visual when a normalized 0–100% proportion is wanted instead of raw counts. See docs/METRICS_DEFINITION.md §H4b.
+Payment Fee Source Share =
+VAR SourceOrders =
+    CALCULATE (
+        SUM ( recon_payment_fee_coverage[order_count] ),
+        KEEPFILTERS ( recon_payment_fee_coverage[payment_fee_source] <> "__ALL__" )
+    )
+VAR TotalSourceOrders =
+    CALCULATE (
+        SUM ( recon_payment_fee_coverage[order_count] ),
+        REMOVEFILTERS ( recon_payment_fee_coverage[payment_fee_source] ),
+        recon_payment_fee_coverage[payment_fee_source] <> "__ALL__"
+    )
+RETURN
+    DIVIDE ( SourceOrders, TotalSourceOrders )
+
+// [CSV vs Woo Revenue Drift] — VISUAL, not a measure. Render marts_recon.recon_csv_vs_dbt_revenue as a table (per-site rows + delta columns). CSV Revenue is drift-monitoring only, never an official KPI. (§H8)
+
+// [CSV vs dbt Profit Drift] — VISUAL, not a measure. Render marts_recon.recon_csv_vs_dbt_profit as a table. Official contribution profit stays SUM(mart_order_profit[contribution_profit_usd]); this view only watches drift. (§H9)
+
+// [Woo vs CSV Shipping Charged Drift] — VISUAL, not a measure. Render marts_recon.recon_woo_vs_csv_shipping_charged as a table. Both sides are the customer shipping charge (revenue-side); there is no actual_shipping_cost_usd and neither column may enter a profit/COGS formula. (§H10)
+
+// [Woo vs CSV Shipping Drift %]  |  format: 0.0"%"
+// Woo vs CSV Shipping Drift % (§H10 headline card): the average per-row percentage delta between Woo's shipping_charged_usd and the CSV Shipping column, for an at-a-glance reconciliation health number above the detail table. Report only — both sides are revenue-side shipping charged to the customer, not cost. delta_pct is pre-scaled (e.g. -1.23 = -1.23%), so the literal-percent format avoids ×100. See docs/METRICS_DEFINITION.md §H10.
+Woo vs CSV Shipping Drift % =
+AVERAGE ( recon_woo_vs_csv_shipping_charged[delta_pct] )
+
+
+// =============================================================================
+// I. Customer
+// =============================================================================
+
+// [Distinct Customers]  |  format: #,0
+// Count of unique known customers (hashed email) with a resolvable identity. Restricts to dim_customer_anonymized[is_unknown_email] = FALSE() via the customer relationship so guest/unknown-email checkouts are excluded from the customer base. See docs/METRICS_DEFINITION.md §I1.
+Distinct Customers =
+CALCULATE (
+    DISTINCTCOUNT ( mart_customer_summary[customer_hash] ),
+    dim_customer_anonymized[is_unknown_email] = FALSE ()
+)
+
+// [Repeat Customer Share]  |  format: 0.0%
+// Share of the customer base that has ordered more than once: repeat customers (mart_customer_summary[is_repeat] = TRUE()) divided by all customers. Safe-divided so an empty base returns blank. See docs/METRICS_DEFINITION.md §I2.
+Repeat Customer Share =
+VAR RepeatCustomers =
+    CALCULATE (
+        COUNTROWS ( mart_customer_summary ),
+        mart_customer_summary[is_repeat] = TRUE ()
+    )
+VAR AllCustomers =
+    COUNTROWS ( mart_customer_summary )
+RETURN
+    DIVIDE ( RepeatCustomers, AllCustomers )
+
+// [Orders per Customer]  |  format: 0.00
+// Average number of orders per known customer: [Orders] divided by [Distinct Customers]. Reuses the canonical order and customer measures so filter context stays consistent across visuals. See docs/METRICS_DEFINITION.md §I3.
+Orders per Customer =
+DIVIDE ( [Orders], [Distinct Customers] )
+
+// [Repeat Revenue Share]  |  format: 0.0%
+// REVIEW (LOW): §I4 specifies '/ Revenue' (canonical gross A1). This divides by SUM(mart_customer_summary[total_revenue_usd]) which is NET of refunds (~117.9k), a ~1% basis shift, so it will not reconcile to the gross Revenue KPI. No hard invariant violated (never reads fact_order, adds no shipping/cost). Original kept; owner to confirm gross- vs net-basis intent. Gross-basis alternative: DIVIDE(CALCULATE([Revenue], mart_customer_summary[is_repeat]=TRUE()), [Revenue]) — requires the customer relationship to propagate to fact_order_item.
+// Share of lifetime customer revenue generated by repeat customers: summed total_revenue_usd for is_repeat = TRUE() divided by total customer revenue. Uses mart_customer_summary lifetime revenue (customer-grain), not the item-grain gross Revenue measure. See docs/METRICS_DEFINITION.md §I4.
+Repeat Revenue Share =
+VAR RepeatRevenue =
+    CALCULATE (
+        SUM ( mart_customer_summary[total_revenue_usd] ),
+        mart_customer_summary[is_repeat] = TRUE ()
+    )
+VAR TotalCustomerRevenue =
+    SUM ( mart_customer_summary[total_revenue_usd] )
+RETURN
+    DIVIDE ( RepeatRevenue, TotalCustomerRevenue )
