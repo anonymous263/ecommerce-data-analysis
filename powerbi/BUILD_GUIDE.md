@@ -68,29 +68,9 @@ Open the **Model** view (left rail, third icon).
 
 ### 2.1 Create dim → fact relationships (single direction)
 
-For each pair below, drag the **dim** key onto the **fact** key. In the **Create relationship** dialog confirm: **Cardinality = One to many (1:\*)**, **Cross-filter direction = Single**, **Make this relationship active = checked**. Single direction only — never Both.
+For every relationship, drag the **dim** key onto the **fact** key. In the **Create relationship** dialog confirm: **Cardinality = One to many (1:\*)**, **Cross-filter direction = Single**, **Make this relationship active = checked**. Single direction only — never Both.
 
-| From (dim, "one" side) | To (fact/mart, "many" side) | Key |
-|---|---|---|
-| `dim_date[date_sk]` | `fact_order[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `fact_order_item[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `fact_refund[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `mart_order_profit[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `mart_product_profit[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `mart_country_profit[date_sk]` | date_sk |
-| `dim_date[date_sk]` | `fact_order_cost[date_sk]` | date_sk |
-| `dim_site[site_sk]` | `fact_order[site_sk]` | site_sk |
-| `dim_site[site_sk]` | `fact_order_item[site_sk]` | site_sk |
-| `dim_site[site_sk]` | `fact_refund[site_sk]` | site_sk |
-| `dim_site[site_sk]` | `mart_order_profit[site_sk]` | site_sk |
-| `dim_site[site_sk]` | `mart_product_profit[site_sk]` | site_sk |
-| `dim_site[site_sk]` | `fact_order_cost[site_sk]` | site_sk |
-| `dim_country[country_sk]` | `fact_order[country_sk]` | country_sk |
-| `dim_country[country_sk]` | `mart_country_profit[country_sk]` | country_sk |
-| `dim_product[product_sk]` | `fact_order_item[product_sk]` | product_sk |
-| `dim_product[product_sk]` | `mart_product_profit[product_sk]` | product_sk |
-| `dim_customer_anonymized[customer_sk]` | `fact_order[customer_sk]` | customer_sk |
-| `dim_customer_anonymized[customer_sk]` | `mart_customer_summary[customer_sk]` | customer_sk |
+There are **19 relationships** in total. Rather than one long list, they're grouped by the layout tab you build them in (§2.4) — the **Core Sales** and **Profit** tabs share no fact table, so the split is clean and no relationship is ever created twice: **Core Sales** carries 9, **Profit** carries 10 (9 + 10 = 19), and **Data Quality** has none. Create each tab's relationships as you build that tab; the per-tab tables are in **§2.4**.
 
 Notes:
 - `mart_customer_summary` also has `preferred_site_sk` / `preferred_country_sk` — leave these **unrelated** (they are attributes, not the active grain). If Power BI auto-created inactive relationships on them, leave them inactive.
@@ -108,6 +88,78 @@ This enables time-intelligence (MoM measures in Step 3 use `dim_date`).
 ### 2.3 Disconnected recon tables
 
 `recon_cost_coverage` and `recon_payment_fee_coverage` stay **fully disconnected** from the star — no relationships. Each has one row per site plus a `'__ALL__'` roll-up row; the gating measures read the `'__ALL__'` row directly (`CALCULATE(..., recon_cost_coverage[site_sk] = "__ALL__")` style — see the measure library). `recon_csv_vs_dbt_revenue`, `recon_csv_vs_dbt_profit`, and `recon_woo_vs_csv_shipping_charged` are also disconnected and surfaced only via the Data Quality page (Step 5, Page 9), related by date only if the authored measures require it — otherwise leave disconnected and display their own columns directly.
+
+### 2.4 Diagram layout for readability
+
+With ~18 tables the Model View canvas gets messy fast. Relationships flow **one-to-many, dim → fact**, so lay it out as a star: **dimensions along the top, facts below, arrows pointing downward.** That reads like a waterfall instead of a spider web.
+
+```
+┌─ _Measures ─┐     ← park top-left, alone (no relationships)
+
+  ── DIMENSIONS (top row) ─────────────────────────────────────
+  dim_date   dim_site   dim_country   dim_customer_anonymized   dim_product   dim_payment_method
+      │  ╲      │   ╲        │    ╲              │                    │              │
+  ── FACTS (below, sharing the dims above) ────────────────────
+  fact_order ── fact_order_item ── fact_refund
+  mart_order_profit   mart_product_profit   mart_country_profit   mart_customer_summary
+  fact_order_cost
+
+  ── DISCONNECTED (bottom-right corner, fenced off) ───────────
+  recon_cost_coverage  recon_payment_fee_coverage  recon_csv_vs_dbt_revenue
+  recon_csv_vs_dbt_profit  recon_woo_vs_csv_shipping_charged
+```
+
+- Put **`dim_date` at one end** of the dimension row — it touches the most tables, so keeping it at the edge minimizes crossing lines.
+- Keep **`fact_order` as the hub** in the fact row (it relates to date, site, country, customer, and payment method).
+- **Fence the 5 `recon_*` views in a corner.** They are disconnected by design (§2.3) — physically separating them stops you hunting for a "missing" relationship.
+- Keep **`_Measures` alone in the top-left** — no columns, no relationships.
+
+**Biggest win — use multiple layout tabs.** Don't cram everything into one diagram. At the bottom of Model View, the **All tables** tab has a **`+`** to add layouts; drag a *subset* into each. Each tab below lists the tables to place **and the exact relationships to create there** — every one uses the §2.1 dialog settings (1:\*, single direction, active).
+
+#### Tab 1 · All tables
+Every table (the overview above). No relationships unique to this tab — it is the union of Core Sales + Profit, so nothing new is wired here.
+
+#### Tab 2 · Core Sales
+**Tables:** `dim_date`, `dim_site`, `dim_country`, `dim_product`, `dim_customer_anonymized`, `dim_payment_method` + `fact_order`, `fact_order_item`, `fact_refund`.
+
+| From (dim, "one") | To (fact, "many") | Key |
+|---|---|---|
+| `dim_date` | `fact_order` | date_sk |
+| `dim_date` | `fact_order_item` | date_sk |
+| `dim_date` | `fact_refund` | date_sk |
+| `dim_site` | `fact_order` | site_sk |
+| `dim_site` | `fact_order_item` | site_sk |
+| `dim_site` | `fact_refund` | site_sk |
+| `dim_country` | `fact_order` | country_sk |
+| `dim_product` | `fact_order_item` | product_sk |
+| `dim_customer_anonymized` | `fact_order` | customer_sk |
+
+*(`dim_payment_method` is placed but left unrelated — see the note in §2.1.)*
+
+#### Tab 3 · Profit
+**Tables:** the five dimensions above + `mart_order_profit`, `mart_product_profit`, `mart_country_profit`, `mart_customer_summary`, `fact_order_cost`.
+
+| From (dim, "one") | To (mart/fact, "many") | Key |
+|---|---|---|
+| `dim_date` | `mart_order_profit` | date_sk |
+| `dim_date` | `mart_product_profit` | date_sk |
+| `dim_date` | `mart_country_profit` | date_sk |
+| `dim_date` | `fact_order_cost` | date_sk |
+| `dim_site` | `mart_order_profit` | site_sk |
+| `dim_site` | `mart_product_profit` | site_sk |
+| `dim_site` | `fact_order_cost` | site_sk |
+| `dim_country` | `mart_country_profit` | country_sk |
+| `dim_product` | `mart_product_profit` | product_sk |
+| `dim_customer_anonymized` | `mart_customer_summary` | customer_sk |
+
+#### Tab 4 · Data Quality
+**Tables:** `recon_cost_coverage`, `recon_payment_fee_coverage`, `recon_csv_vs_dbt_revenue`, `recon_csv_vs_dbt_profit`, `recon_woo_vs_csv_shipping_charged` (+ `_Measures`).
+
+**Relationships: none** — every table here is disconnected by design (§2.3).
+
+Each tab shows only what you are reasoning about — far easier than one giant canvas.
+
+**Micro-tips:** collapse fact cards (the `˄` on the header) and expand only when wiring relationships; hide key/`_sk` columns from report view (right-click → **Hide in report view**) so they clutter neither the diagram nor the field list; drag tables so every 1-to-many arrowhead points **down** and no line crosses another.
 
 ---
 
