@@ -33,6 +33,13 @@ dbt/logs/
 # Power BI
 *.pbix.backup
 
+# Database dumps — 600MB+ and contain REAL PII in raw payloads.
+# NOT for a normal git push (see db/README.md). Un-ignore only if you
+# deliberately choose Git LFS, and scrub before making the repo public.
+db/dumps/
+*.dump
+*.sql.gz
+
 # OS/editor noise
 .DS_Store
 Thumbs.db
