@@ -1,0 +1,90 @@
+table fact_refund
+	lineageTag: e2687772-0a45-453f-92c0-457f85fa02a5
+
+	column refund_sk
+		dataType: string
+		lineageTag: fb5a303b-eaaf-4a0c-b4af-df0be83eb489
+		summarizeBy: none
+		sourceColumn: refund_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_sk
+		dataType: string
+		lineageTag: de8e4afb-6357-4ce9-994b-337384985108
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: b4228996-9503-47f6-b947-10ff5e0e8a39
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_item_sk
+		dataType: string
+		lineageTag: 5e776a0c-e56b-4fd4-b166-ea3b972e9cbd
+		summarizeBy: none
+		sourceColumn: order_item_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 08d98cbc-ba62-4248-807d-a3601a4a9b2f
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_refund_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 25d1e32d-8cad-4195-ba6f-04ae4120a401
+		summarizeBy: sum
+		sourceColumn: woo_refund_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column refund_amount_usd
+		dataType: double
+		lineageTag: 6eb74acc-c47d-426d-85ca-9d63a220ff4d
+		summarizeBy: sum
+		sourceColumn: refund_amount_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column refund_reason
+		dataType: string
+		lineageTag: b5ffae91-2edf-49d1-a81f-b07bdf479e16
+		summarizeBy: none
+		sourceColumn: refund_reason
+
+		annotation SummarizationSetBy = Automatic
+
+	column event_type
+		dataType: string
+		lineageTag: 9b384765-2a74-424e-b09b-032756ff3e97
+		summarizeBy: none
+		sourceColumn: event_type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_refund = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "fact_refund"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,609 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 48.648700603781066
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 2731.4669531176114,
+            "y": 693.68194460486575
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "a0426c5b-05c6-4ed5-a7a1-402d3e13566e",
+          "size": {
+            "height": 104,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2061.0783410026593,
+            "y": 575.86126081929683
+          },
+          "nodeIndex": "dim_country",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2308.0812360433611,
+            "y": 835.50605359686028
+          },
+          "nodeIndex": "dim_customer_anonymized",
+          "size": {
+            "height": 224,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1346.0998635380167,
+            "y": 371.72791340819532
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 602.11619232692578
+          },
+          "nodeIndex": "dim_payment_method",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 928.679877407644,
+            "y": 470.78069256955729
+          },
+          "nodeIndex": "dim_product",
+          "size": {
+            "height": 265.23777473185373,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 432.07879756070827,
+            "y": 449.19193841423038
+          },
+          "nodeIndex": "dim_site",
+          "size": {
+            "height": 272,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1568.9282073473869,
+            "y": 0
+          },
+          "nodeIndex": "fact_order",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1413.9363002276227,
+            "y": 1107.6190067100049
+          },
+          "nodeIndex": "fact_order_item",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1276.6008003341362,
+            "y": 0
+          },
+          "nodeIndex": "fact_refund",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1899.1946173685583,
+            "y": 841.29066352847872
+          },
+          "nodeIndex": "mart_country_profit",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2447.4669531176114,
+            "y": 472.69509684380233
+          },
+          "nodeIndex": "mart_customer_summary",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1712.0386096034574,
+            "y": 473.24059378068688
+          },
+          "nodeIndex": "mart_order_profit",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1413.400138844446,
+            "y": 739.65535401055877
+          },
+          "nodeIndex": "mart_product_profit",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 978.81074992750359,
+            "y": 106.6468077842726
+          },
+          "nodeIndex": "fact_order_cost",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1114.9171301031918,
+            "y": 835.88774787214857
+          },
+          "nodeIndex": "recon_cost_coverage",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "recon_csv_vs_dbt_profit",
+          "size": {
+            "height": 200,
+            "width": 341.446878101543
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 255.08383049841171
+          },
+          "nodeIndex": "recon_csv_vs_dbt_revenue",
+          "size": {
+            "height": 272,
+            "width": 270.34232641669837
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 858.48597734112468
+          },
+          "nodeIndex": "recon_payment_fee_coverage",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 1213.6404501589598
+          },
+          "nodeIndex": "recon_woo_vs_csv_shipping_charged",
+          "size": {
+            "height": 277.72343905077173,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 53.4443873676232,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    },
+    {
+      "ordinal": 1,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 384.3603558504135,
+            "y": 42.633693126590671
+          },
+          "nodeIndex": "dim_country",
+          "size": {
+            "height": 266.31907819691884,
+            "width": 276.63369312659074
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 169.76496486581914,
+            "y": 896.88658132975922
+          },
+          "nodeIndex": "dim_customer_anonymized",
+          "size": {
+            "height": 266.63369312659069,
+            "width": 354.0059510229961
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1695.2558637146662,
+            "y": 895.30755565840411
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 274.73558925831668,
+            "width": 267.15953909845939
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1984.3696618923843,
+            "y": 511.604317519088
+          },
+          "nodeIndex": "dim_payment_method",
+          "size": {
+            "height": 265.68984833757509,
+            "width": 338.21569430944373
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1825.040169405223,
+            "y": 86.846411924536554
+          },
+          "nodeIndex": "dim_product",
+          "size": {
+            "height": 266.84046090154061,
+            "width": 284.52882148336676
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1094.1033838874753,
+            "y": 0
+          },
+          "nodeIndex": "dim_site",
+          "size": {
+            "height": 267.26292298593432,
+            "width": 249.79025671355225
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 612.65265444385034,
+            "y": 496.73558925831662
+          },
+          "nodeIndex": "fact_order",
+          "size": {
+            "height": 320.5273337276177,
+            "width": 344.53179699486464
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1004.4031212596567,
+            "y": 508.31312717392279
+          },
+          "nodeIndex": "fact_order_item",
+          "size": {
+            "height": 315.79025671355191,
+            "width": 327.1625146099575
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1377.2052800192009,
+            "y": 511.99553673275295
+          },
+          "nodeIndex": "fact_refund",
+          "size": {
+            "height": 307.05317969948646,
+            "width": 335.05764296673374
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "Core Sales",
+      "zoomValue": 63.330192671392282,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    },
+    {
+      "ordinal": 2,
+      "scrollPosition": {
+        "x": 0,
+        "y": 74.264753981948971
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 1516.1306361471788,
+            "y": 0
+          },
+          "nodeIndex": "dim_country",
+          "size": {
+            "height": 316.923026,
+            "width": 280.06058599999983
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1854.297539705522,
+            "y": 0
+          },
+          "nodeIndex": "dim_customer_anonymized",
+          "size": {
+            "height": 224,
+            "width": 343.92798548463384
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1143.3700941104441,
+            "y": 0
+          },
+          "nodeIndex": "dim_date",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1071.147523717827,
+            "y": 1046.9925509999998
+          },
+          "nodeIndex": "dim_product",
+          "size": {
+            "height": 300,
+            "width": 354.466148
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 721.60592053379355,
+            "y": 1.7715610000000002
+          },
+          "nodeIndex": "dim_site",
+          "size": {
+            "height": 272,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1488.938752,
+            "y": 561.89161446626656
+          },
+          "nodeIndex": "mart_country_profit",
+          "size": {
+            "height": 296,
+            "width": 312.92265624537816
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1856.775959373829,
+            "y": 557.64599341716678
+          },
+          "nodeIndex": "mart_customer_summary",
+          "size": {
+            "height": 300,
+            "width": 338.29065289567825
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 708.5078635214287,
+            "y": 561.612059607383
+          },
+          "nodeIndex": "mart_order_profit",
+          "size": {
+            "height": 300,
+            "width": 293.19199218403367
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1103.4276277361341,
+            "y": 570.8880434601441
+          },
+          "nodeIndex": "mart_product_profit",
+          "size": {
+            "height": 300,
+            "width": 305.87599050918379
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 303.68841896308527,
+            "y": 558.59964289573838
+          },
+          "nodeIndex": "fact_order_cost",
+          "size": {
+            "height": 300,
+            "width": 321.37865512881149
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "Profit",
+      "zoomValue": 63.287087723234059,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    },
+    {
+      "ordinal": 3,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 8,
+            "y": 390
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "a0426c5b-05c6-4ed5-a7a1-402d3e13566e",
+          "size": {
+            "height": 311,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 1150,
+            "y": 0
+          },
+          "nodeIndex": "recon_cost_coverage",
+          "size": {
+            "height": 393,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 841,
+            "y": 0
+          },
+          "nodeIndex": "recon_csv_vs_dbt_profit",
+          "size": {
+            "height": 341,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 567,
+            "y": 0
+          },
+          "nodeIndex": "recon_csv_vs_dbt_revenue",
+          "size": {
+            "height": 330,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 287,
+            "y": 0
+          },
+          "nodeIndex": "recon_payment_fee_coverage",
+          "size": {
+            "height": 336,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 0
+          },
+          "nodeIndex": "recon_woo_vs_csv_shipping_charged",
+          "size": {
+            "height": 328,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "Data Quality",
+      "zoomValue": 100,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "Data Quality",
+  "defaultDiagram": "All tables"
+}

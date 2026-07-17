@@ -1,0 +1,231 @@
+table fact_order
+	lineageTag: b75fe684-e5fc-4949-90fb-ad8e555fcdc3
+
+	column order_sk
+		dataType: string
+		lineageTag: 7a59d762-2638-495f-8e9a-56c99df66806
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: bae17482-168c-44d7-9938-abb3084b5ed7
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: aadcecc8-c573-4bd6-8417-559a613350e0
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_sk
+		dataType: string
+		lineageTag: 922e1c31-5999-4fe1-abcb-0d224bdb3ea3
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_sk
+		dataType: string
+		lineageTag: bcb29a59-0659-4a06-9f08-656cda2f9f7c
+		summarizeBy: none
+		sourceColumn: country_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column payment_method_sk
+		dataType: string
+		lineageTag: 20710301-f7a8-4e21-9c4e-0297c49c4bb7
+		summarizeBy: none
+		sourceColumn: payment_method_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_natural_key
+		dataType: string
+		lineageTag: c2ac9c4d-3518-4830-89c3-65aad14f51f0
+		summarizeBy: none
+		sourceColumn: order_natural_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_order_id
+		dataType: int64
+		formatString: 0
+		lineageTag: b058461f-0ee1-4b1e-8a36-8567bbc1f927
+		summarizeBy: sum
+		sourceColumn: woo_order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column status
+		dataType: string
+		lineageTag: 27fc45f1-93de-4461-afd1-45e296f9cc90
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = Automatic
+
+	column status_is_cancelled
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 95232a78-a9dc-4b5a-b989-e76d0d0eb998
+		summarizeBy: none
+		sourceColumn: status_is_cancelled
+
+		annotation SummarizationSetBy = Automatic
+
+	column currency_source
+		dataType: string
+		lineageTag: 05dc1a5f-0060-4c26-9466-f75f814e214e
+		summarizeBy: none
+		sourceColumn: currency_source
+
+		annotation SummarizationSetBy = Automatic
+
+	column fx_rate_to_usd
+		dataType: double
+		lineageTag: a2472b4c-589d-4187-b3ab-68ddbd6c6e09
+		summarizeBy: sum
+		sourceColumn: fx_rate_to_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column order_total_src
+		dataType: double
+		lineageTag: c191a86a-12e1-4a61-850f-f415cfa3db0a
+		summarizeBy: sum
+		sourceColumn: order_total_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column order_total_usd
+		dataType: double
+		lineageTag: ae87bc54-d1de-4387-b5c2-718649c7646f
+		summarizeBy: sum
+		sourceColumn: order_total_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column shipping_charged_src
+		dataType: double
+		lineageTag: 0a39f4b8-b55c-402c-8341-0ca3205eaf9a
+		summarizeBy: sum
+		sourceColumn: shipping_charged_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column shipping_charged_usd
+		dataType: double
+		lineageTag: 2e57949b-9783-4a9a-92d8-c2597541aa3f
+		summarizeBy: sum
+		sourceColumn: shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column discount_src
+		dataType: double
+		lineageTag: bb678f0b-c704-4968-be3d-7df341bb39de
+		summarizeBy: sum
+		sourceColumn: discount_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column discount_usd
+		dataType: double
+		lineageTag: 570f10df-ff98-4945-8701-7fba94980e6f
+		summarizeBy: sum
+		sourceColumn: discount_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column tax_src
+		dataType: double
+		lineageTag: f1b00efa-ec7d-49d4-bfb3-dff8a6f0bdee
+		summarizeBy: sum
+		sourceColumn: tax_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column tax_usd
+		dataType: double
+		lineageTag: 512397a0-5a7b-4662-a587-e8e1508f8a40
+		summarizeBy: sum
+		sourceColumn: tax_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column payment_fee_usd
+		dataType: double
+		lineageTag: 1b5d4cbe-7ba7-4b2e-bc44-45380b519c11
+		summarizeBy: sum
+		sourceColumn: payment_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column payment_fee_source
+		dataType: string
+		lineageTag: b08c6207-c29d-41db-af35-a31825fd6085
+		summarizeBy: none
+		sourceColumn: payment_fee_source
+
+		annotation SummarizationSetBy = Automatic
+
+	column payment_fee_needs_review
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b022ac48-4a1f-4d5b-9e05-39d0c3d5922d
+		summarizeBy: none
+		sourceColumn: payment_fee_needs_review
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 283e62f9-69d2-4041-8659-837f4610d4e1
+		summarizeBy: sum
+		sourceColumn: order_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_order = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "fact_order"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

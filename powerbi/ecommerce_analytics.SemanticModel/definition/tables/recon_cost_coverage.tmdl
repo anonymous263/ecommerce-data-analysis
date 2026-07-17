@@ -1,0 +1,110 @@
+table recon_cost_coverage
+	lineageTag: 13e22f2b-63bb-4a7b-949f-db97934b3722
+
+	column site_sk
+		dataType: string
+		lineageTag: 34bb0966-b86d-44ce-87a5-da955a523ff2
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_orders
+		dataType: double
+		lineageTag: 539ba23c-342b-4b1e-8548-1ef787bebda4
+		summarizeBy: sum
+		sourceColumn: woo_orders
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column revenue_orders
+		dataType: double
+		lineageTag: e4458b0e-3a0e-49b2-b989-c7959fa3bb65
+		summarizeBy: sum
+		sourceColumn: revenue_orders
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column covered_orders
+		dataType: double
+		lineageTag: 4a53e48e-fe09-41f7-bc53-192a8c6e7494
+		summarizeBy: sum
+		sourceColumn: covered_orders
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column covered_revenue_orders
+		dataType: double
+		lineageTag: b2bed764-48fe-46b0-b590-40b8a89d8079
+		summarizeBy: sum
+		sourceColumn: covered_revenue_orders
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column covered_revenue_orders_with_cogs
+		dataType: double
+		lineageTag: 92238e9c-dfcf-428b-933c-8f733f66a459
+		summarizeBy: sum
+		sourceColumn: covered_revenue_orders_with_cogs
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column all_order_coverage_pct
+		dataType: double
+		lineageTag: 224b1601-a970-4eca-8402-bc99d5e6b1e7
+		summarizeBy: sum
+		sourceColumn: all_order_coverage_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_coverage_pct
+		dataType: double
+		lineageTag: c2ada40e-5f67-4067-a1bc-95a890d3f6c8
+		summarizeBy: sum
+		sourceColumn: cost_coverage_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cogs_coverage_pct
+		dataType: double
+		lineageTag: b6dc5c7f-5e05-4dab-98ee-25f37ae0fa26
+		summarizeBy: sum
+		sourceColumn: cogs_coverage_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column coverage_tier
+		dataType: string
+		lineageTag: 97d0f25e-2a6b-482f-a5a5-0a1f546ab6c3
+		summarizeBy: none
+		sourceColumn: coverage_tier
+
+		annotation SummarizationSetBy = Automatic
+
+	partition recon_cost_coverage = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_recon", Item = "recon_cost_coverage"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,92 @@
+table recon_csv_vs_dbt_revenue
+	lineageTag: d19043e3-4c9e-4b6a-b8b9-195faec117e2
+
+	column order_sk
+		dataType: string
+		lineageTag: 17c6499a-6566-48c9-b68d-134efee6ff83
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column csv_revenue_observed_usd
+		dataType: double
+		lineageTag: bcf5defd-86dd-4400-aa49-3916ac1d7694
+		summarizeBy: sum
+		sourceColumn: csv_revenue_observed_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column dbt_revenue_usd
+		dataType: double
+		lineageTag: 91b43e6e-d7f1-4d0d-aa85-c95ee7670978
+		summarizeBy: sum
+		sourceColumn: dbt_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column shipping_charged_usd
+		dataType: double
+		lineageTag: 9cddd310-a323-4477-a4a4-b6cd26726a1c
+		summarizeBy: sum
+		sourceColumn: shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column dbt_gross_usd
+		dataType: double
+		lineageTag: 5ff78032-2a55-48e9-ac1e-80d222032730
+		summarizeBy: sum
+		sourceColumn: dbt_gross_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column delta_usd
+		dataType: double
+		lineageTag: 13d6656c-2e01-437f-bebe-cb72e9b9910b
+		summarizeBy: sum
+		sourceColumn: delta_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column delta_pct
+		dataType: double
+		lineageTag: 72b9ac3f-9fe2-45f3-8616-c7b1f714944b
+		summarizeBy: sum
+		sourceColumn: delta_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column delta_vs_gross_usd
+		dataType: double
+		lineageTag: e3df5c08-87f6-4664-8ec8-0277c0983193
+		summarizeBy: sum
+		sourceColumn: delta_vs_gross_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition recon_csv_vs_dbt_revenue = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_recon", Item = "recon_csv_vs_dbt_revenue"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

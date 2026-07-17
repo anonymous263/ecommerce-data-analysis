@@ -1,0 +1,38 @@
+table dim_payment_method
+	lineageTag: a3111540-2816-49ac-933b-27725f6fafb7
+
+	column payment_method_sk
+		dataType: string
+		lineageTag: 69e5684b-a3c5-4563-b907-81f7a951918e
+		summarizeBy: none
+		sourceColumn: payment_method_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column method_code
+		dataType: string
+		lineageTag: e5601094-2ebb-433b-b4db-5a3ad4e2a3a0
+		summarizeBy: none
+		sourceColumn: method_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column method_name
+		dataType: string
+		lineageTag: c23f9c88-04de-4b16-a0f1-b755b314dec5
+		summarizeBy: none
+		sourceColumn: method_name
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_payment_method = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_payment_method"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

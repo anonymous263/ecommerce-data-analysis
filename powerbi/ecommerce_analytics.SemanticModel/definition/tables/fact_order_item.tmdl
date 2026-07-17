@@ -1,0 +1,189 @@
+table fact_order_item
+	lineageTag: a51e8a65-4643-4a32-86e4-3d074ce4223e
+
+	column order_item_sk
+		dataType: string
+		lineageTag: 1896c8c7-f69c-44c8-8b6d-2f0cf8dbff2c
+		summarizeBy: none
+		sourceColumn: order_item_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_sk
+		dataType: string
+		lineageTag: d18b6440-d53c-488c-8861-2538e4d58724
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: dcd0e5e2-d7db-492d-b3e3-cfd826e957fb
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: aad9f415-7ff2-4986-9e0e-9f85551458dc
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_sk
+		dataType: string
+		lineageTag: 737d4646-9349-4274-925f-d6ad594b4188
+		summarizeBy: none
+		sourceColumn: product_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_line_item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 9def58a3-3844-4461-84e0-efa22247fc6e
+		summarizeBy: sum
+		sourceColumn: woo_line_item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_product_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 5ebfbaad-7d12-49d8-bcf2-07a144401b3c
+		summarizeBy: sum
+		sourceColumn: woo_product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantity
+		dataType: int64
+		formatString: 0
+		lineageTag: 4be81d75-155f-4be7-a1dc-421dca06a8b9
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	column unit_price_src
+		dataType: double
+		lineageTag: 6bede2a8-bbdb-4fb9-8d7c-abfc9a7acb9f
+		summarizeBy: sum
+		sourceColumn: unit_price_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_subtotal_src
+		dataType: double
+		lineageTag: aa8b2626-7f10-4a2b-bbae-5ff52f32e37e
+		summarizeBy: sum
+		sourceColumn: line_subtotal_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_total_src
+		dataType: double
+		lineageTag: 4111d732-a2d9-46d6-8bb1-fd547d6e5775
+		summarizeBy: sum
+		sourceColumn: line_total_src
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column fx_rate_to_usd
+		dataType: double
+		lineageTag: 700c6349-1a3e-491e-a9a7-914e8bd39745
+		summarizeBy: sum
+		sourceColumn: fx_rate_to_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_revenue_usd
+		dataType: double
+		lineageTag: 8370de73-1ad0-4551-afa6-fb5b25c688d9
+		summarizeBy: sum
+		sourceColumn: line_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column order_status
+		dataType: string
+		lineageTag: fc9c4fb0-9f88-4abd-ad90-fc8cd850a45a
+		summarizeBy: none
+		sourceColumn: order_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_revenue_status
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 27bd335b-6fa8-4906-8834-43503e9afa75
+		summarizeBy: none
+		sourceColumn: is_revenue_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column size
+		dataType: string
+		lineageTag: e922a16e-7ad4-4dff-aa20-bfd0c6717aca
+		summarizeBy: none
+		sourceColumn: size
+
+		annotation SummarizationSetBy = Automatic
+
+	column color
+		dataType: string
+		lineageTag: a66eab68-a6b6-4ced-b924-98b7b59ca19c
+		summarizeBy: none
+		sourceColumn: color
+
+		annotation SummarizationSetBy = Automatic
+
+	column style
+		dataType: string
+		lineageTag: 7195b97e-9340-4132-971a-e170d86f24c8
+		summarizeBy: none
+		sourceColumn: style
+
+		annotation SummarizationSetBy = Automatic
+
+	column fit_type
+		dataType: string
+		lineageTag: 3c7032ae-8e25-4d3c-8ed5-7628c5b4fddd
+		summarizeBy: none
+		sourceColumn: fit_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column print_location
+		dataType: string
+		lineageTag: 9eabae56-73a6-4f89-964d-652dabeb870b
+		summarizeBy: none
+		sourceColumn: print_location
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_order_item = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "fact_order_item"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

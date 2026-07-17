@@ -1,0 +1,181 @@
+table mart_product_profit
+	lineageTag: 6cb60fa5-0d9f-456d-abe2-94ac1a3b41e9
+
+	column order_item_sk
+		dataType: string
+		lineageTag: 07db59a0-85bd-4269-8bb6-06d81a85b622
+		summarizeBy: none
+		sourceColumn: order_item_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_sk
+		dataType: string
+		lineageTag: bbfe87f7-e73a-4dd6-bda9-ae16bc6d09e8
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: a614e106-152e-46dc-a0d2-a7eba0ed4507
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: e8bfeb9d-8401-40ad-9e94-7d7855e9ff59
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_sk
+		dataType: string
+		lineageTag: 9ab75f0a-16fa-485e-8f6d-1bbc8585eecf
+		summarizeBy: none
+		sourceColumn: product_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_line_item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 5ec9dfb6-038d-4f87-8dde-cfef241a8d9b
+		summarizeBy: sum
+		sourceColumn: woo_line_item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_product_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 8576ee80-33f2-4da2-83be-c1702f906f12
+		summarizeBy: sum
+		sourceColumn: woo_product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantity
+		dataType: int64
+		formatString: 0
+		lineageTag: ee32cb02-8f4a-435f-a62d-31ddcfef4b0e
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	column line_revenue_usd
+		dataType: double
+		lineageTag: 78f28b44-171b-4b4a-ac95-fcd0a3068219
+		summarizeBy: sum
+		sourceColumn: line_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_refund_usd
+		dataType: double
+		lineageTag: 5efcc352-cfd8-4b19-a000-e28e651b456a
+		summarizeBy: sum
+		sourceColumn: line_refund_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_net_revenue_usd
+		dataType: double
+		lineageTag: c40e64f3-535d-49c3-a739-7a64dcfac9f4
+		summarizeBy: sum
+		sourceColumn: line_net_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_cogs_usd
+		dataType: double
+		lineageTag: 36920bc3-4177-4f27-afa9-aaa349e8825a
+		summarizeBy: sum
+		sourceColumn: line_cogs_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_design_fee_usd
+		dataType: double
+		lineageTag: ded3c2de-0c97-4319-8f6d-271cf9d08d78
+		summarizeBy: sum
+		sourceColumn: line_design_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_payment_fee_usd
+		dataType: double
+		lineageTag: 0ae93baa-c7bf-4fd3-9d49-8b5d5d2ca38f
+		summarizeBy: sum
+		sourceColumn: line_payment_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column line_profit_usd
+		dataType: double
+		lineageTag: 24c6ad51-9eae-41e8-8db6-e48d6a4e703f
+		summarizeBy: sum
+		sourceColumn: line_profit_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_allocation_method
+		dataType: string
+		lineageTag: 27a9db23-2228-45b9-a0eb-b8ab7881b2b4
+		summarizeBy: none
+		sourceColumn: cost_allocation_method
+
+		annotation SummarizationSetBy = Automatic
+
+	column cost_confidence
+		dataType: double
+		lineageTag: 976d0cd2-9959-4653-9658-e1ff2621a324
+		summarizeBy: sum
+		sourceColumn: cost_confidence
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column is_revenue_status
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 0a3ed005-7913-429f-aa75-7eec8b70bc84
+		summarizeBy: none
+		sourceColumn: is_revenue_status
+
+		annotation SummarizationSetBy = Automatic
+
+	partition mart_product_profit = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "mart_product_profit"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

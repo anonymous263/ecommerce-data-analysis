@@ -1,0 +1,76 @@
+relationship 3f698459-736c-bd8c-df02-922a4e4470e5
+	fromColumn: fact_order.date_sk
+	toColumn: dim_date.date_sk
+
+relationship 0c7e4329-3464-1f64-7b2c-d0cf018c583d
+	fromColumn: fact_order_item.date_sk
+	toColumn: dim_date.date_sk
+
+relationship e434e083-8936-c79c-772b-3b841087ae1a
+	fromColumn: fact_refund.date_sk
+	toColumn: dim_date.date_sk
+
+relationship ad8c68b9-321e-5550-5a2e-5cbf996661e1
+	fromColumn: fact_order.site_sk
+	toColumn: dim_site.site_sk
+
+relationship d8b97fb6-eb88-1ad2-a325-7764c8e27c20
+	fromColumn: fact_order_item.site_sk
+	toColumn: dim_site.site_sk
+
+relationship 6d30d400-a703-5f66-ac5f-117a33c6083b
+	fromColumn: fact_refund.site_sk
+	toColumn: dim_site.site_sk
+
+relationship 48884218-616d-1ecf-044b-d07875a645b4
+	fromColumn: fact_order.country_sk
+	toColumn: dim_country.country_sk
+
+relationship 746d9d78-bc83-cd42-cbe3-5183e8f699a6
+	fromColumn: fact_order_item.product_sk
+	toColumn: dim_product.product_sk
+
+relationship a10ae50b-47c1-70b6-8665-1f361d4bd080
+	fromColumn: fact_order.customer_sk
+	toColumn: dim_customer_anonymized.customer_sk
+
+relationship 5634cbb6-df9e-44d5-201a-462287e33d8d
+	fromColumn: mart_product_profit.date_sk
+	toColumn: dim_date.date_sk
+
+relationship ecb6d887-41ac-b0db-cab3-653c2dd743d4
+	fromColumn: mart_order_profit.date_sk
+	toColumn: dim_date.date_sk
+
+relationship 2ab4adfa-c163-10f5-58e6-9371a3898ea2
+	fromColumn: fact_order_cost.date_sk
+	toColumn: dim_date.date_sk
+
+relationship f1e670d2-62a9-d2f3-b5a4-9190bb9ccb49
+	fromColumn: mart_country_profit.date_sk
+	toColumn: dim_date.date_sk
+
+relationship db81f927-2f89-cdf3-31b5-9cd569e2b2ce
+	fromColumn: fact_order_cost.site_sk
+	toColumn: dim_site.site_sk
+
+relationship 0f6d02e7-7852-86c6-d243-52aa718a384f
+	fromColumn: mart_product_profit.site_sk
+	toColumn: dim_site.site_sk
+
+relationship 65b607d7-c959-a4a9-d01d-5fd60bff6f12
+	fromColumn: mart_order_profit.site_sk
+	toColumn: dim_site.site_sk
+
+relationship f5d88afd-bbc7-9554-ab55-97805f860970
+	fromColumn: mart_country_profit.country_sk
+	toColumn: dim_country.country_sk
+
+relationship 1d55ac39-63ea-485c-2b66-9ed63b252ad9
+	fromColumn: mart_product_profit.product_sk
+	toColumn: dim_product.product_sk
+
+relationship aeaf52c3-20e5-0660-09d0-005a44812541
+	fromColumn: mart_customer_summary.customer_sk
+	toColumn: dim_customer_anonymized.customer_sk
+

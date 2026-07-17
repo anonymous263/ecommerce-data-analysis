@@ -1,0 +1,73 @@
+table recon_woo_vs_csv_shipping_charged
+	lineageTag: 253143f6-302b-4752-8421-390d4e23c2b4
+
+	column site_sk
+		dataType: string
+		lineageTag: c50cc0df-5c28-47d0-8722-89dc9b23d719
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 2085db63-ad64-45a3-878e-09a6b740d2a1
+		summarizeBy: sum
+		sourceColumn: date_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_shipping_charged_usd
+		dataType: double
+		lineageTag: 8f150972-13ff-48f2-89fe-267e16b9b797
+		summarizeBy: sum
+		sourceColumn: woo_shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column csv_shipping_charged_usd
+		dataType: double
+		lineageTag: f3e9e68f-6b18-46c2-aebb-a5865e0fc22a
+		summarizeBy: sum
+		sourceColumn: csv_shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column delta_usd
+		dataType: double
+		lineageTag: c016229c-f097-4702-a8ea-b132ce63b871
+		summarizeBy: sum
+		sourceColumn: delta_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column delta_pct
+		dataType: double
+		lineageTag: f30e36ee-0ca3-41b3-9dfb-eadc3204a0c8
+		summarizeBy: sum
+		sourceColumn: delta_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition recon_woo_vs_csv_shipping_charged = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_recon", Item = "recon_woo_vs_csv_shipping_charged"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

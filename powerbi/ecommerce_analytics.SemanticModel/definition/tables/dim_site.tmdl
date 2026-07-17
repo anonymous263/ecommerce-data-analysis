@@ -1,0 +1,81 @@
+table dim_site
+	lineageTag: c5f4dad0-0620-4ae0-b978-21140f024fe3
+
+	column site_sk
+		dataType: string
+		lineageTag: 16d4c88d-16fb-450b-bb1a-05e104a8e922
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_code
+		dataType: string
+		lineageTag: 12876cf2-12a8-433d-a289-bb5973d16168
+		summarizeBy: none
+		sourceColumn: site_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_name
+		dataType: string
+		lineageTag: 9d90a8c9-d115-4a48-8788-52fd0760d456
+		summarizeBy: none
+		sourceColumn: site_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column domain
+		dataType: string
+		lineageTag: 4d0add99-964e-4956-9711-03b15b9fc664
+		summarizeBy: none
+		sourceColumn: domain
+
+		annotation SummarizationSetBy = Automatic
+
+	column default_currency
+		dataType: string
+		lineageTag: f2461af7-5483-4be6-a0cb-524295d0aa47
+		summarizeBy: none
+		sourceColumn: default_currency
+
+		annotation SummarizationSetBy = Automatic
+
+	column timezone
+		dataType: string
+		lineageTag: 62cf0a04-6817-4075-8d63-61212cd8be81
+		summarizeBy: none
+		sourceColumn: timezone
+
+		annotation SummarizationSetBy = Automatic
+
+	column reporting_timezone
+		dataType: string
+		lineageTag: d1daee1e-ed41-40b1-a801-eda6d1de3f1d
+		summarizeBy: none
+		sourceColumn: reporting_timezone
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_active
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 33e8197c-ad7a-4cda-8d0e-a061644dbaa9
+		summarizeBy: none
+		sourceColumn: is_active
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_site = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_site"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

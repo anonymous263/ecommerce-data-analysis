@@ -1,0 +1,108 @@
+table dim_date
+	lineageTag: db81d143-58b1-464d-b3a5-62d7786c3055
+	dataCategory: Time
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: 06988136-2397-4c2a-863f-802730c2ba0b
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_day
+		dataType: dateTime
+		isKey
+		formatString: Long Date
+		lineageTag: b250cb74-9d5b-4b09-adbf-ee7b844e50af
+		summarizeBy: none
+		sourceColumn: date_day
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 58087a48-3835-4473-a370-e9e50d9f048b
+		summarizeBy: sum
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 8007336e-e060-492d-8a84-1b7c3e1bcf85
+		summarizeBy: sum
+		sourceColumn: quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		formatString: 0
+		lineageTag: 4a25cbba-fc1a-4131-8c31-b925d619006b
+		summarizeBy: sum
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: d191dc52-a714-47a8-9437-196fadd563bf
+		summarizeBy: none
+		sourceColumn: month_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_month
+		dataType: int64
+		formatString: 0
+		lineageTag: 3b958c13-5253-4415-8b32-6180a631de83
+		summarizeBy: sum
+		sourceColumn: day_of_month
+
+		annotation SummarizationSetBy = Automatic
+
+	column iso_day_of_week
+		dataType: int64
+		formatString: 0
+		lineageTag: d61988f7-4ded-48a2-b147-b73fc7e17ad5
+		summarizeBy: sum
+		sourceColumn: iso_day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_name
+		dataType: string
+		lineageTag: da386490-9402-498e-a6a6-7266553944a2
+		summarizeBy: none
+		sourceColumn: day_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_weekend
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 184e3912-d9e6-4399-a64e-35a07cc7ac92
+		summarizeBy: none
+		sourceColumn: is_weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_date = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_date"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

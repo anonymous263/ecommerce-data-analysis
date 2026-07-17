@@ -1,0 +1,54 @@
+table dim_country
+	lineageTag: 2e8aee4c-e75f-46c3-9826-1d56c2b38415
+
+	column country_sk
+		dataType: string
+		lineageTag: 1df04572-b132-4e95-83c4-daf0dfc6e34a
+		summarizeBy: none
+		sourceColumn: country_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_code
+		dataType: string
+		lineageTag: 97bfeb50-fe8a-4a3a-8018-3d66f74fb85d
+		summarizeBy: none
+		sourceColumn: country_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_name
+		dataType: string
+		lineageTag: 0a9bf87c-0267-4ddb-ad62-b5bcd81a9db8
+		summarizeBy: none
+		sourceColumn: country_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column region
+		dataType: string
+		lineageTag: 7b7354cb-1986-44fd-b293-4e0282e49307
+		summarizeBy: none
+		sourceColumn: region
+
+		annotation SummarizationSetBy = Automatic
+
+	column currency
+		dataType: string
+		lineageTag: 7e3a3bb1-e7d3-4e63-bc50-16e9fc3e486b
+		summarizeBy: none
+		sourceColumn: currency
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_country = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_country"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

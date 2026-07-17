@@ -1,0 +1,69 @@
+table dim_customer_anonymized
+	lineageTag: 3819f4b0-c553-4e81-a59b-a0afe6200e84
+
+	column customer_sk
+		dataType: string
+		lineageTag: 210b2e84-273d-463f-bb41-851b54ffdd93
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_hash
+		dataType: string
+		lineageTag: ff496d9d-9df5-4bcb-ab2e-c5edd7e680bb
+		summarizeBy: none
+		sourceColumn: customer_hash
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_unknown_email
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 3f089280-5516-4eaa-91b7-f9f4ae854de9
+		summarizeBy: none
+		sourceColumn: is_unknown_email
+
+		annotation SummarizationSetBy = Automatic
+
+	column country_sk
+		dataType: string
+		lineageTag: ddfeee8b-30ea-4be3-b980-92577e6eedab
+		summarizeBy: none
+		sourceColumn: country_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_order_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 8a33b53d-6f63-4de6-8540-dca012cf1faf
+		summarizeBy: none
+		sourceColumn: first_order_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column last_order_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 34a02c42-f729-41d9-9177-e149bf78045b
+		summarizeBy: none
+		sourceColumn: last_order_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_customer_anonymized = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_customer_anonymized"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

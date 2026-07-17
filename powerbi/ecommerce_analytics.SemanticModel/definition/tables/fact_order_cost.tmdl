@@ -1,0 +1,135 @@
+table fact_order_cost
+	lineageTag: 1f85e22f-69e9-46ef-ba38-fdd96ab415a8
+
+	column order_cost_sk
+		dataType: string
+		lineageTag: bb4cca22-241b-4d65-b9ce-c003408b8934
+		summarizeBy: none
+		sourceColumn: order_cost_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_sk
+		dataType: string
+		lineageTag: dbf90192-b272-4294-af88-eb0f062a70ba
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: fe1321fa-8877-4a6f-9203-2a859a2c7793
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: dd035ca7-a226-4eb6-9424-ac83a12c0ec3
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column cogs_usd
+		dataType: double
+		lineageTag: 483349b8-6661-45e9-8d0b-0ee94533cbe8
+		summarizeBy: sum
+		sourceColumn: cogs_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column design_fee_usd
+		dataType: double
+		lineageTag: f2ea62fb-f5f9-4649-bbca-4fc90793b0f7
+		summarizeBy: sum
+		sourceColumn: design_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column payment_fee_fallback_usd
+		dataType: double
+		lineageTag: 3ee6fade-bc1d-43ff-b70a-d9cdd29c1c10
+		summarizeBy: sum
+		sourceColumn: payment_fee_fallback_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column csv_shipping_charged_usd
+		dataType: double
+		lineageTag: 47489ea7-0e49-4184-8db2-f464899a9a19
+		summarizeBy: sum
+		sourceColumn: csv_shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column csv_revenue_observed_usd
+		dataType: double
+		lineageTag: e402998d-4733-486f-a599-ecc5b10e63aa
+		summarizeBy: sum
+		sourceColumn: csv_revenue_observed_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column csv_profit_observed_usd
+		dataType: double
+		lineageTag: 717540c3-3a45-4273-8779-61ec4848be3b
+		summarizeBy: sum
+		sourceColumn: csv_profit_observed_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_source
+		dataType: string
+		lineageTag: 2cd84f8a-209a-4225-b304-d5220fc0fba1
+		summarizeBy: none
+		sourceColumn: cost_source
+
+		annotation SummarizationSetBy = Automatic
+
+	column cost_allocation_method
+		dataType: string
+		lineageTag: 37f33d2a-01d0-4046-bc9a-a4ee2d4194dc
+		summarizeBy: none
+		sourceColumn: cost_allocation_method
+
+		annotation SummarizationSetBy = Automatic
+
+	column cost_confidence
+		dataType: double
+		lineageTag: b0b5267a-77be-4b1d-a3d1-d410e22f71e2
+		summarizeBy: sum
+		sourceColumn: cost_confidence
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition fact_order_cost = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_operations", Item = "fact_order_cost"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

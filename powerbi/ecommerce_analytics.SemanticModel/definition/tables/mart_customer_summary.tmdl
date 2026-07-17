@@ -1,0 +1,106 @@
+table mart_customer_summary
+	lineageTag: 2d94dd3c-59ec-4bf1-b4a8-db140ed4517b
+
+	column customer_sk
+		dataType: string
+		lineageTag: edb71c10-e72b-4dba-82a9-9ec79fc9cf3d
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_hash
+		dataType: string
+		lineageTag: 6b8b4845-84d4-4c54-b34e-5f2549ae0ad0
+		summarizeBy: none
+		sourceColumn: customer_hash
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_order_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 1aa2255d-fc8e-4202-b3fc-e56a7c61dde1
+		summarizeBy: none
+		sourceColumn: first_order_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column last_order_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: cc2ab5b1-b370-41d0-b1da-d4abf97418ea
+		summarizeBy: none
+		sourceColumn: last_order_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column total_orders
+		dataType: int64
+		formatString: 0
+		lineageTag: 19166181-34e9-4182-ab93-1989f48ee948
+		summarizeBy: sum
+		sourceColumn: total_orders
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_revenue_usd
+		dataType: double
+		lineageTag: 6067d146-675e-4b8e-bc0a-847e53068540
+		summarizeBy: sum
+		sourceColumn: total_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column total_profit_usd
+		dataType: double
+		lineageTag: b2aedbd8-8d9c-43dd-8de6-0b6affb6da29
+		summarizeBy: sum
+		sourceColumn: total_profit_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column is_repeat
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 57f408e0-da79-4c22-865d-1240132816fd
+		summarizeBy: none
+		sourceColumn: is_repeat
+
+		annotation SummarizationSetBy = Automatic
+
+	column preferred_site_sk
+		dataType: string
+		lineageTag: 1c2b83db-66f5-4158-adaa-7cb8431e60b2
+		summarizeBy: none
+		sourceColumn: preferred_site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column preferred_country_sk
+		dataType: string
+		lineageTag: cf5d26d0-bd37-4e73-add2-3e44effd003d
+		summarizeBy: none
+		sourceColumn: preferred_country_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	partition mart_customer_summary = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "mart_customer_summary"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

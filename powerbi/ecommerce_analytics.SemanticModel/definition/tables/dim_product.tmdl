@@ -1,0 +1,101 @@
+table dim_product
+	lineageTag: b9f6a5a5-d1cf-4f31-a007-f3f9e590133d
+
+	column product_sk
+		dataType: string
+		lineageTag: 50470505-4cad-440a-b6c2-13b52425d547
+		summarizeBy: none
+		sourceColumn: product_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: fe8bb569-e10c-47f5-999e-400338e3049e
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_code
+		dataType: string
+		lineageTag: 1771f0fc-c3f3-4f21-8658-36c6b6f03c27
+		summarizeBy: none
+		sourceColumn: site_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column woo_product_id
+		dataType: int64
+		formatString: 0
+		lineageTag: e4133d4e-8e46-421c-9329-733b0372fa99
+		summarizeBy: sum
+		sourceColumn: woo_product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_name
+		dataType: string
+		lineageTag: 14a381cb-6cfb-4a30-9a5f-6a024476f605
+		summarizeBy: none
+		sourceColumn: product_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_url
+		dataType: string
+		lineageTag: 311a4af6-3d48-4ee9-9dae-f0a6a8070e8a
+		summarizeBy: none
+		sourceColumn: product_url
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_type
+		dataType: string
+		lineageTag: 5d9934d3-0f29-43e3-b9f1-66ec45dc49d5
+		summarizeBy: none
+		sourceColumn: product_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column sku
+		dataType: string
+		lineageTag: 4df5739a-8585-4c55-8f06-9f763eb22a91
+		summarizeBy: none
+		sourceColumn: sku
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_seen_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 28c83620-7859-46bb-ac08-768c30da41b2
+		summarizeBy: none
+		sourceColumn: first_seen_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column last_seen_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: be0cddda-6553-442f-befc-544a606661af
+		summarizeBy: none
+		sourceColumn: last_seen_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	partition dim_product = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "dim_product"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+

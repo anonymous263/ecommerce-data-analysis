@@ -1,0 +1,167 @@
+table mart_order_profit
+	lineageTag: 3138251d-d9e1-4be1-aead-4e0102f0387a
+
+	column order_sk
+		dataType: string
+		lineageTag: 5946d651-9982-43fc-a479-7bc61fc2a7ee
+		summarizeBy: none
+		sourceColumn: order_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column site_sk
+		dataType: string
+		lineageTag: 4919851b-e1cc-48b0-941b-1fe096cbb2c4
+		summarizeBy: none
+		sourceColumn: site_sk
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_sk
+		dataType: int64
+		formatString: 0
+		lineageTag: f4b793a6-97e0-49ee-b425-0e383cacf553
+		summarizeBy: none
+		sourceColumn: date_sk
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column gross_revenue_usd
+		dataType: double
+		lineageTag: 8a14f974-396f-45c1-98b8-723661e5a319
+		summarizeBy: sum
+		sourceColumn: gross_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column refunds_usd
+		dataType: double
+		lineageTag: 6e946488-19ef-4d50-965d-6081cb2c419e
+		summarizeBy: sum
+		sourceColumn: refunds_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column effective_refund_usd
+		dataType: double
+		lineageTag: f431132f-5884-4fc5-b186-ecf53bbde076
+		summarizeBy: sum
+		sourceColumn: effective_refund_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column net_revenue_usd
+		dataType: double
+		lineageTag: 2a5f9f41-d00b-423a-a870-44786399bca6
+		summarizeBy: sum
+		sourceColumn: net_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column revenue_usd
+		dataType: double
+		lineageTag: b32a0517-ab44-4423-80e9-9e08c40c3af6
+		summarizeBy: sum
+		sourceColumn: revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cogs_usd
+		dataType: double
+		lineageTag: dcfccf78-a437-4741-9b1a-e55b2bc38e94
+		summarizeBy: sum
+		sourceColumn: cogs_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column design_fee_usd
+		dataType: double
+		lineageTag: 368e0883-2e06-4ceb-abad-b41d50aab948
+		summarizeBy: sum
+		sourceColumn: design_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column payment_fee_usd
+		dataType: double
+		lineageTag: 45e793f0-3864-4b04-a6fe-88b33b6ec84a
+		summarizeBy: sum
+		sourceColumn: payment_fee_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column contribution_profit_usd
+		dataType: double
+		lineageTag: 92173fae-10e8-4c59-a0d4-91de70e21edc
+		summarizeBy: sum
+		sourceColumn: contribution_profit_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column profit_margin
+		dataType: double
+		lineageTag: c977073a-ff84-4cc2-b6fe-3d1a9cd8769a
+		summarizeBy: sum
+		sourceColumn: profit_margin
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_confidence
+		dataType: double
+		lineageTag: cf98c44f-ae82-4ed3-a962-405dc810fb72
+		summarizeBy: sum
+		sourceColumn: cost_confidence
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column cost_allocation_method
+		dataType: string
+		lineageTag: 47d3fb10-cff4-4b98-9955-3091f58d3223
+		summarizeBy: none
+		sourceColumn: cost_allocation_method
+
+		annotation SummarizationSetBy = Automatic
+
+	column payment_fee_source
+		dataType: string
+		lineageTag: b1440ac0-7b43-4c44-a0f2-d8978714859e
+		summarizeBy: none
+		sourceColumn: payment_fee_source
+
+		annotation SummarizationSetBy = Automatic
+
+	partition mart_order_profit = m
+		mode: import
+		source =
+				let
+				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
+				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "mart_order_profit"]}[Data]
+				in
+				  #"Navigation 1"
+
+	annotation PBI_ResultType = Table
+
