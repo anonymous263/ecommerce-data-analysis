@@ -30,33 +30,36 @@ So in the finished MVP: profit cards and charts are **visible and fully untagged
 2. Server: `localhost:5432` — Database: `ecommerce`.
 3. **Data Connectivity mode: Import** (not DirectQuery). Click **OK**.
 4. Authentication: **Database** tab → enter the Postgres user/password from your local `.env` (`POSTGRES_USER` / `POSTGRES_PASSWORD`). Do **not** hardcode these anywhere; Power BI stores them in its own credential store. Click **Connect**. If you get a TLS/encryption prompt for a local Docker instance, accept the non-encrypted local connection.
-5. In the **Navigator**, tick exactly these tables (expand each schema node):
+5. In the **Navigator**, tick exactly these 18 tables. The PostgreSQL connector shows a **flat list** with schema-prefixed display names (`marts_core fact_order_item`) — there are no expandable schema folders, and no way to import bare table names. That prefix is expected; step 7 removes it.
 
-   **`marts_core`**
-   - `fact_order`
-   - `fact_order_item`
-   - `fact_refund`
-   - `mart_order_profit`
-   - `mart_product_profit`
-   - `mart_country_profit`
-   - `mart_customer_summary`
-   - `dim_date`
-   - `dim_site`
-   - `dim_country`
-   - `dim_product`
-   - `dim_customer_anonymized`
+   - `marts_core fact_order`
+   - `marts_core fact_order_item`
+   - `marts_core fact_refund`
+   - `marts_core mart_order_profit`
+   - `marts_core mart_product_profit`
+   - `marts_core mart_country_profit`
+   - `marts_core mart_customer_summary`
+   - `marts_core dim_date`
+   - `marts_core dim_site`
+   - `marts_core dim_country`
+   - `marts_core dim_product`
+   - `marts_core dim_customer_anonymized`
+   - `marts_operations fact_order_cost`
+   - `marts_recon recon_cost_coverage`
+   - `marts_recon recon_payment_fee_coverage`
+   - `marts_recon recon_csv_vs_dbt_revenue`
+   - `marts_recon recon_csv_vs_dbt_profit`
+   - `marts_recon recon_woo_vs_csv_shipping_charged`
 
-   **`marts_operations`**
-   - `fact_order_cost`
-
-   **`marts_recon`**
-   - `recon_cost_coverage`
-   - `recon_payment_fee_coverage`
-   - `recon_csv_vs_dbt_revenue`
-   - `recon_csv_vs_dbt_profit`
-   - `recon_woo_vs_csv_shipping_charged`
+   Do **not** tick `marts_core dim_payment_method` or `marts_recon recon_unmatched_csv_cost` — they exist in Postgres but nothing in the measure library reads them.
 
 6. Click **Load** (not Transform Data — the dbt marts are already clean and typed). Wait for all 18 tables to import.
+
+7. **Rename every table to strip the schema prefix** — required, not cosmetic. In the Data pane, right-click each table → **Rename** → delete the `<schema> ` prefix, leaving `fact_order_item`, `dim_country`, and so on. Names must be lowercase with underscores, matching `measures/dax_measures.txt` exactly (DAX table names are case-sensitive).
+
+   DAX resolves tables by **model table name only** — it never sees Postgres schemas. The `Source{[Schema="marts_core", Item="fact_order_item"]}[Data]` navigation step inside each query is how Power Query fetches rows; it does not name the table. Skip this step and every measure fails with `Cannot find table 'fact_order_item'`.
+
+   Renaming is safe at any point: it re-binds measures and relationships automatically and does not re-query Postgres.
 
 > The three `recon_*` coverage/drift tables are tiny lookup tables. Load them, but do **not** relate them to the star. Measures read them with an `'__ALL__'` row filter (Step 2 and Step 6).
 
@@ -171,8 +174,8 @@ Each tab shows only what you are reasoning about — far easier than one giant c
 4. Open `powerbi/measures/dax_measures.txt`. It contains one measure per block, each with its **name**, **DAX expression**, **format string**, and **Description** noted. For each measure:
    - Select the `_Measures` table → **Table tools → New measure**.
    - Paste the full `Name = <expression>` block into the formula bar; commit with Enter.
-   - With the measure selected, in **Measure tools** set the **Format** (format string) exactly as noted in the file (e.g. currency `$ #,##0`, percentage `0.00%`, whole number `#,##0`).
-   - Paste the **Description** into the **Description** box (Measure tools → Properties → Description). These cross-link to `METRICS_DEFINITION.md` — keep the section reference (e.g. "See METRICS_DEFINITION §B5").
+   - With the measure selected, set **Measure tools → Format → Custom** and paste the format string from the file's `// [Name] | format: …` annotation exactly as written (money `\$#,0.00`, counts `#,0`, fractions `0.0%`, pre-scaled coverage `0.00\%`). Do **not** substitute a plain `0.0%` on the coverage measures — they already return a 0–100 value, so `%` would multiply by 100 again and silently break tier gating. Text measures take no format.
+   - Set the **Description** in **Model view**, not the ribbon: switch to Model view → click the measure in the Data pane → **Properties** pane (right side) → **Description**. (The Measure tools ribbon's Properties group only has Data category — there is no Description box there.) Paste the measure's comment text; these cross-link to `METRICS_DEFINITION.md`, so keep the section reference (e.g. "See METRICS_DEFINITION §B5").
 5. After the first measure exists, select `_Measures[Column1]` → right-click → **Delete** (and delete the placeholder value). The table now holds only measures.
 
 The measure library defines (grouped by use):
