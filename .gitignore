@@ -31,7 +31,18 @@ dbt/logs/
 .ipynb_checkpoints/
 
 # Power BI
+# .pbix is a BINARY that EMBEDS the imported data (Import mode) — a full extract of
+# marts incl. hashed emails and order values. Same rule as db/dumps: never committed.
+# Source of truth is the .pbip project (TMDL text), which is tracked.
+*.pbix
 *.pbix.backup
+
+# .pbip local artifacts: cache.abf holds the imported DATA; localSettings.json holds
+# per-machine paths/credentials. The TMDL under *.SemanticModel/ and *.Report/ IS tracked.
+**/.pbi/cache.abf
+**/.pbi/localSettings.json
+**/*.Dataset/.pbi/
+**/*.SemanticModel/.pbi/cache.abf
 
 # Database dumps — 600MB+ and contain REAL PII in raw payloads.
 # NOT for a normal git push (see db/README.md). Un-ignore only if you
