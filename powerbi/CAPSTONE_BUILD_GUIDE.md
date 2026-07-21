@@ -4,9 +4,18 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 
 > ⚠️ Đây là guide cho **bản capstone operational** (6 trang, business-question driven, không gating/caveat). Nó **khác** `BUILD_GUIDE.md` (bản MVP gốc của project với 5 trang + tier-gating). Dùng đúng file cho đúng mục tiêu.
 
+> ### Nếu bạn đã dựng measure TRƯỚC Approach A (2026-07-21)
+> **Approach A không sửa công thức DAX nào** — commit `b0380a1` chỉ đổi mô tả và text của Profit Caveat Banner. Toàn bộ thay đổi giá trị đến từ mart dbt. Vì vậy:
+> - Measure đọc thẳng từ mart (`Contribution Profit`, `Profit Base Net Revenue`, `COGS`, …) → **tự đúng sau khi Refresh**, không phải sửa tay.
+> - **Phải kiểm 1 chỗ:** mẫu số của `Profit Margin` / `Cost Ratio` / `COGS Ratio` **bắt buộc** là `[Profit Base Net Revenue]`. Nếu bạn lỡ dùng `[Net Revenue]` (product-only) → margin đang **sai lệch rất lớn** (40.2% thay vì 55.2%).
+> - File `.pbix` của bạn là local, không nằm trong git → không có commit nào chạm vào nó được.
+
+> ### ⚠️ Nếu bạn đã dựng trang Markets / Products trước bản guide này
+> Các measure profit theo **country** và **product** trong bản guide cũ trả về **grand total giống hệt nhau cho mọi dòng** (Power BI không báo lỗi). Xem §2.3b, §3.5b, §3.6 và dựng lại các visual ở Page 2/3/4 theo bộ measure mới.
+
 **Deliverables đi kèm:**
 - Theme: `powerbi/themes/fos_dashboard_theme.json`
-- Background canvas: `powerbi/backgrounds/fos_canvas_1920x1080.png`
+- Background canvas: `powerbi/backgrounds/background.png` (1920×1080)
 
 **6 trang sẽ dựng:** 1) Overview · 2) Cost & Margin · 3) Products · 4) Markets · 5) Customers · 6) Operations.
 
@@ -29,7 +38,7 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 **View → Themes → Browse for themes →** chọn `fos_dashboard_theme.json`. Theme này đã set: dataColors (cyan/sand/green/violet/slate…), card bo góc 12px + shadow nhẹ + viền `#E9EEF5`, font Segoe UI, page background `#F5F7FA`.
 
 ### 1.3 Background image (mỗi trang)
-**Format page → Canvas background → Browse →** chọn `fos_canvas_1920x1080.png` → **Image fit = Fit**, **Transparency = 0%**.
+**Format page → Canvas background → Browse →** chọn `powerbi/backgrounds/background.png` → **Image fit = Fit**, **Transparency = 0%**.
 Ảnh chỉ là **lớp nền tĩnh** (header trắng + sidebar cyan + nền content). Mọi thứ tương tác (KPI, chart, nav, slicer, title) đặt **đè lên trên**.
 
 > Copy background sang cả các trang: chuột phải tab trang → **Duplicate page** sau khi set nền để khỏi làm lại; hoặc lặp lại 1.1–1.3 cho từng trang.
@@ -71,6 +80,24 @@ Data pane → chuột phải mỗi bảng → **Rename** → bỏ prefix schema,
 | dim_payment_method | fact_order | payment_method_sk |
 
 Nếu Power BI tự tạo quan hệ **Both** → sửa về **Single**. `mart_customer_summary[preferred_*_sk]` để **inactive**.
+
+> ### ⚠️ 2.3b — Bảng nào cắt được theo chiều nào (ĐỌC KỸ, đây là nguồn lỗi số 1)
+>
+> Bảng chỉ cắt được theo dim mà nó **có quan hệ**. Nếu đặt measure lên một dim không có quan hệ, Power BI **không báo lỗi** — nó trả về **grand total giống hệt nhau cho mọi dòng**. Rất dễ tưởng là đúng.
+>
+> | Bảng | Cắt được theo | **KHÔNG** cắt được theo |
+> |---|---|---|
+> | `fact_order_item` | date · site · **product** | **country** · customer · payment method |
+> | `fact_order` | date · site · **country** · customer · payment method | **product** |
+> | `mart_order_profit` | date · site | **product** · **country** · customer |
+> | `mart_product_profit` | date · site · **product** | country · customer |
+> | `mart_country_profit` | date · **country** | product · site · customer |
+> | `mart_customer_summary` | customer | date · product · country |
+>
+> **Ba hệ quả bắt buộc nhớ:**
+> 1. `[Revenue]` (đọc `fact_order_item`) **không** cắt được theo country → mọi visual revenue-theo-nước phải dùng `[Revenue per Country]` (§3.6).
+> 2. `[Contribution Profit]` / `[Profit Margin]` (đọc `mart_order_profit`) **không** cắt được theo product hay country → phải dùng bộ đo product (§3.5b) và country (§3.6).
+> 3. Ngược lại, `[Revenue]` **cắt tốt** theo product (có quan hệ `fact_order_item → dim_product`), nên trang Products dùng `[Revenue]` bình thường.
 
 ### 2.4 Mark as date table
 Chọn `dim_date` → **Table tools → Mark as date table** → cột `date_day` → OK. (Bật time-intelligence cho YoY.)
@@ -135,10 +162,34 @@ RETURN CALCULATE ( [Revenue], FILTER ( ALLSELECTED ( dim_product[product_name] )
 Cumulative Revenue % = DIVIDE ( [Cumulative Revenue], CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) ) )   -- 0.0%
 ```
 
-### 3.6 Markets
+### 3.5b Profit theo SẢN PHẨM — BẮT BUỘC dùng bộ này
+`[Contribution Profit]` đọc `mart_order_profit`, bảng này **không nối `dim_product`** (§2.3b). Đặt nó lên visual có `dim_product` sẽ ra **grand total cho mọi sản phẩm**. Dùng `mart_product_profit` — mart này có `product_sk` và cộng lại đúng bằng $87,138.04.
+
 ```DAX
-Revenue Share = DIVIDE ( [Revenue], CALCULATE ( [Revenue], ALLSELECTED ( dim_country[country_name] ) ) )   -- 0.0%
+Product Profit     = SUM ( mart_product_profit[line_profit_usd] )        -- $#,0
+Product Net Revenue = SUM ( mart_product_profit[line_net_revenue_usd] )  -- $#,0  (mẫu số margin sản phẩm)
+Product Margin     = DIVIDE ( [Product Profit], [Product Net Revenue] )  -- 0.0%
 ```
+> `[Revenue]` **vẫn dùng được** trên trang Products (có quan hệ `fact_order_item → dim_product`). Chỉ *profit* mới phải đổi sang bộ trên.
+> Lưu ý cơ sở số: `SUM(mart_product_profit[line_revenue_usd])` = **$119,290.31**, hụt **$86.67** so với `[Revenue]` = $119,376.98, vì mart profit chỉ phủ các đơn có trong `mart_order_profit`. Chênh 0.07% — đừng hoảng, nhưng đừng trộn hai cơ sở trong cùng một bảng.
+
+### 3.6 Markets — BẮT BUỘC dùng bộ này
+Cả `[Revenue]` (đọc `fact_order_item`) lẫn `[Contribution Profit]` (đọc `mart_order_profit`) **đều không cắt được theo country** (§2.3b). Có 2 cách, dùng đúng cách cho đúng mục đích:
+
+```DAX
+-- (a) Gross product revenue theo nước — chuyển filter nước từ fact_order sang fact_order_item qua order_sk
+Revenue per Country =
+CALCULATE ( [Revenue], TREATAS ( VALUES ( fact_order[order_sk] ), fact_order_item[order_sk] ) )   -- $#,0
+
+-- (b) Profit / margin theo nước — đọc thẳng mart_country_profit (có quan hệ dim_country)
+Country Profit      = SUM ( mart_country_profit[contribution_profit_usd] )   -- $#,0
+Country Net Revenue = SUM ( mart_country_profit[revenue_usd] )               -- $#,0
+Country Margin      = DIVIDE ( [Country Profit], [Country Net Revenue] )     -- 0.0%
+Country Orders      = SUM ( mart_country_profit[order_count] )               -- #,0
+
+Revenue Share = DIVIDE ( [Revenue per Country], CALCULATE ( [Revenue per Country], ALLSELECTED ( dim_country[country_name] ) ) )   -- 0.0%
+```
+> ⚠️ **Bẫy đặt tên:** `mart_country_profit[revenue_usd]` **KHÔNG phải gross revenue** — nó là **net revenue đã gồm shipping** (tổng = $157,882.62, đúng bằng `[Profit Base Net Revenue]`). Đừng bao giờ gắn nhãn "Revenue" cho nó trên visual; muốn hiện doanh thu gross theo nước thì dùng `[Revenue per Country]`.
 
 ### 3.7 Customers
 ```DAX
@@ -184,9 +235,11 @@ Refund Rate     = DIVIDE ( [Refunded Orders], [Paid Orders] )                   
 Payment Fee Rate = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_order[order_total_usd] ) )   -- 0.0%
 ```
 
-> Kiểm chứng nhanh (all-time, **Approach A** — shipping là revenue): Revenue (gross, product) ≈ **$119,377** · Refund Amount ≈ **$1,466** · Net Revenue §A2 (product) ≈ **$117,911** · Shipping Charged ≈ **$50,649** · Profit Base Net Revenue (mart, product+shipping−refund) ≈ **$157,883** · Contribution Profit ≈ **$87,138** · Margin **55.2%** · Paid Orders **3,815** · Cost Ratio **44.8%** · COGS Ratio **38.7%** · Paid Success Rate **80.2%** · Distinct Customers **4,266**.
+> Kiểm chứng nhanh (all-time, **Approach A** — shipping là revenue; verify lại trên DB 2026-07-21): Revenue (gross, product) = **$119,376.98** · Refund Amount = **$1,465.51** · Net Revenue §A2 (product) = **$117,911.47** · Shipping Charged (mọi đơn) = **$50,648.98** · Profit Base Net Revenue (mart, product+shipping−refund) = **$157,882.62** · Contribution Profit = **$87,138.04** · Margin **55.2%** · Paid Orders **3,812** · AOV **$31.32** · Total Cost **$70,744.58** · Cost Ratio **44.8%** · COGS Ratio **38.7%** · Cost per Order **$18.56** · Cost per Unit **$16.41** · Paid Success Rate **80.1%** · Distinct Customers **4,266** · Repeat Rate **9.0%** · Orders per Customer **1.12**.
 >
-> Chênh giữa Profit Base (**$157,883**) và Net Revenue §A2 (**$117,911**) ≈ **$39,972** chính là **phần shipping khách trả** (Approach A đưa vào doanh thu, xem `docs/METRIC_CHANGES.md` 2026-07-21). Trước Approach A profit chỉ ≈ $47,536 (thiếu shipping).
+> Chênh giữa Profit Base (**$157,882.62**) và Net Revenue §A2 (**$117,911.47**) = **$39,971.15**, chủ yếu là **phần shipping khách trả** trên các đơn revenue (**$39,938.33**); phần lệch còn lại **$32.82** gồm 2 thành phần ngược dấu: **−$86.67** do mart chỉ phủ đơn có trong `mart_order_profit` (gross product trong mart = $119,290.31 < `[Revenue]` $119,376.98), và **+$119.49** do refund cap (mart dùng `effective_refund_usd` = $1,346.02, thấp hơn refund thô `[Refund Amount]` = $1,465.51). Approach A đưa shipping vào doanh thu — xem `docs/METRIC_CHANGES.md` 2026-07-21. Trước Approach A profit chỉ ≈ $47,536 (thiếu shipping).
+>
+> **Vì sao `Paid Orders` = 3,812 chứ không phải 3,789?** `mart_order_profit` gồm **completed 3,699 + processing 89 + refunded 24**. Nó **không** trùng với "đơn revenue-status theo `fact_order`" (processing/completed/on-hold = **3,789**) — đó là measure `[Orders]` của project ecom. Hai con số đều đúng, chỉ khác dân số; capstone dùng `[Paid Orders]` để mọi tỉ lệ chi phí/lợi nhuận ăn khớp với `mart_order_profit`.
 >
 > **Quy tắc:** `[Net Revenue]` (= Revenue product − Refund thô) chỉ dùng cho **thẻ KPI hiển thị sales**; mọi **margin & cost ratio** dùng `[Profit Base Net Revenue]` (mart = product + shipping − refund) để khớp `Contribution Profit`. Page 1 KPI "Net Revenue" và "Revenue by year" → `[Net Revenue]`; Page 2 các ratio → `[Profit Base Net Revenue]`.
 
@@ -220,7 +273,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 |---|---|---|
 | Revenue & Profit theo tháng | **Line chart** | Axis `dim_date[Month]` (hierarchy, cấp Month) · Values `[Revenue]`, `[Contribution Profit]` |
 | Revenue theo năm | **Clustered column** | Axis `dim_date[Year]` · Values `[Net Revenue]`, `[Contribution Profit]` |
-| Top markets | **Clustered bar** | Axis `dim_country[country_name]` · Values `[Revenue]` · Filter Top N = 10 by `[Revenue]` |
+| Top markets | **Clustered bar** | Axis `dim_country[country_name]` · Values **`[Revenue per Country]`** (§3.6 — `[Revenue]` sẽ ra grand total cho mọi nước) · Filter Top N = 10 by `[Revenue per Country]` |
 | Revenue → Profit bridge | **Waterfall** | Category = 1 field trục "breakdown"; đơn giản nhất: dùng **Waterfall** với Category `dim_date` **hoặc** tạo bảng phụ. *Cách dễ:* dùng 1 **Stacked/Clustered** thể hiện Net Rev, −COGS, −Design, −Pmt fee, Profit qua bảng disconnected (xem ghi chú dưới). |
 
 > **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
@@ -232,7 +285,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 |---|---|---|
 | Cost structure | **Clustered bar** | Axis = bảng phụ `CostType` (Enter data: COGS/Payment fee/Design) hoặc 3 card; Values measure tương ứng. Đơn giản: bar ngang với 3 measure `[COGS]`,`[Payment Fee]`,`[Design Fee]` qua "values" của multi-row/bar. |
 | Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[Month]` · Values `[Profit Margin]`, `[COGS Ratio]` |
-| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]` · Sort tăng theo `[Profit Margin]`, filter `[Revenue] > 300`, Top 8 |
+| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b — `[Contribution Profit]`/`[Profit Margin]` sẽ ra grand total cho mọi sản phẩm) · Sort tăng theo `[Product Margin]`, filter `[Revenue] > 300`, Top 8 |
 
 ### PAGE 3 — Products
 **KPI (4 card):** Distinct Products Sold · (top-11%→50% là insight, ghi text) · Front-print share · Men's fit share.
@@ -240,7 +293,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 | Visual | Loại | Field |
 |---|---|---|
 | Pareto concentration | **Line + column** hoặc Line | Axis `dim_product[product_name]` sort desc theo `[Revenue]` · Line `[Cumulative Revenue %]` (Top ~100 hoặc all). Thêm 2 constant line ở 50% & 80%. |
-| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`,`[Contribution Profit]`,`[Profit Margin]` · Top 8 by `[Contribution Profit]` |
+| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b) · Top 8 by `[Product Profit]` |
 | Revenue by print location | **Bar** | Axis `fact_order_item[print_location]` · Values `[Revenue]` |
 | Revenue by size | **Column** | Axis `fact_order_item[size]` · Values `[Revenue]` (sort S→5XL bằng sort column) |
 | Revenue by fit type | **Donut** | Legend `fact_order_item[fit_type]` · Values `[Revenue]` |
@@ -250,9 +303,16 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| Revenue map | **Filled/Bubble map** | Location `dim_country[country_name]` · Bubble size `[Revenue]` · Color saturation `[Profit Margin]` |
-| Revenue vs margin | **Line and clustered column** | Shared axis `dim_country[country_name]` (Top 8) · Column `[Revenue]` · Line `[Profit Margin]` |
-| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values `[Paid Orders]`,`[Revenue]`,`[AOV]`,`[Profit Margin]`,`[Revenue Share]` |
+| Revenue map | **Filled/Bubble map** | Location `dim_country[country_name]` · Bubble size **`[Revenue per Country]`** · Color saturation **`[Country Margin]`** |
+| Revenue vs margin | **Line and clustered column** | Shared axis `dim_country[country_name]` (Top 8) · Column **`[Revenue per Country]`** · Line **`[Country Margin]`** |
+| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values **`[Country Orders]`**, **`[Revenue per Country]`**, **`[AOV per Country]`**, **`[Country Margin]`**, `[Revenue Share]` |
+
+> ⚠️ **Cả trang này KHÔNG được dùng `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` trực tiếp** — không bảng nào trong số đó cắt được theo country (§2.3b), Power BI sẽ im lặng trả grand total giống nhau cho mọi nước. Dùng bộ `*per Country* / Country *` ở §3.6.
+>
+> AOV theo nước cần mẫu số cùng dân số với tử số:
+> ```DAX
+> AOV per Country = DIVIDE ( [Revenue per Country], [Country Orders] )   -- $#,0.00
+> ```
 
 ### PAGE 5 — Customers
 **KPI (4 card):** Distinct Customers · One-time Share · Orders per Customer · Lapsed Share.
@@ -283,7 +343,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 2. Đặt vài card nhỏ: `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` (bối cảnh sẽ tự lọc theo tháng đang hover).
 3. Ở **Line chart Page 1** → **Format → Tooltips → Type = Report page → Page = Month.**
 
-**Trang tooltip "Market"** (tương tự): cards `[Paid Orders]`,`[AOV]`,`[Profit Margin]`,`[Refund Rate]`; gán cho map/bar/table ở Page 4.
+**Trang tooltip "Market"** (tương tự): cards **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (bộ country §3.6 — tooltip cũng chịu chung ràng buộc quan hệ) và `[Revenue per Country]`; gán cho map/bar/table ở Page 4. Bỏ `[Refund Rate]` khỏi tooltip này: `fact_refund` không nối `dim_country` nên nó sẽ ra tỉ lệ toàn hệ thống cho mọi nước.
 
 ---
 
@@ -291,7 +351,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 1. Tạo trang **Market Detail** (1920×1080, cùng background).
 2. Kéo `dim_country[country_name]` vào **Visualizations → Add drill-through fields here** (mục *Drill through*).
-3. Trên trang này đặt: header tên nước (card/text `SELECTEDVALUE(dim_country[country_name])`), KPI (`[Revenue]`,`[Paid Orders]`,`[AOV]`,`[Profit Margin]`,`[Revenue Share]`), line **revenue theo tháng**, donut **payment mix** (`dim_payment_method[method_name]` × count).
+3. Trên trang này đặt: header tên nước (card/text `SELECTEDVALUE(dim_country[country_name])`), KPI (**`[Revenue per Country]`**, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`**, `[Revenue Share]` — bộ country ở §3.6, KHÔNG dùng `[Revenue]`/`[Profit Margin]`), line **revenue theo tháng** (dùng `[Revenue per Country]`), donut **payment mix** (`dim_payment_method[method_name]` × count).
 4. Power BI tự thêm nút **Back** (chuột phải nút → giữ). Trên Page 4, **chuột phải** 1 nước (table/map/bar) → **Drill through → Market Detail**.
 
 ---
@@ -318,11 +378,37 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 ---
 
-## Phụ lục — Index measure nhanh
-Sales: Revenue · Quantity Sold · Net Revenue · Paid Orders · AOV · Shipping Charged
+## Phụ lục A — Index measure nhanh
+Sales: Revenue · Quantity Sold · Net Revenue · Profit Base Net Revenue · Paid Orders · AOV · Shipping Charged
 Profit: Contribution Profit · Profit Margin · (YoY: Revenue/Profit/Orders YoY %)
 Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit
-Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % 
-Markets: Revenue Share
+Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin**
+Markets: **Revenue per Country · Country Profit · Country Net Revenue · Country Margin · Country Orders · AOV per Country** · Revenue Share
 Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share (+ cột Recency Segment, CLV Bucket, Days Since Last Order)
 Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate
+
+---
+
+## Phụ lục B — Đối chiếu với project ecom (`powerbi/measures/dax_measures.txt`)
+
+Capstone **cố ý giữ tên riêng**. Bảng này để khi bạn đọc doc ecom (`docs/METRICS_DEFINITION.md`) không bị lẫn. Hai bộ đo **không thay thế được cho nhau** ở những dòng đánh dấu ⚠️.
+
+| Capstone | ecom | Quan hệ |
+|---|---|---|
+| `Paid Orders` = 3,812 | `Orders` = 3,789 | ⚠️ **Khác dân số.** Capstone đếm đơn có trong `mart_order_profit` (completed + processing + **refunded**); ecom đếm `fact_order` status ∈ {processing, completed, on-hold}. |
+| `Shipping Charged` | `Shipping Charged to Customer` | Chỉ khác tên, cùng công thức. |
+| `Open Backlog` (COUNTROWS) | `Open Order Backlog` (DISTINCTCOUNT) | Cùng giá trị (90). |
+| `Refunded Orders` = DISTINCTCOUNT | `Refunded Order Count` = COUNTROWS | Hiện cùng = 34. Bản capstone **bền hơn** nếu 1 đơn có nhiều dòng refund — chính là cải tiến mà ecom đã ghi chú `// REVIEW (LOW)`. |
+| `Refund Rate` = Refunded / Paid Orders | `Refund Rate` = (Refunded ∪ Cancelled) / Eligible Orders | ⚠️ **Khác hẳn ngữ nghĩa.** Capstone đo *sức khoẻ hoàn tiền* (0.9%); ecom đo *tỉ lệ đơn hỏng* gồm cả huỷ. Cancellation tách riêng ở capstone. |
+| `Cancellation Rate` (÷ Order Attempts) | `Cancellation Rate` (÷ Eligible Orders) | ⚠️ Khác mẫu số. Capstone lấy mọi lần thử đặt hàng để 3 tỉ lệ ops (paid/failed/cancel) cộng lại có nghĩa. |
+| `Distinct Customers` = 4,266 | `Distinct Customers` = 4,263 | ⚠️ ecom lọc `is_unknown_email = FALSE()`. Capstone lấy toàn bộ `mart_customer_summary`. |
+| `Repeat Rate` | `Repeat Customer Share` | Cùng công thức, khác tên. |
+| `Orders per Customer` = 1.12 | `Orders per Customer` = 0.89 | ⚠️ Capstone = `SUM(total_orders)/customers` (lifetime, đúng cho trang Customers). ecom = `[Orders]/[Distinct Customers]` (theo filter context). |
+| `Payment Fee` (mart_order_profit) = $7,128.11 | `Payment Fee` (fact_order) = $7,069.77 | ⚠️ **Capstone đúng hơn cho P&L:** `[Contribution Profit]` trừ đúng cột của `mart_order_profit`, nên bản ecom không reconcile được (lệch $137.72 trên cùng tập đơn). |
+| `Product Profit` / `Product Margin` | — | Capstone-only, bắt buộc vì `mart_order_profit` không nối `dim_product`. |
+| `Revenue per Country` | `Revenue per Country` | **Giống nhau** — cùng dùng `TREATAS`, cùng lý do (§2.3b). |
+| `Country Margin` | — | Capstone-only; ecom chưa có measure margin theo nước. |
+| `Total Cost` / `Cost Ratio` / `Cost per Order` / `Cost per Unit` | — | Capstone-only (trang Cost & Margin). |
+| — | Coverage Tier · Profit Visible Flag · các chip gating | ecom-only: capstone **không dùng tier-gating** (đã nêu ở đầu file). |
+
+**Bất biến dùng chung cho cả hai** (`CLAUDE.md` rule #1–#6): revenue sản phẩm sống ở `fact_order_item[line_revenue_usd]`, shipping khách trả sống ở `fact_order[shipping_charged_usd]` và **được tính là doanh thu**; `cogs_usd` là chi phí fulfil all-in (đã gồm phí ship của nhà cung cấp) nên **không bao giờ trừ shipping như một khoản chi phí**; **không tồn tại** `actual_shipping_cost_usd`; mẫu số margin luôn là `[Profit Base Net Revenue]`.
