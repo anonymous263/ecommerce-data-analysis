@@ -3,9 +3,12 @@ table dim_payment_method
 
 	column payment_method_sk
 		dataType: string
+		isHidden
 		lineageTag: 69e5684b-a3c5-4563-b907-81f7a951918e
 		summarizeBy: none
 		sourceColumn: payment_method_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

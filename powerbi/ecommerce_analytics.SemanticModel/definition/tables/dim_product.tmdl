@@ -3,17 +3,23 @@ table dim_product
 
 	column product_sk
 		dataType: string
+		isHidden
 		lineageTag: 50470505-4cad-440a-b6c2-13b52425d547
 		summarizeBy: none
 		sourceColumn: product_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: fe8bb569-e10c-47f5-999e-400338e3049e
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

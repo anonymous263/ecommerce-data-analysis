@@ -3,6 +3,7 @@ table dim_site
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: 16d4c88d-16fb-450b-bb1a-05e104a8e922
 		summarizeBy: none
 		sourceColumn: site_sk

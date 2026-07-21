@@ -3,42 +3,57 @@ table fact_order_item
 
 	column order_item_sk
 		dataType: string
+		isHidden
 		lineageTag: 1896c8c7-f69c-44c8-8b6d-2f0cf8dbff2c
 		summarizeBy: none
 		sourceColumn: order_item_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column order_sk
 		dataType: string
+		isHidden
 		lineageTag: d18b6440-d53c-488c-8861-2538e4d58724
 		summarizeBy: none
 		sourceColumn: order_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: dcd0e5e2-d7db-492d-b3e3-cfd826e957fb
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: aad9f415-7ff2-4986-9e0e-9f85551458dc
 		summarizeBy: none
 		sourceColumn: date_sk
 
+		changedProperty = IsHidden
+
 		annotation SummarizationSetBy = Automatic
 
 	column product_sk
 		dataType: string
+		isHidden
 		lineageTag: 737d4646-9349-4274-925f-d6ad594b4188
 		summarizeBy: none
 		sourceColumn: product_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

@@ -3,9 +3,12 @@ table mart_customer_summary
 
 	column customer_sk
 		dataType: string
+		isHidden
 		lineageTag: edb71c10-e72b-4dba-82a9-9ec79fc9cf3d
 		summarizeBy: none
 		sourceColumn: customer_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
@@ -79,17 +82,23 @@ table mart_customer_summary
 
 	column preferred_site_sk
 		dataType: string
+		isHidden
 		lineageTag: 1c2b83db-66f5-4158-adaa-7cb8431e60b2
 		summarizeBy: none
 		sourceColumn: preferred_site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column preferred_country_sk
 		dataType: string
+		isHidden
 		lineageTag: cf5d26d0-bd37-4e73-add2-3e44effd003d
 		summarizeBy: none
 		sourceColumn: preferred_country_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

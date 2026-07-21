@@ -3,42 +3,57 @@ table fact_refund
 
 	column refund_sk
 		dataType: string
+		isHidden
 		lineageTag: fb5a303b-eaaf-4a0c-b4af-df0be83eb489
 		summarizeBy: none
 		sourceColumn: refund_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column order_sk
 		dataType: string
+		isHidden
 		lineageTag: de8e4afb-6357-4ce9-994b-337384985108
 		summarizeBy: none
 		sourceColumn: order_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: b4228996-9503-47f6-b947-10ff5e0e8a39
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column order_item_sk
 		dataType: string
+		isHidden
 		lineageTag: 5e776a0c-e56b-4fd4-b166-ea3b972e9cbd
 		summarizeBy: none
 		sourceColumn: order_item_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: 08d98cbc-ba62-4248-807d-a3601a4a9b2f
 		summarizeBy: none
 		sourceColumn: date_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
