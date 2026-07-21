@@ -66,6 +66,13 @@ Tick các bảng (tên hiển thị có prefix schema — sẽ đổi tên ở 2
 
 **Load** (không Transform — marts đã sạch).
 
+> **Cố ý KHÔNG import `marts_operations.fact_order_cost`** (và cả `marts_recon.*`). Không phải bỏ sót:
+> 1. **Thừa** — `cogs_usd` của nó ($61,061.72) khớp chính xác `mart_order_profit`; nó là nguồn upstream đã được `mart_order_profit` tổng hợp sẵn ở order grain. `cost_confidence` / `cost_allocation_method` cũng đã có trong `mart_order_profit`.
+> 2. **Rủi ro** — nó chứa `csv_revenue_observed_usd`, `csv_profit_observed_usd`, `csv_shipping_charged_usd`. Theo `CLAUDE.md` rule #5, các số Revenue/Profit từ CSV **chỉ được dùng để theo dõi drift trong `marts_recon`**, tuyệt đối không làm metric chính thức. Đưa bảng này vào model là để sẵn cái bẫy kéo nhầm cột vào visual.
+> 3. `marts_recon.*` phục vụ tier-gating của `BUILD_GUIDE.md` (bản MVP) — bản capstone không dùng gating.
+>
+> Nếu sau này cần trang data-quality, hãy import `marts_recon.recon_cost_coverage` **riêng** và chỉ dùng cột coverage, đừng import `fact_order_cost`.
+
 ### 2.2 Đổi tên bảng
 Data pane → chuột phải mỗi bảng → **Rename** → bỏ prefix schema, còn `fact_order_item`, `dim_country`… (chữ thường, gạch dưới — DAX phân biệt hoa/thường).
 
