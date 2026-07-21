@@ -29,7 +29,8 @@
 - **Formula:** `SUM(fact_order_item.quantity)`
 
 ### A5. AOV
-- **Formula:** `Revenue / Orders`
+- **Formula:** `Revenue / Paid Orders` — where *Paid Orders* = `DISTINCTCOUNT(mart_order_profit[order_sk])` = 3,812 (completed + processing + refunded). **Rebased 2026-07-22** from `Revenue / Orders` (§A3, `fact_order` revenue statuses = 3,789), so AOV shares the denominator every cost and profit ratio uses. $31.32 on FOS; the old basis gave $31.51.
+- §A3 `Orders` is retained and still valid — it is simply no longer the AOV denominator.
 
 ### A6. AIV
 - **Formula:** `Revenue / Quantity Sold`
@@ -109,11 +110,12 @@
 `SUM(refund_amount_usd)`
 
 ### C3. Refund Rate (order-level)
-- **Formula:** `COUNT(refunded_or_cancelled_orders) / COUNT(eligible_orders)`
-- "Eligible" = orders not in `failed` / `pending`.
+- **Formula:** `COUNT(DISTINCT refunded orders) / Paid Orders` = 34 / 3,812 = **0.9%**. **Rebased 2026-07-22**: refunds only. Cancellations are no longer folded in — they are reported by §C4, which keeps the two failure modes separately actionable (a refund is a fulfilment/quality signal; a cancellation is a checkout signal).
+- Previous formula was `COUNT(refunded_or_cancelled_orders) / COUNT(eligible_orders)`, where "eligible" = orders not in `failed` / `pending`. The measure `[Refunded or Cancelled Orders]` and `[Eligible Orders]` are both retained in the model if you want that combined rate back.
+- **Does not slice by country** — `fact_refund` has no `dim_country` relationship. On a country visual it returns the all-store rate.
 
 ### C4. Cancellation Rate
-- **Formula:** `COUNT(status='cancelled') / COUNT(eligible_orders)`
+- **Formula:** `COUNT(status='cancelled') / Order Attempts` = 497 / 4,757 = **10.4%**. **Rebased 2026-07-22** from `COUNT(eligible_orders)` to all order rows, so the three funnel rates are additive against one denominator: Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100% (remainder = refunded/pending statuses).
 
 ### C5. Refund Revenue Share
 - **Formula:** `Refund Amount / Revenue`
@@ -208,13 +210,14 @@ F2 Conversion Rate by Channel — same.
 *Table: `mart_customer_summary`.*
 
 ### I1. Distinct Customers
-`COUNT(DISTINCT customer_hash WHERE NOT is_unknown_email)`
+`DISTINCTCOUNT(mart_customer_summary[customer_sk])` = **4,266**. **Rebased 2026-07-22** from `COUNT(DISTINCT customer_hash WHERE NOT is_unknown_email)` (= 4,263) — guest/unknown-email checkouts are now **included**, so the figure is the whole customer base rather than the resolvable-identity subset. Only 3 customers differ today, but the two are not interchangeable: the guest-checkout caveat below still applies and matters more, not less, under the wider definition.
 
 ### I2. Repeat Customer Share
 `COUNT(customer_hash WHERE total_orders > 1) / COUNT(customer_hash)`
 
 ### I3. Orders per Customer
-`Orders / Distinct Customers`
+`SUM(mart_customer_summary[total_orders]) / Distinct Customers` = 4,757 / 4,266 = **1.12**. **Rebased 2026-07-22** from `Orders / Distinct Customers` (= 0.89), which mixed a filter-context order count against a lifetime customer count and so drifted below 1.0 — an impossible value for a lifetime average.
+- **Caveat:** the numerator is a lifetime column, so this measure does **not** respond to a date slicer. Do not place it on a time-sliced visual.
 
 ### I4. Repeat Revenue Share
 `SUM(revenue from orders where customer.total_orders > 1) / Revenue`

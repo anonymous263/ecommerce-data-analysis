@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-07-22 — Capstone measure set merged into the shared model; five metrics rebased
+
+- **Context:** the capstone operational dashboard and the ecom MVP now share one semantic model (`ecommerce_analytics`). 40 capstone measures and 3 calculated columns were added under `Capstone\*` display folders. Five measures existed in both sets under the **same name with different formulas**; per owner decision the capstone definition wins.
+- **Metrics rebased:**
+  | Metric | Old (ecom) | New (capstone) | FOS value |
+  |---|---|---|---|
+  | §A5 AOV | `Revenue / Orders` (3,789) | `Revenue / Paid Orders` (3,812) | $31.51 → **$31.32** |
+  | §C3 Refund Rate | (refunded ∪ cancelled) / Eligible | Refunded / Paid Orders | → **0.9%** |
+  | §C4 Cancellation Rate | ÷ Eligible Orders | ÷ Order Attempts | → **10.4%** |
+  | §I1 Distinct Customers | known-email only | whole base | 4,263 → **4,266** |
+  | §I3 Orders per Customer | `[Orders]/[Distinct Customers]` | `SUM(total_orders)/customers` | 0.89 → **1.12** |
+- **Knock-on fixes applied in the same pass:** `[AOV (min 10 orders)]` and `[Refund Rate (min 10 orders)]` guarded on populations their parent measures no longer used (`[Orders]` and `[Eligible Orders]`); both rebased to `[Paid Orders]`. Without this the guard would have counted 3,789 while the value divided by 3,812.
+- **Reason per metric:** AOV/Refund/Cancellation align every ratio to one denominator so the operations funnel is additive (Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100%). §I3's old form mixed a filter-context numerator with a lifetime denominator and returned 0.89 — below 1.0, impossible for a lifetime average. §I1 widening is the one that *loses* information (guest checkouts are no longer excluded); it is accepted because the capstone Customers page reports on the whole base, and the guest-checkout caveat already on the dashboard now matters more, not less.
+- **Retained, not deleted:** `[Orders]`, `[Eligible Orders]`, `[Refunded or Cancelled Orders]`, `[Repeat Customer Share]`, `[Open Order Backlog]`, `[Shipping Charged to Customer]`, `[Refunded Order Count]` all still exist — the old combined refund rate can be rebuilt from them at any time.
+- **Known limitation (not fixed):** `[Refund Rate]` reads `fact_refund`/`fact_order`, neither of which has a `dim_country` relationship, so on a country visual it returns the all-store rate. Documented in the measure description and in `dax_measures.txt`; a country-aware refund measure would need a new mart.
+- **Also added:** calculated columns `Days Since Last Order`, `Recency Segment`, `CLV Bucket` on `mart_customer_summary`. The recency anchor uses `CALCULATE(MAX(last_order_date), ALL(...))` rather than the capstone guide's hardcoded `DATE(2026,7,14)`, so it self-corrects on refresh. Note `dim_date` runs to 2030-12-31, so `MAX(dim_date[date_day])` must never be used as the anchor.
+- **Verification:** every capstone KPI checked live via DAX against the guide — Revenue $119,376.98, Paid Orders 3,812, Total Cost $70,744.58, Contribution Profit $87,138.04, margin 55.19%, reconciliation delta −2.9e-11. Grand-total bug confirmed fixed: `[Product Profit]` and `[Country Profit]` now vary per row where `[Contribution Profit]` still returns $87,138.04 for every row (by design — it has no product/country relationship). Country figures cross-validated against independent SQL: US $53,140.81 / 54.6%, UK $27,750.51 / 56.3%, DE $7,496.61 / 58.5%.
+- **Files touched:** `powerbi/measures/dax_measures.txt`, `docs/METRICS_DEFINITION.md` (§A5, §C3, §C4, §I1, §I3), and the live model (`_Measures.tmdl` will pick up all 40 additions on the next Power BI Desktop save).
+
+---
+
 ## 2026-07-22 — B2 Payment Fee rebased to the mart column that profit actually subtracts
 
 - **Metric:** B2 Payment Fee (DAX `[Payment Fee]`), and any cost-breakdown visual that sums COGS + Design Fee + Payment Fee.

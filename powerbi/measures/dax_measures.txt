@@ -46,9 +46,10 @@ CALCULATE(
 )
 
 // [AOV]  |  format: \$#,0.00
-// Average Order Value = gross Revenue (§A1) / Orders (§A3). Safe divide returns blank on zero orders. See docs/METRICS_DEFINITION.md §A5.
+// REBASED 2026-07-22: denominator moved from [Orders] (§A3, fact_order revenue statuses = 3,789) to [Paid Orders] (DISTINCTCOUNT(mart_order_profit[order_sk]) = 3,812), so AOV shares the denominator every cost/profit ratio uses. $31.32; the old basis gave $31.51. [Orders] is retained and still valid — it is just no longer the AOV denominator.
+// Average Order Value = gross Revenue (§A1) / Paid Orders. Safe divide returns blank on zero orders. See docs/METRICS_DEFINITION.md §A5.
 AOV =
-DIVIDE([Revenue], [Orders])
+DIVIDE([Revenue], [Paid Orders])
 
 // [AIV]  |  format: \$#,0.00
 // Average Item Value = gross Revenue (§A1) / Quantity Sold (§A4). See docs/METRICS_DEFINITION.md §A6.
@@ -292,22 +293,22 @@ RETURN
     COUNTROWS ( CombinedKeys )
 
 // [Refund Rate]  |  format: 0.0%
-// Order-level refund/cancellation rate = Refunded or Cancelled Orders / Eligible Orders. Order grain (not line or amount). See docs/METRICS_DEFINITION.md §C3.
+// REBASED 2026-07-22: refunds ONLY, = Refunded Orders / Paid Orders = 34 / 3,812 = 0.9%. Cancellations are no longer folded in — §C4 reports them separately, keeping the two failure modes independently actionable (a refund is a fulfilment/quality signal; a cancellation is a checkout signal). [Refunded or Cancelled Orders] and [Eligible Orders] are both retained if the old combined rate is wanted.
+// WARNING: reads fact_refund / fact_order, neither of which slices by country — on a country visual this returns the all-store rate. Site-level slicing is safe.
+// Order-level refund rate. Order grain (not line or amount). See docs/METRICS_DEFINITION.md §C3.
 Refund Rate =
 DIVIDE (
-    [Refunded or Cancelled Orders],
-    [Eligible Orders]
+    [Refunded Orders],
+    [Paid Orders]
 )
 
 // [Cancellation Rate]  |  format: 0.0%
-// Share of eligible orders with status = 'cancelled' = distinct cancelled orders / Eligible Orders. See docs/METRICS_DEFINITION.md §C4.
+// REBASED 2026-07-22: denominator moved from [Eligible Orders] to [Order Attempts] (all 4,757 rows) = 497 / 4,757 = 10.4%, so the three funnel rates are additive against one denominator: Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100% (remainder = refunded/pending statuses).
+// Share of all order attempts with status = 'cancelled'. See docs/METRICS_DEFINITION.md §C4.
 Cancellation Rate =
 DIVIDE (
-    CALCULATE (
-        DISTINCTCOUNT ( fact_order[order_sk] ),
-        fact_order[status] = "cancelled"
-    ),
-    [Eligible Orders]
+    [Cancelled Orders],
+    [Order Attempts]
 )
 
 // [Refund Revenue Share]  |  format: 0.0%
@@ -340,8 +341,9 @@ CALCULATE (
 
 // [AOV (min 10 orders)]  |  format: \$#,0.00
 // AOV per country/site with a sample-size guard: returns the average order value only when at least 10 orders are present in the current filter context, otherwise BLANK() so thin slices are hidden from the visual. Reuses [AOV] and [Orders]. See docs/METRICS_DEFINITION.md §G3.
+// REBASED 2026-07-22: guard moved from [Orders] to [Paid Orders] so it counts the SAME population [AOV] now divides by. Leaving it on [Orders] would guard 3,789 orders while dividing by 3,812.
 AOV (min 10 orders) =
-VAR OrderCount = [Orders]
+VAR OrderCount = [Paid Orders]
 RETURN
     IF (
         OrderCount >= 10,
@@ -358,11 +360,13 @@ RETURN
 
 // [Refund Rate (min 10 orders)]  |  format: 0.0%
 // By-country (or by-site) order-level refund rate with a sample-size guard: returns [Refund Rate] only when at least 10 eligible orders exist in context, otherwise BLANK() to suppress noisy low-volume slices. Reuses [Refund Rate] (§C3) and [Eligible Orders]. See docs/METRICS_DEFINITION.md §G4 / §C3.
+// REBASED 2026-07-22: guard moved from [Eligible Orders] to [Paid Orders] to match [Refund Rate]'s new denominator.
+// WARNING: both this and [Refund Rate] read fact_refund / fact_order, neither of which slices by country — on a country visual they return the all-store rate. Use for SITE-level slicing only until a country-aware refund measure exists.
 Refund Rate (min 10 orders) =
-VAR EligibleOrderCount = [Eligible Orders]
+VAR OrderCount = [Paid Orders]
 RETURN
     IF (
-        EligibleOrderCount >= 10,
+        OrderCount >= 10,
         [Refund Rate],
         BLANK ()
     )
@@ -434,12 +438,10 @@ AVERAGE ( recon_woo_vs_csv_shipping_charged[delta_pct] )
 // =============================================================================
 
 // [Distinct Customers]  |  format: #,0
-// Count of unique known customers (hashed email) with a resolvable identity. Restricts to dim_customer_anonymized[is_unknown_email] = FALSE() via the customer relationship so guest/unknown-email checkouts are excluded from the customer base. See docs/METRICS_DEFINITION.md §I1.
+// REBASED 2026-07-22: now the whole customer base (4,266) rather than the resolvable-identity subset (4,263). The old form filtered dim_customer_anonymized[is_unknown_email] = FALSE(), excluding guest/unknown-email checkouts. Only 3 customers differ today, but the guest-checkout caveat in §I now matters MORE, not less.
+// Count of unique customers in mart_customer_summary. See docs/METRICS_DEFINITION.md §I1.
 Distinct Customers =
-CALCULATE (
-    DISTINCTCOUNT ( mart_customer_summary[customer_hash] ),
-    dim_customer_anonymized[is_unknown_email] = FALSE ()
-)
+DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
 
 // [Repeat Customer Share]  |  format: 0.0%
 // Share of the customer base that has ordered more than once: repeat customers (mart_customer_summary[is_repeat] = TRUE()) divided by all customers. Safe-divided so an empty base returns blank. See docs/METRICS_DEFINITION.md §I2.
@@ -455,9 +457,10 @@ RETURN
     DIVIDE ( RepeatCustomers, AllCustomers )
 
 // [Orders per Customer]  |  format: 0.00
-// Average number of orders per known customer: [Orders] divided by [Distinct Customers]. Reuses the canonical order and customer measures so filter context stays consistent across visuals. See docs/METRICS_DEFINITION.md §I3.
+// REBASED 2026-07-22: = SUM(total_orders) / [Distinct Customers] = 4,757 / 4,266 = 1.12. The old form DIVIDE([Orders],[Distinct Customers]) = 0.89 mixed a filter-context order count against a lifetime customer count, producing a value below 1.0 — impossible for a lifetime average.
+// CAVEAT: the numerator is a lifetime column, so this does NOT respond to a date slicer. Never place it on a time-sliced visual. See docs/METRICS_DEFINITION.md §I3.
 Orders per Customer =
-DIVIDE ( [Orders], [Distinct Customers] )
+DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
 
 // [Repeat Revenue Share]  |  format: 0.0%
 // REVIEW (LOW): §I4 specifies '/ Revenue' (canonical gross A1). This divides by SUM(mart_customer_summary[total_revenue_usd]) which is NET of refunds (~117.9k), a ~1% basis shift, so it will not reconcile to the gross Revenue KPI. No hard invariant violated (never reads fact_order, adds no shipping/cost). Original kept; owner to confirm gross- vs net-basis intent. Gross-basis alternative: DIVIDE(CALCULATE([Revenue], mart_customer_summary[is_repeat]=TRUE()), [Revenue]) — requires the customer relationship to propagate to fact_order_item.
