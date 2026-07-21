@@ -116,56 +116,54 @@ chiếu tới khái niệm đó ở đâu, đó là bug.
 
 ```
 contribution_profit_usd = net_revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd
+  net_revenue_usd = (doanh thu sản phẩm + tiền ship khách trả) − effective_refund_usd
 ```
 
-**Tại sao KHÔNG trừ shipping riêng?** Vì phí ship của nhà cung cấp *đã nằm
-sẵn* bên trong `cogs_usd` (xem nhóm 2 ở trên). Nếu công thức trừ thêm một cột
-"shipping cost" nữa, đó sẽ là **trừ hai lần cùng một chi phí** — một lỗi rất
-dễ mắc phải khi người viết dashboard thấy sheet CSV có cột `Shipping` và
-tưởng đó là chi phí ship (thực ra đó là **tiền ship thu của khách**, tức
-doanh thu, không phải chi phí — bất biến #4). Đây là lý do
-`docs/DATA_MODEL.md §4.4` liệt kê rõ: cột CSV `Shipping` không bao giờ được
-trừ trong công thức lợi nhuận.
+**Tiền ship khách trả LÀ doanh thu (Approach A, 2026-07-21).** `shipping_charged_usd`
+là tiền khách đã trả và store đã nhận → nó thuộc phía **doanh thu**. Còn `cogs_usd`
+(cột U trong CSV) là **toàn bộ chi phí fulfill một đơn** — đã bao gồm sẵn phí ship
+mà nhà cung cấp thu. Store vừa **thu** tiền ship của khách vừa **trả** tiền fulfill
+cho NCC, nên **cả hai vế đều phải xuất hiện**. Công thức cũ trừ COGS (đã gồm ship của
+NCC) nhưng lại **bỏ quên** tiền ship khách trả → thiếu lợi nhuận đúng bằng phần ship
+(~$40k cho FOS: $47.5k → $87.1k). Xem `docs/METRIC_CHANGES.md` (2026-07-21).
+
+Lưu ý quan trọng để không nhầm: ta **không bao giờ trừ ship như một chi phí** (chi phí
+ship của NCC đã nằm trong COGS rồi — bất biến #6); ship chỉ được **cộng vào doanh thu**
+(bất biến #4). Cột CSV `Shipping` chỉ dùng để đối chiếu (`recon_woo_vs_csv_shipping_charged`);
+nguồn chính thức của phí ship khách là `fact_order.shipping_charged_usd`.
 
 ### `net_revenue_usd` và refund netting có trần (capped)
 
 ```
-net_revenue_usd       = gross_revenue_usd − effective_refund_usd
-gross_revenue_usd     = SUM(fact_order_item.line_revenue_usd) FILTER (WHERE is_revenue_status)
-refunds_usd           = SUM(fact_refund.refund_amount_usd)          -- số tiền THẬT đã hoàn, dương
-effective_refund_usd  = LEAST(refunds_usd, gross_revenue_usd)       -- phần áp dụng lên doanh thu sản phẩm
+net_revenue_usd           = gross_revenue_usd − effective_refund_usd
+gross_revenue_usd         = gross_product_revenue_usd + shipping_charged_usd   -- product + ship (order-total)
+gross_product_revenue_usd = SUM(fact_order_item.line_revenue_usd) FILTER (WHERE is_revenue_status)
+shipping_charged_usd      = fact_order.shipping_charged_usd                    -- phí ship khách trả (doanh thu)
+refunds_usd               = SUM(fact_refund.refund_amount_usd)   -- số tiền THẬT đã hoàn (gồm cả ship), dương
+effective_refund_usd      = LEAST(refunds_usd, gross_revenue_usd) -- chặn trần ở base order-total
 ```
 
-Đây là logic tinh tế nhất trong toàn bộ mart lợi nhuận, nên đáng để giải
-thích kỹ **vì sao** cần "trần" (cap):
+Vì sao vẫn cần "trần" (cap):
 
-1. `is_revenue_status` coi đơn có status `'refunded'` là **có doanh thu**
-   (đơn đó đã từng bán được hàng thật). Nếu không trừ `refunds_usd` ra, một
-   đơn đã hoàn tiền 100% vẫn hiện đầy đủ doanh thu + lợi nhuận dương — sai,
-   vì tiền đã trả lại khách.
-2. Nhưng refund của Woo là **refund cấp toàn đơn** (full-order) — nó hoàn cả
-   tiền sản phẩm **lẫn** tiền ship khách đã trả. Trong khi đó, "revenue base"
-   ở đây (`gross_revenue_usd`) chỉ là doanh thu dòng sản phẩm (`shipping`
-   sống riêng ở `fact_order.shipping_charged_usd`, không nằm trong base
-   này — cùng lý do khiến `recon_woo_vs_csv_shipping_charged` phải so sánh
-   "like-for-like").
-3. Nếu trừ thẳng `refunds_usd` (bao gồm cả phần ship) ra khỏi
-   `gross_revenue_usd` (chỉ có phần sản phẩm) mà không giới hạn, kết quả sẽ
-   là doanh thu sản phẩm bị âm một cách giả tạo — thực tế đã đo được khoảng
-   **$345 bị "over-netting" trên 31 đơn** trước khi áp dụng cap này.
-4. Giải pháp: `effective_refund_usd = LEAST(refunds_usd, gross_revenue_usd)`
-   — chặn phần được trừ không vượt quá chính doanh thu sản phẩm. Một đơn
-   hoàn tiền toàn phần thì net về đúng 0 (đảo ngược giao dịch, không đảo
-   ngược *quá mức*), và vẫn phải gánh COGS đầy đủ → hiện lỗ COGS, điều này
-   là **đúng về nghiệp vụ**: hàng đã sản xuất/gửi đi trước khi tiền được
-   hoàn (khác với đơn `failed`/`cancelled` — những đơn đó chưa từng phát
-   sinh COGS nên bị loại từ đầu, không vào mart này).
+1. `is_revenue_status` coi đơn có status `'refunded'` là **có doanh thu** (đơn đó
+   đã từng bán được hàng thật). Nếu không trừ `refunds_usd` ra, một đơn đã hoàn
+   tiền 100% vẫn hiện lợi nhuận dương — sai, vì tiền đã trả lại khách.
+2. Refund của Woo là **refund cấp toàn đơn** (full-order) — hoàn cả tiền sản phẩm
+   **lẫn** tiền ship. **Trước** Approach A, revenue base chỉ có phần sản phẩm, nên
+   trừ một refund gồm-ship mà không giới hạn sẽ đẩy doanh thu âm giả tạo (đo được
+   ~**$345 over-netting trên 31 đơn**). **Nay** base đã gồm ship → refund và doanh
+   thu cùng một cơ sở (order-total), nên cap gần như **không bao giờ chạm**; nó chỉ
+   còn là **chốt sàn 0** cho trường hợp hiếm hoàn quá mức.
+3. Một đơn hoàn toàn phần net về đúng 0 (đảo ngược giao dịch, không đảo ngược *quá
+   mức*), và vẫn gánh COGS đầy đủ → hiện lỗ COGS, điều này **đúng nghiệp vụ**: hàng
+   đã fulfill trước khi tiền được hoàn (khác đơn `failed`/`cancelled` — chưa từng
+   phát sinh COGS nên bị loại từ đầu, không vào mart này).
 
-`refunds_usd` vẫn được giữ nguyên (số tiền thật đã hoàn, dùng cho các chỉ số
-về refund), còn `effective_refund_usd` mới là phần thực sự bị trừ vào doanh
-thu để tính lợi nhuận. Cột `revenue_usd` trong `mart_order_profit` là **alias
-của `net_revenue_usd`** — vì vậy bất kỳ ai đọc "revenue_usd" ở mart này đều
-nhận số liệu ĐàNET, không phải gross.
+`refunds_usd` vẫn được giữ nguyên (số tiền thật đã hoàn, dùng cho các chỉ số về
+refund), còn `effective_refund_usd` mới là phần thực sự bị trừ vào doanh thu. Cột
+`revenue_usd` trong `mart_order_profit` là **alias của `net_revenue_usd`** — vì vậy
+ai đọc "revenue_usd" ở mart này đều nhận số ĐÃ NET (product + ship − refund), không
+phải gross.
 
 ### Phạm vi (scope) của `mart_order_profit`
 
@@ -194,10 +192,14 @@ từng sản phẩm, `mart_product_profit` **phân bổ theo tỷ trọng doanh 
 
 ```
 revenue_share       = line.line_revenue_usd / order.order_revenue_usd
-line_<term>_usd     = order.<term>_usd * revenue_share      -- áp cho cogs, design_fee, payment_fee, effective_refund
-line_net_revenue_usd = line.line_revenue_usd − line_refund_usd
+line_<term>_usd     = order.<term>_usd * revenue_share  -- áp cho shipping, cogs, design_fee, payment_fee, effective_refund
+line_net_revenue_usd = line.line_revenue_usd + line_shipping_usd − line_refund_usd
 line_profit_usd      = line_net_revenue_usd − line_cogs_usd − line_design_fee_usd − line_payment_fee_usd
 ```
+
+Từ Approach A, **tiền ship khách trả cũng được phân bổ xuống dòng** theo cùng
+revenue-share (cột mới `line_shipping_usd`) và cộng vào `line_net_revenue_usd`.
+Riêng `line_revenue_usd` vẫn giữ product-only (không bao giờ bị sửa — bất biến #1).
 
 Mỗi dòng được gắn nhãn `cost_allocation_method = 'allocated_by_revenue_share'`
 và `cost_confidence = 0.60` — đây là cách dashboard biết để hiển thị "caveat"
@@ -265,8 +267,9 @@ Chạy trên dữ liệu thật của site FOS:
 - **Cost coverage: 98.79%** (đơn revenue-generating có `cogs_usd > 0`) →
   tier **GREEN** (≥ 95%, "fully trusted", theo bảng gating ở
   `docs/DASHBOARD_SPEC.md §K` — xem chương 08)
-- **Tổng contribution profit: $47,535.65** (đã net-of-refund, đã cap refund
-  netting)
+- **Tổng contribution profit: $87,138.04** (Approach A — đã cộng ship vào
+  doanh thu, đã net-of-refund, đã cap refund netting; trước Approach A là
+  $47,535.65 do bỏ quên phần ship khách trả)
 
 Ba con số này đến từ 3 commit gần nhau trong lịch sử dự án:
 `631c8c1` (feat: Phase 3 manual cost enrichment), `9914ca6` (fix: base

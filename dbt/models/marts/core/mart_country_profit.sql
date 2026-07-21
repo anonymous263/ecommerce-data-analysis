@@ -3,9 +3,10 @@
 -- Country × day profit roll-up (DATA_MODEL §7.3). Aggregates mart_order_profit
 -- to (country_sk, date_sk); country comes from fact_order (billing country).
 -- revenue_usd and contribution_profit_usd are read straight from
--- mart_order_profit, which now defines revenue_usd as NET of refunds — this
--- roll-up therefore inherits net revenue/profit with no separate refund logic
--- needed here.
+-- mart_order_profit, which defines revenue_usd as NET of refunds on the
+-- product + customer-shipping base (Approach A) — this roll-up therefore
+-- inherits net revenue/profit (shipping included) with no separate shipping or
+-- refund logic needed here.
 
 with profit as (
     select order_sk, date_sk, revenue_usd, cogs_usd, design_fee_usd,

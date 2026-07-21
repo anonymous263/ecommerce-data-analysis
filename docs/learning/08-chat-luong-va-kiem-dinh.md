@@ -6,7 +6,7 @@ Một kho dữ liệu có thể chạy `dbt build` xanh (không lỗi) nhưng v�
 vì "không lỗi cú pháp" khác với "số liệu đáng tin". Trong dự án này, **profit
 (lợi nhuận)** phụ thuộc vào một file CSV nhập tay (`Order Management.csv`), không
 phải API chính thức như Woo. Nếu file CSV thiếu dữ liệu cho 30% đơn hàng, thì hiển
-thị "Contribution Profit = $47,535" lên dashboard là **lừa dối chính mình** — con số
+thị "Contribution Profit = $87,138" lên dashboard là **lừa dối chính mình** — con số
 đó chỉ tính trên 70% đơn hàng, phần còn lại coi như chi phí bằng 0 (sai).
 
 Vì vậy dự án này tách rời hai câu hỏi:
@@ -165,13 +165,13 @@ thường.
   trong Power BI đọc trực tiếp.
 - **`recon_payment_fee_coverage`** — tương tự, group theo `payment_fee_source`
   (`api_exact`/`plugin_parser`/`seed_estimate`/`missing`) + dòng `__ALL__`.
-- **`recon_csv_vs_dbt_revenue`** — so sánh `Revenue` trong CSV với doanh thu dbt
-  chính thức. Điểm quan trọng: CSV `Revenue` ≈ doanh thu **gộp cả shipping**
-  (gross), còn doanh thu dbt là **net line-item** (shipping tách riêng ở
-  `fact_order.shipping_charged_usd`). Nên view này phơi cả `delta_usd` (so với
-  net — lệch lớn "theo thiết kế", vì bản chất khác nhau) và `delta_vs_gross_usd`
-  (so với net + shipping — độ lệch thật, gần 0). **So sánh phải like-for-like**,
-  nếu không sẽ tưởng nhầm là lỗi.
+- **`recon_csv_vs_dbt_revenue`** — so sánh `Revenue` trong CSV với doanh thu dbt.
+  CSV `Revenue` ≈ doanh thu **gộp cả shipping** (product + ship) — và từ Approach A,
+  cơ sở doanh thu chính thức của dbt (profit base) **cũng** là product + ship. Nên
+  con số đối chiếu **có ý nghĩa** là `delta_vs_gross_usd` (CSV so với product + ship,
+  gần 0). `delta_usd` cũ (CSV so với product-only) chỉ giữ để tham chiếu và lệch lớn
+  "theo thiết kế" (~đúng phần shipping). **So sánh phải like-for-like**, nếu không sẽ
+  tưởng nhầm là lỗi.
 - **`recon_csv_vs_dbt_profit`** — so `Profit` trong CSV với
   `mart_order_profit.contribution_profit_usd`. CSV không nhất thiết trừ refund
   giống dbt, nên lệch ở đơn có hoàn tiền là dự kiến, không phải bug.

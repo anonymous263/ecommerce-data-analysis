@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-21 — Customer shipping charge added to the revenue/profit base (Approach A)
+
+- **Metrics:** A-series Revenue (profit base), B-series Contribution Profit & Profit Margin, and every roll-up that reads `mart_order_profit.revenue_usd` / `contribution_profit_usd`.
+- **Old formula:** `contribution_profit = net_product_revenue − cogs − design_fee − payment_fee`, where the revenue base was **product line revenue only**; customer shipping (`fact_order.shipping_charged_usd`) was excluded from revenue and loaded "for reconciliation only".
+- **New formula:** `contribution_profit = net_revenue − cogs − design_fee − payment_fee`, where `net_revenue = (product_revenue + customer_shipping) − effective_refund` and `gross_revenue = gross_product_revenue + shipping_charged`. `effective_refund = LEAST(refunds, gross_revenue)` — the cap now sits on the order-total base, matching Woo's shipping-inclusive full-order refunds.
+- **Effect on live FOS data (cost-covered revenue orders):** contribution profit **$47,536 → $87,138** (+$39,602 = customer shipping net of refunded shipping; gross shipping $39,938). Net revenue base ~$118,280 → **$157,883**. Per-order spot check matches hand calc: order 74030 $4.77 → **$12.86**, order 76100 $7.58 → **$15.65** (each up by its shipping charge). COGS unchanged ($61,062).
+- **Reason:** The old base was **asymmetric**. `cogs_usd` (CSV column U) is the *all-in* per-order fulfilment cost — it already includes what the supplier charged the store for shipping. The store also charges the customer for shipping and receives that money. Subtracting the shipping-inclusive COGS while excluding the shipping the customer paid understated every order's profit by exactly its shipping charge. Adding shipping to the base also makes revenue and refunds like-for-like (both order-total), so the refund cap almost never binds. External corroboration: the owner's own CSV `Revenue` is a gross order value ≈ product + shipping (`recon_csv_vs_dbt_revenue.delta_vs_gross_usd` ≈ 0).
+- **Conservation re-verified:** shipping is allocated to lines in `mart_product_profit` by the same revenue share as the cost terms (new `line_shipping_usd`). `SUM(line_profit_usd) = SUM(contribution_profit_usd) = $87,138.04` (diff < 1e-4).
+- **Files touched:** `dbt/models/marts/core/mart_order_profit.sql`, `mart_product_profit.sql`, `mart_customer_summary.sql`, `mart_country_profit.sql` (comment), `dbt/models/schema.yml`, `dbt/models/marts/reconciliation/recon_csv_vs_dbt_revenue.sql` + `recon_csv_vs_dbt_profit.sql` (comments), `CLAUDE.md` (domain rules #1/#2/#4/#6), `docs/DATA_MODEL.md` (§4.1–4.3), `docs/METRICS_DEFINITION.md` (§A/§B), `powerbi/CAPSTONE_BUILD_GUIDE.md` (profit/margin DAX).
+- **Unchanged:** item-grain `fact_order_item.line_revenue_usd` stays product-only (CLAUDE.md rule #1 — the raw revenue column is never mutated); cost/payment-fee/refund coverage gates (order counts, independent of the revenue base).
+- **Verification:** `dbt build --select mart_order_profit+` → PASS=33 WARN=0 ERROR=0; aggregate, line↔order conservation, and per-order checks run against real FOS data.
+
+---
+
 ## 2026-07-16 — H4 Payment Fee Coverage % rebased to revenue-order basis
 
 - **Metric:** H4 Payment Fee Coverage % (and the §J/§K payment-fee gating chip that reads it).

@@ -35,14 +35,16 @@
 
 ## 3. Official Revenue Source (locked)
 
-Revenue lives **once**, at `fact_order_item`:
+**Product revenue** lives **once**, at `fact_order_item`:
 
 ```
-Revenue (USD)    =  SUM(fact_order_item.line_revenue_usd)
-Quantity Sold    =  SUM(fact_order_item.quantity)
+Product Revenue (USD)  =  SUM(fact_order_item.line_revenue_usd)
+Quantity Sold          =  SUM(fact_order_item.quantity)
 ```
 
-`fact_order` keeps order-header amounts (`shipping_charged_usd`, `discount_usd`, `tax_usd`, `payment_fee_usd`) but **no `revenue_usd` column** — analysts roll up from `fact_order_item`. This prevents the order × item double-count.
+`fact_order` keeps order-header amounts (`shipping_charged_usd`, `discount_usd`, `tax_usd`, `payment_fee_usd`) but **no product-revenue column** — analysts roll up product revenue from `fact_order_item`. This prevents the order × item double-count.
+
+**Customer shipping charge is the second revenue component.** `fact_order.shipping_charged_usd` is money the customer paid the store and is counted as revenue in the profit base (Approach A — see §4). It lives once, at order grain, and is added to product revenue only in `mart_order_profit` (`gross_revenue_usd = product + shipping`); it is never merged back into `fact_order_item`.
 
 The CSV's `Revenue` column is never read into a mart. It appears in `marts_recon.recon_csv_vs_dbt_revenue` only.
 
@@ -57,32 +59,35 @@ Profit is **computed in dbt marts** by joining WooCommerce revenue with manual C
 ```
 contribution_profit_usd =
     net_revenue_usd
-  − cogs_usd          -- from manual CSV; INCLUDES supplier fulfillment/shipping fee where applicable
+  − cogs_usd          -- from manual CSV (column U); ALL-IN per-order fulfilment cost, INCLUDES supplier fulfillment/shipping fee
   − design_fee_usd    -- from manual CSV
   − payment_fee_usd   -- from Woo payload audit; fallbacks tracked via payment_fee_source
 
 net_revenue_usd = gross_revenue_usd − effective_refund_usd
-  gross_revenue_usd    = SUM(fact_order_item.line_revenue_usd) over the order, filtered by is_revenue_status
-  refunds_usd          = SUM(fact_refund.refund_amount_usd) over the order (POSITIVE; 0 when none) — the TRUE amount returned, incl. shipping
-  effective_refund_usd = LEAST(refunds_usd, gross_revenue_usd) — the portion applied to product revenue
+  gross_revenue_usd         = gross_product_revenue_usd + shipping_charged_usd   -- order-total revenue basis (Approach A)
+  gross_product_revenue_usd = SUM(fact_order_item.line_revenue_usd) over the order, filtered by is_revenue_status
+  shipping_charged_usd      = fact_order.shipping_charged_usd — customer shipping charge (revenue-side)
+  refunds_usd               = SUM(fact_refund.refund_amount_usd) over the order (POSITIVE; 0 when none) — the TRUE amount returned, incl. shipping
+  effective_refund_usd      = LEAST(refunds_usd, gross_revenue_usd) — the portion applied to the revenue base
 
-Refund netting is CAPPED at gross revenue. Woo refunds are full-order (product + shipping + tax; confirmed against the data), but this revenue base is line revenue only (shipping lives in fact_order.shipping_charged_usd, never here). Subtracting a shipping-inclusive refund uncapped would push product revenue negative, so effective_refund floors net at 0: a full refund reverses the sale to 0 (not below), and the order then shows a COGS loss — correct, because the item WAS produced before the refund (unlike failed/cancelled orders, which never incurred COGS).
+Refund netting is CAPPED at gross revenue. Woo refunds are full-order (product + shipping + tax; confirmed against the data). Now that the revenue base ALSO includes shipping, refund and revenue are on the same order-total basis, so the cap almost never binds — it remains only as a floor-at-0 guard for the rare over-refund: a full refund reverses the sale to 0 (not below), and the order then shows a COGS loss — correct, because the item WAS produced before the refund (unlike failed/cancelled orders, which never incurred COGS).
 ```
 
-**Why net of refunds?** `is_revenue_status` treats `'refunded'` orders as revenue-bearing (they did sell), so without subtracting `refunds_usd`, a refunded order would show full gross revenue and full positive profit despite the money having been returned to the customer. `revenue_usd` is exposed in `mart_order_profit` as an **alias of `net_revenue_usd`**, so any consumer reading "revenue_usd" gets the net figure. `fact_refund` (built in Phase 1/2, order-level grain) is consumed here for the first time.
+**Why is customer shipping revenue? (Approach A, 2026-07-21)** `shipping_charged_usd` is money the customer paid the store — real income. `cogs_usd` (CSV column U) is the *all-in* per-order fulfilment cost, which already includes whatever the supplier charged to ship the item. The store both **charges** the customer for shipping and **pays** the supplier to fulfil, so both sides must appear in the P&L. The earlier formula subtracted the shipping-inclusive COGS while excluding the shipping the customer paid — an asymmetry that understated FOS profit by ~$40k (contribution profit $47.5k → $87.1k). See `docs/METRIC_CHANGES.md` (2026-07-21) and `CLAUDE.md` domain rules #1/#2/#4/#6.
 
-**Why no separate shipping cost subtraction?**
-The CSV `Shipping` column is **shipping charged to the customer**, not supplier shipping cost. The supplier fulfillment/shipping fee is already inside `CoGS` in the manual sheet. Subtracting a "shipping cost" again would double-count.
+**Why net of refunds?** `is_revenue_status` treats `'refunded'` orders as revenue-bearing (they did sell), so without subtracting `refunds_usd`, a refunded order would show full gross revenue and full positive profit despite the money having been returned to the customer. `revenue_usd` is exposed in `mart_order_profit` as an **alias of `net_revenue_usd`**, so any consumer reading "revenue_usd" gets the net figure. `fact_refund` (built in Phase 1/2, order-level grain) is consumed here.
 
-If a future supplier/carrier API exposes a supplier shipping fee as a *separate* number, both `cogs_usd` and the formula must be reworked at that time — `cogs_usd` would shrink (no longer include shipping) and a new `supplier_shipping_cost_usd` term would be added. Until then: do not model it.
+**Supplier shipping is not a separate cost.** It is folded into `cogs_usd` (column U). Do not model a separate supplier-shipping term. If a future supplier/carrier API ever exposes it as a *distinct* number, both `cogs_usd` and this formula must be reworked together at that time — `cogs_usd` would shrink and a new `supplier_shipping_cost_usd` term would be added. Until then: do not model it. (Note this is the supplier-side cost — the customer-side shipping charge is already revenue above.)
 
 ### 4.2 Order-level profit (`mart_order_profit`)
 
 ```
 mart_order_profit per Woo order:
-  gross_revenue_usd         = SUM(fact_order_item.line_revenue_usd) filtered by is_revenue_status
+  gross_product_revenue_usd = SUM(fact_order_item.line_revenue_usd) filtered by is_revenue_status
+  shipping_charged_usd       = fact_order.shipping_charged_usd   -- customer shipping charge (revenue)
+  gross_revenue_usd          = gross_product_revenue_usd + shipping_charged_usd  -- order-total basis
   refunds_usd                = SUM(fact_refund.refund_amount_usd) over order (0 when none) -- true amount returned
-  effective_refund_usd       = LEAST(refunds_usd, gross_revenue_usd)   -- capped; applied to product revenue
+  effective_refund_usd       = LEAST(refunds_usd, gross_revenue_usd)   -- capped at order-total gross
   net_revenue_usd            = gross_revenue_usd − effective_refund_usd -- floored at 0
   revenue_usd                = net_revenue_usd   -- alias; downstream reads NET
   cogs_usd                   = fact_order_cost.cogs_usd
@@ -95,7 +100,7 @@ mart_order_profit per Woo order:
   payment_fee_source          = fact_order.payment_fee_source
 ```
 
-Scope: an order is in `mart_order_profit` only when it has cost enrichment AND `gross_revenue_usd > 0` (pre-refund) — an order whose lines are all failed/cancelled/pending never enters. A **fully refunded** order stays in scope (it did sell) with `net_revenue_usd` floored at zero (not negative), so it correctly shows a COGS loss rather than being dropped.
+Scope: an order is in `mart_order_profit` only when it has cost enrichment AND `gross_product_revenue_usd > 0` (pre-refund) — an order whose lines are all failed/cancelled/pending never enters (so its shipping is never counted as phantom revenue either). A **fully refunded** order stays in scope (it did sell) with `net_revenue_usd` floored at zero (not negative), so it correctly shows a COGS loss rather than being dropped.
 
 ### 4.3 Product-level profit (`mart_product_profit`)
 
@@ -107,19 +112,19 @@ COGS may be available **only at order level** in the sheet. Allocate to lines:
 | Allocated by revenue share | Default fallback when only order-level cost exists | `'allocated_by_revenue_share'` | `0.60` |
 | Allocated by quantity share | Opt-in alternative | `'allocated_by_quantity_share'` | `0.50` |
 
-For revenue-share allocation, EVERY order-level term (COGS, design fee, payment fee, and the capped `effective_refund_usd`) is allocated to lines by the same share:
+For revenue-share allocation, EVERY order-level term (customer shipping revenue, COGS, design fee, payment fee, and the capped `effective_refund_usd`) is allocated to lines by the same share:
 ```
 line_<term>_usd = order.<term>_usd * (line.line_revenue_usd / order.revenue_usd)
-line_net_revenue_usd = line.line_revenue_usd − line_refund_usd
+line_net_revenue_usd = line.line_revenue_usd + line_shipping_usd − line_refund_usd
 line_profit_usd       = line_net_revenue_usd − line_cogs_usd − line_design_fee_usd − line_payment_fee_usd
 ```
-`SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent).
+`line_revenue_usd` itself stays product-only (never mutated); the allocated shipping is a separate `line_shipping_usd` column. `SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent; verified $87,138.04 = $87,138.04 on real FOS data).
 
 Every product-profit row carries `cost_allocation_method` and `cost_confidence`. Dashboards displaying product-level profit show a caveat tag whenever `cost_allocation_method != 'line_exact'`.
 
 ### 4.4 What is *not* used for profit
 - CSV's `Revenue`, `Profit`, `ROI`, `Profit Margin` — drift-monitored in `marts_recon.recon_csv_vs_dbt_*`, never official.
-- CSV `Shipping` — that's **customer shipping charge**, not a cost; never subtracted in profit.
+- CSV `Shipping` — the CSV copy of the customer shipping charge; used only for the like-for-like shipping recon. The **official** customer shipping charge is Woo's `fact_order.shipping_charged_usd`, which **is** revenue in the profit base (§4.1). Shipping is added on the revenue side, never subtracted as a cost.
 - A separate supplier shipping cost — does not exist as a distinct field today (it's inside COGS).
 
 ---

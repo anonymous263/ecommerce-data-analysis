@@ -14,7 +14,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Gross Revenue (§A1) minus refunds. [Refund Amount] is defined in group C (Refunds). This is the profit-margin denominator; for exact tie-out to the mart use SUM(mart_order_profit[net_revenue_usd]).
+	/// Product Revenue (§A1) minus refunds — product-side NET for sales reporting only. [Refund Amount] is defined in group C (Refunds). This is NOT the profit-margin denominator; the margin base is [Profit Base Net Revenue] = SUM(mart_order_profit[net_revenue_usd]) = product + customer shipping − refund (Approach A, 2026-07-21).
 	measure 'Net Revenue' =
 			
 			[Revenue] - [Refund Amount]
@@ -213,7 +213,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Exact net-revenue denominator used for profit margin: gross Revenue minus refunds, read directly from the pre-computed marts_core.mart_order_profit[net_revenue_usd] so it reconciles to the mart (117,911.47 for FOS). Prefer this over recomputing Revenue − Refunds in DAX. Underpins §B6. See docs/METRICS_DEFINITION.md §B6.
+	/// Exact net-revenue denominator used for profit margin: (product revenue + customer shipping) − refunds, read directly from the pre-computed marts_core.mart_order_profit[net_revenue_usd] so it reconciles to the mart (157,882.62 for FOS). Includes shipping revenue (Approach A, 2026-07-21). Prefer this over recomputing in DAX. Underpins §B6. See docs/METRICS_DEFINITION.md §B6 and docs/METRIC_CHANGES.md.
 	measure 'Profit Base Net Revenue' =
 			
 			SUM ( mart_order_profit[net_revenue_usd] )
@@ -223,7 +223,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Contribution profit in USD, summed from the pre-computed marts_core.mart_order_profit[contribution_profit_usd] (47,535.65 for FOS). Locked formula = net_revenue − cogs − design_fee − payment_fee, with NO shipping term because supplier shipping is already inside cogs_usd.
+	/// Contribution profit in USD, summed from the pre-computed marts_core.mart_order_profit[contribution_profit_usd] (87,138.04 for FOS). Locked formula = net_revenue − cogs − design_fee − payment_fee, where net_revenue = (product revenue + customer shipping) − refund (Approach A, 2026-07-21). Customer shipping is revenue; cogs_usd is the all-in fulfilment cost (already includes supplier shipping). See docs/METRIC_CHANGES.md.
 	measure 'Contribution Profit' =
 			
 			SUM ( mart_order_profit[contribution_profit_usd] )
@@ -233,7 +233,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Contribution profit margin = Contribution Profit (B5) ÷ Net Revenue (Profit Base Net Revenue), safe-divided. Denominator is net revenue per invariant #4 (40.19% for FOS). See docs/METRICS_DEFINITION.md §B6.
+	/// Contribution profit margin = Contribution Profit (B5) ÷ [Profit Base Net Revenue] (= product + customer shipping − refund, Approach A), safe-divided (55.19% for FOS). Denominator is the shipping-inclusive net revenue, NOT the product-only [Net Revenue]. See docs/METRICS_DEFINITION.md §B6 and docs/METRIC_CHANGES.md.
 	measure 'Profit Margin' =
 			
 			DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )
@@ -342,10 +342,10 @@ table _Measures
 		displayFolder: Profitability
 		lineageTag: 8696a0cb-9fe5-4989-a8dc-38ba61aff21e
 
-	/// Static explanatory caveat displayed alongside profit visuals, encoding invariants #2/#4/#6: supplier shipping is already inside COGS (no double subtraction) and the CSV Shipping column is a customer charge, not a cost. See docs/METRICS_DEFINITION.md §B5.
+	/// Static explanatory caveat displayed alongside profit visuals, encoding invariants #2/#4/#6 under Approach A: the customer shipping charge is counted as revenue, and COGS is the all-in fulfilment cost (already includes supplier shipping) so shipping is never subtracted as a cost. See docs/METRICS_DEFINITION.md §B5 and docs/METRIC_CHANGES.md.
 	measure 'Profit Caveat Banner' =
-			
-			"COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again. The CSV Shipping column is the customer shipping charge, not a cost."
+
+			"Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds."
 		displayFolder: Profitability
 		lineageTag: e0090f96-f892-4d71-835d-f5bd78a2641d
 
