@@ -260,8 +260,8 @@
     {
       "ordinal": 1,
       "scrollPosition": {
-        "x": 613.0086013765482,
-        "y": 358.00707252523819
+        "x": 0,
+        "y": 239.42356321530929
       },
       "nodes": [
         {
@@ -374,7 +374,7 @@
         }
       ],
       "name": "Core Sales",
-      "zoomValue": 79.60736585166444,
+      "zoomValue": 71.003871848286735,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
@@ -384,7 +384,7 @@
       "ordinal": 2,
       "scrollPosition": {
         "x": 0,
-        "y": 74.264753981948971
+        "y": 140.6290022211374
       },
       "nodes": [
         {
@@ -397,7 +397,7 @@
             "height": 316.923026,
             "width": 280.06058599999983
           },
-          "zIndex": 0
+          "zIndex": 1
         },
         {
           "location": {
@@ -409,7 +409,7 @@
             "height": 224,
             "width": 343.92798548463384
           },
-          "zIndex": 0
+          "zIndex": 2
         },
         {
           "location": {
@@ -421,19 +421,20 @@
             "height": 300,
             "width": 234
           },
-          "zIndex": 0
+          "zIndex": 3
         },
         {
           "location": {
-            "x": 1071.147523717827,
+            "x": 1074.147523717827,
             "y": 1046.9925509999998
           },
           "nodeIndex": "dim_product",
+          "nodeLineageTag": "b9f6a5a5-d1cf-4f31-a007-f3f9e590133d",
           "size": {
             "height": 300,
             "width": 354.466148
           },
-          "zIndex": 0
+          "zIndex": 10
         },
         {
           "location": {
@@ -445,7 +446,7 @@
             "height": 272,
             "width": 234
           },
-          "zIndex": 0
+          "zIndex": 4
         },
         {
           "location": {
@@ -457,7 +458,7 @@
             "height": 296,
             "width": 312.92265624537816
           },
-          "zIndex": 0
+          "zIndex": 5
         },
         {
           "location": {
@@ -469,7 +470,7 @@
             "height": 300,
             "width": 338.29065289567825
           },
-          "zIndex": 0
+          "zIndex": 6
         },
         {
           "location": {
@@ -481,7 +482,7 @@
             "height": 300,
             "width": 293.19199218403367
           },
-          "zIndex": 0
+          "zIndex": 7
         },
         {
           "location": {
@@ -493,7 +494,7 @@
             "height": 300,
             "width": 305.87599050918379
           },
-          "zIndex": 0
+          "zIndex": 8
         },
         {
           "location": {
@@ -505,7 +506,7 @@
             "height": 300,
             "width": 321.37865512881149
           },
-          "zIndex": 0
+          "zIndex": 9
         }
       ],
       "name": "Profit",
@@ -597,13 +598,13 @@
         }
       ],
       "name": "Data Quality",
-      "zoomValue": 100,
+      "zoomValue": 70.95554390096882,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
       "tablesLocked": false
     }
   ],
-  "selectedDiagram": "Data Quality",
+  "selectedDiagram": "Profit",
   "defaultDiagram": "All tables"
 }

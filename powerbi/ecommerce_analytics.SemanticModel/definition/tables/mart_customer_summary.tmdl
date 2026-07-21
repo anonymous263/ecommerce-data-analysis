@@ -102,6 +102,25 @@ table mart_customer_summary
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Days between this customer's last order and the most recent order date in the whole table (2026-07-14 on current data). Anchor is computed dynamically via CALCULATE(MAX(...), ALL(...)) rather than a hardcoded date, so it self-corrects on every refresh -- the capstone guide's DATE(2026,7,14) literal would silently go stale as soon as new orders land.
+	column 'Days Since Last Order' = DATEDIFF ( mart_customer_summary[last_order_date], CALCULATE ( MAX ( mart_customer_summary[last_order_date] ), ALL ( mart_customer_summary ) ), DAY )
+		dataType: int64
+		formatString: #,0
+		lineageTag: c9f622eb-246c-4edf-ae42-9e165adea1a9
+		summarizeBy: none
+
+	/// Recency bucket from [Days Since Last Order]: Active 0-3mo (<90d), 3-6 mo (<180d), 6-12 mo (<365d), Lapsed 12+mo. Drives the Customers page recency bar and [Lapsed Share]. Per CAPSTONE_BUILD_GUIDE §3.7.
+	column 'Recency Segment' = SWITCH ( TRUE (), mart_customer_summary[Days Since Last Order] < 90, "Active 0-3mo", mart_customer_summary[Days Since Last Order] < 180, "3-6 mo", mart_customer_summary[Days Since Last Order] < 365, "6-12 mo", "Lapsed 12+mo" )
+		dataType: string
+		lineageTag: 9ee6e7ce-fcc2-4f94-9c51-63ed2059d357
+		summarizeBy: none
+
+	/// Lifetime-spend bucket from total_revenue_usd. Numeric prefixes (1..5) keep the visual sorted correctly without a separate sort column. Per CAPSTONE_BUILD_GUIDE §3.7.
+	column 'CLV Bucket' = SWITCH ( TRUE (), mart_customer_summary[total_revenue_usd] < 20, "1. <$20", mart_customer_summary[total_revenue_usd] < 40, "2. $20-40", mart_customer_summary[total_revenue_usd] < 75, "3. $40-75", mart_customer_summary[total_revenue_usd] < 150, "4. $75-150", "5. $150+" )
+		dataType: string
+		lineageTag: a19fcbb0-03dc-4043-a235-fd0d2c02dc1d
+		summarizeBy: none
+
 	partition mart_customer_summary = m
 		mode: import
 		source =

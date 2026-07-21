@@ -50,10 +50,8 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Average Order Value = gross Revenue (§A1) / Orders (§A3). Safe divide returns blank on zero orders.
-	measure AOV =
-			
-			DIVIDE([Revenue], [Orders])
+	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Revenue],[Orders]) = $31.51 over 3,789 fact_order revenue-status orders; now DIVIDE([Revenue],[Paid Orders]) = $31.32 over the 3,812 orders in mart_order_profit. KNOCK-ON: [AOV (min 10 orders)] reuses this measure but still guards on [Orders], so its guard population and its value population no longer match -- harmless at 10-order thresholds, but do not treat it as an exact ecom §G3 implementation any more. The repo files powerbi/measures/dax_measures.txt and docs/METRICS_DEFINITION.md §A5 still document the ecom form.
+	measure AOV = DIVIDE ( [Revenue], [Paid Orders] )
 		formatString: \$#,0.00
 		displayFolder: Sales
 		lineageTag: 6fc7f1cc-291d-4265-b8cd-c7ed9291070a
@@ -426,29 +424,16 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Order-level refund/cancellation rate = Refunded or Cancelled Orders / Eligible Orders. Order grain (not line or amount). See docs/METRICS_DEFINITION.md §C3.
-	measure 'Refund Rate' =
-			
-			DIVIDE (
-			    [Refunded or Cancelled Orders],
-			    [Eligible Orders]
-			)
+	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Refunded or Cancelled Orders],[Eligible Orders]) -- a combined refund+cancellation failure rate; now refunds ONLY: 34 / 3,812 = 0.9%. Cancellations are reported separately by [Cancellation Rate]. KNOCK-ON: [Refund Rate (min 10 orders)] reuses this but still guards on [Eligible Orders]. The measure [Refunded or Cancelled Orders] is now unused by anything -- keep it if you want the old combined rate back.
+	measure 'Refund Rate' = DIVIDE ( [Refunded Orders], [Paid Orders] )
 		formatString: 0.0%
 		displayFolder: Refund / Cancellation
 		lineageTag: e71c0299-e5be-4991-9015-3f5dc01f5cd3
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Share of eligible orders with status = 'cancelled' = distinct cancelled orders / Eligible Orders. See docs/METRICS_DEFINITION.md §C4.
-	measure 'Cancellation Rate' =
-			
-			DIVIDE (
-			    CALCULATE (
-			        DISTINCTCOUNT ( fact_order[order_sk] ),
-			        fact_order[status] = "cancelled"
-			    ),
-			    [Eligible Orders]
-			)
+	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Denominator changed from [Eligible Orders] (settleable orders, excludes failed/pending) to [Order Attempts] (all 4,757 rows), giving 497 / 4,757 = 10.4%. The capstone basis makes the three operations rates additive against one funnel: Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100%. Does not implement ecom §C4 any more.
+	measure 'Cancellation Rate' = DIVIDE ( [Cancelled Orders], [Order Attempts] )
 		formatString: 0.0%
 		displayFolder: Refund / Cancellation
 		lineageTag: 14c90891-e567-4404-bca3-92eedd5c3533
@@ -485,10 +470,9 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// AOV per country/site with a sample-size guard: returns the average order value only when at least 10 orders are present in the current filter context, otherwise BLANK() so thin slices are hidden from the visual. Reuses [AOV] and [Orders]. See docs/METRICS_DEFINITION.md §G3.
+	/// AOV per country/site with a sample-size guard: returns [AOV] only when at least 10 orders are in context, else BLANK() so thin slices are hidden. Guard rebased from [Orders] to [Paid Orders] on 2026-07-22 so it counts the SAME population [AOV] now divides by -- leaving it on [Orders] would have guarded 3,789 orders while dividing by 3,812.
 	measure 'AOV (min 10 orders)' =
-			
-			VAR OrderCount = [Orders]
+			VAR OrderCount = [Paid Orders]
 			RETURN
 			    IF (
 			        OrderCount >= 10,
@@ -513,18 +497,15 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// By-country (or by-site) order-level refund rate with a sample-size guard: returns [Refund Rate] only when at least 10 eligible orders exist in context, otherwise BLANK() to suppress noisy low-volume slices. Reuses [Refund Rate] (§C3) and [Eligible Orders]. See docs/METRICS_DEFINITION.md §G4 / §C3.
-	measure 'Refund Rate (min 10 orders)' = ```
-			
-			VAR EligibleOrderCount = [Eligible Orders]
+	/// By-country/site refund rate with a sample-size guard. Guard rebased from [Eligible Orders] to [Paid Orders] on 2026-07-22 to match [Refund Rate]'s new denominator (refunds / paid orders). Note both this and [Refund Rate] read fact_refund and fact_order, neither of which slices by country -- on a country visual they return the all-store rate. Use only for site-level slicing until a country-aware refund measure exists.
+	measure 'Refund Rate (min 10 orders)' =
+			VAR OrderCount = [Paid Orders]
 			RETURN
 			    IF (
-			        EligibleOrderCount >= 10,
+			        OrderCount >= 10,
 			        [Refund Rate],
 			        BLANK ()
 			    )
-			
-			```
 		formatString: 0.0%
 		displayFolder: Site & Geography
 		lineageTag: 9f1ea783-6df2-452b-89fe-332f31159bfb
@@ -594,13 +575,8 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Count of unique known customers (hashed email) with a resolvable identity. Restricts to dim_customer_anonymized[is_unknown_email] = FALSE() via the customer relationship so guest/unknown-email checkouts are excluded from the customer base. See docs/METRICS_DEFINITION.md §I1.
-	measure 'Distinct Customers' =
-			
-			CALCULATE (
-			    DISTINCTCOUNT ( mart_customer_summary[customer_hash] ),
-			    dim_customer_anonymized[is_unknown_email] = FALSE ()
-			)
+	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was CALCULATE(DISTINCTCOUNT(customer_hash), dim_customer_anonymized[is_unknown_email]=FALSE()) = 4,263 known-email customers; now the unfiltered customer base = 4,266, i.e. guest/unknown-email checkouts are INCLUDED. Difference is only 3 customers today but the semantics differ: this no longer implements ecom §I1. Repo docs still describe the filtered form.
+	measure 'Distinct Customers' = DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
 		formatString: #,0
 		displayFolder: Customer
 		lineageTag: 89f6f4c6-b7b8-44a3-8f63-3f0c23dba649
@@ -627,11 +603,9 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Average number of orders per known customer: [Orders] divided by [Distinct Customers]. Reuses the canonical order and customer measures so filter context stays consistent across visuals. See docs/METRICS_DEFINITION.md §I3.
-	measure 'Orders per Customer' =
-			
-			DIVIDE ( [Orders], [Distinct Customers] )
-		formatString: 0.00
+	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Orders],[Distinct Customers]) = 0.89, which mixes a filter-context order count with a lifetime customer count; now DIVIDE(SUM(total_orders),[Distinct Customers]) = 1.12, a true lifetime average (4,757 / 4,266). The capstone form is the more defensible one for a Customers page, but it is lifetime-only and does NOT respond to a date slicer.
+	measure 'Orders per Customer' = DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
+		formatString: #,0.00
 		displayFolder: Customer
 		lineageTag: 484383c8-c148-4e79-8435-88d6230fd0b1
 
@@ -654,6 +628,249 @@ table _Measures
 		lineageTag: a1cffe40-e6bc-4052-9773-b253853a87ec
 
 		annotation PBI_FormatHint = {"isCustom":true}
+
+	/// Distinct orders present in mart_order_profit = completed 3,699 + processing 89 + refunded 24 = 3,812. NOT the same population as ecom's [Orders] (fact_order status in processing/completed/on-hold = 3,789). Capstone uses this so every cost/profit ratio shares the mart's denominator. Per CAPSTONE_BUILD_GUIDE §3.1.
+	measure 'Paid Orders' = DISTINCTCOUNT ( mart_order_profit[order_sk] )
+		formatString: #,0
+		displayFolder: Capstone\Sales
+		lineageTag: 1fb18cd8-8f38-42be-9933-df6436238bc5
+
+	/// Customer shipping charge across all orders ($50,648.98). Capstone's shorter name for ecom's [Shipping Charged to Customer] -- identical formula. Counted as REVENUE under Approach A, never as a cost.
+	measure 'Shipping Charged' = SUM ( fact_order[shipping_charged_usd] )
+		formatString: \$#,0
+		displayFolder: Capstone\Sales
+		lineageTag: f5c1b174-e125-4c4e-81b9-8ca730fd868d
+
+	/// COGS + Design Fee + Payment Fee = $70,744.58. Reconciles exactly: [Profit Base Net Revenue] - [Total Cost] = [Contribution Profit]. This only holds because [Payment Fee] reads mart_order_profit (fixed 2026-07-22); reading fact_order left it $137.72 short.
+	measure 'Total Cost' = [COGS] + [Design Fee] + [Payment Fee]
+		formatString: \$#,0
+		displayFolder: Capstone\Cost
+		lineageTag: 4854a6ce-610e-446b-8c4a-d89baad37777
+
+	/// Distinct SKUs with at least one revenue-status line. Per CAPSTONE_BUILD_GUIDE §3.5.
+	measure 'Distinct Products Sold' = CALCULATE ( DISTINCTCOUNT ( fact_order_item[product_sk] ), fact_order_item[is_revenue_status] = TRUE () )
+		formatString: #,0
+		displayFolder: Capstone\Products
+		lineageTag: 11f279aa-f2f9-401c-82d3-3dcdf18d65df
+
+	/// Contribution profit at LINE grain from mart_product_profit, which has a dim_product relationship. Use this -- never [Contribution Profit] -- on any visual sliced by product: mart_order_profit has NO relationship to dim_product, so [Contribution Profit] silently returns the $87,138.04 grand total for every product row. Sums to the same $87,138.04 in total. Per CAPSTONE_BUILD_GUIDE §3.5b.
+	measure 'Product Profit' = SUM ( mart_product_profit[line_profit_usd] )
+		formatString: \$#,0
+		displayFolder: Capstone\Products
+		lineageTag: 6637dc3a-cb96-400a-b918-43d15f85f5d7
+
+	/// Line-grain net revenue ($157,882.62 in total, matching [Profit Base Net Revenue]). Denominator for [Product Margin]. Per CAPSTONE_BUILD_GUIDE §3.5b.
+	measure 'Product Net Revenue' = SUM ( mart_product_profit[line_net_revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Capstone\Products
+		lineageTag: e0d8c180-b623-49b7-8ef7-f2296a2d5143
+
+	/// Contribution profit from mart_country_profit, the only profit table with a dim_country relationship. Use this -- never [Contribution Profit] -- on any visual sliced by country. Sums to $87,138.04. Per CAPSTONE_BUILD_GUIDE §3.6.
+	measure 'Country Profit' = SUM ( mart_country_profit[contribution_profit_usd] )
+		formatString: \$#,0
+		displayFolder: Capstone\Markets
+		lineageTag: f1b95439-fd51-4a35-b90f-3cc0b4173ad6
+
+	/// WARNING on the column name: mart_country_profit[revenue_usd] is NET revenue including shipping ($157,882.62 total = [Profit Base Net Revenue]), NOT gross. Never label it 'Revenue' on a visual -- for gross revenue by country use [Revenue per Country]. Denominator for [Country Margin].
+	measure 'Country Net Revenue' = SUM ( mart_country_profit[revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Capstone\Markets
+		lineageTag: 280e605a-75eb-4334-b841-f9fc0e6002ff
+
+	/// Order count per country from mart_country_profit (3,812 in total, matching [Paid Orders]). Use instead of [Paid Orders] on country visuals -- mart_order_profit has no dim_country relationship.
+	measure 'Country Orders' = SUM ( mart_country_profit[order_count] )
+		formatString: #,0
+		displayFolder: Capstone\Markets
+		lineageTag: 72ab6a36-923a-42b5-9a72-8b5c2cc4198a
+
+	/// Every order row regardless of status (4,757) -- the checkout-funnel denominator. Per CAPSTONE_BUILD_GUIDE §3.8.
+	measure 'Order Attempts' = COUNTROWS ( fact_order )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: 2fab9809-00e2-4e3d-a000-9bd1e782c472
+
+	/// Orders with status = 'completed' (3,699).
+	measure 'Completed Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "completed" )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: 6c3995c1-f60e-4474-b268-e1d9016e74f2
+
+	/// Orders with status = 'failed' (437) -- payment never settled.
+	measure 'Failed Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "failed" )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: 60abfd89-46c5-4749-9fa3-b11fca4100f1
+
+	/// Orders with status = 'cancelled' (497).
+	measure 'Cancelled Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "cancelled" )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: 3083c3ac-ad20-4abe-8a03-280a04762293
+
+	/// Orders still in 'processing' awaiting fulfilment (90). Capstone's COUNTROWS variant of ecom's [Open Order Backlog] (DISTINCTCOUNT) -- same value.
+	measure 'Open Backlog' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "processing" )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: fd8d288a-d02a-4e5a-a9df-9f4f51dc209b
+
+	/// Distinct orders with at least one refund row (34). More robust than ecom's [Refunded Order Count] = COUNTROWS(fact_refund), which double-counts an order that gets more than one refund; the two coincide today.
+	measure 'Refunded Orders' = DISTINCTCOUNT ( fact_refund[order_sk] )
+		formatString: #,0
+		displayFolder: Capstone\Operations
+		lineageTag: 14d100f3-ce88-40d9-a780-548d3804eb4f
+
+	/// Effective processor rate over ALL order value. Deliberately keeps fact_order on BOTH sides -- this is an operational rate per payment method, not a P&L line, so it is exempt from the 2026-07-22 rule that cost terms must read mart_order_profit.
+	measure 'Payment Fee Rate' = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_order[order_total_usd] ) )
+		formatString: 0.0%
+		displayFolder: Capstone\Operations
+		lineageTag: 26991049-3af9-4dce-9ca2-beb069876a76
+
+	/// Customers with more than one lifetime order (384).
+	measure 'Repeat Customers' = CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_customer_summary[is_repeat] = TRUE () )
+		formatString: #,0
+		displayFolder: Capstone\Customers
+		lineageTag: 069d0a76-4d17-4351-a207-4eff6494c790
+
+	/// Customer count intended for use with mart_customer_summary[first_order_date] on the axis, which turns it into new-customer acquisition per period. On a bare card it is simply the total customer base.
+	measure 'New Customers' = DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
+		formatString: #,0
+		displayFolder: Capstone\Customers
+		lineageTag: dd49b993-5922-4321-88d9-b5dd5c13c8e2
+
+	/// Running revenue total across products ranked descending -- the Pareto numerator. Place on a visual with dim_product[product_name]. Per CAPSTONE_BUILD_GUIDE §3.5.
+	measure 'Cumulative Revenue' =
+			VAR cur = [Revenue]
+			RETURN
+			    CALCULATE ( [Revenue], FILTER ( ALLSELECTED ( dim_product[product_name] ), [Revenue] >= cur ) )
+		formatString: \$#,0
+		displayFolder: Capstone\Products
+		lineageTag: eda521eb-276d-45bf-9cc2-237ff1729830
+
+	/// Prior-year gross revenue. Requires dim_date marked as the date table.
+	measure 'Revenue PY' = CALCULATE ( [Revenue], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
+		formatString: \$#,0
+		displayFolder: Capstone\YoY
+		lineageTag: 61cb5b34-1630-4839-bbc5-0f357356222c
+
+	/// Prior-year contribution profit.
+	measure 'Profit PY' = CALCULATE ( [Contribution Profit], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
+		formatString: \$#,0
+		displayFolder: Capstone\YoY
+		lineageTag: 63c2e42e-3e5a-4026-a8f8-4bb58978aa5b
+
+	/// Units per paid order (4,312 / 3,812 = 1.13).
+	measure 'Avg Units per Order' = DIVIDE ( [Quantity Sold], [Paid Orders] )
+		formatString: #,0.00
+		displayFolder: Capstone\Products
+		lineageTag: 4623b3f4-18c6-47c9-a817-24b1743bc7f7
+
+	/// Total Cost / Profit Base Net Revenue = 44.8%. Denominator MUST be [Profit Base Net Revenue] (product + shipping - refund, $157,882.62), not the product-only [Net Revenue] -- using the latter gives the pre-Approach-A 59.8% and understates the business.
+	measure 'Cost Ratio' = DIVIDE ( [Total Cost], [Profit Base Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Capstone\Cost
+		lineageTag: b86e460d-a775-4719-ad57-a801cf876d8a
+
+	/// COGS / Profit Base Net Revenue = 38.7% (was 51.6% against the old product-only base).
+	measure 'COGS Ratio' = DIVIDE ( [COGS], [Profit Base Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Capstone\Cost
+		lineageTag: 6a2791fb-587c-41d3-a0ef-0aa2cdbee7b3
+
+	/// $70,744.58 / 3,812 = $18.56.
+	measure 'Cost per Order' = DIVIDE ( [Total Cost], [Paid Orders] )
+		formatString: \$#,0.00
+		displayFolder: Capstone\Cost
+		lineageTag: 6948351b-f018-42f8-94a5-afcf4cd6a906
+
+	/// $70,744.58 / 4,312 = $16.41.
+	measure 'Cost per Unit' = DIVIDE ( [Total Cost], [Quantity Sold] )
+		formatString: \$#,0.00
+		displayFolder: Capstone\Cost
+		lineageTag: b29dd5f4-a08c-4e40-a9a8-dcd096ef4ce6
+
+	/// Line-grain contribution margin, safe to slice by product. Use instead of [Profit Margin] on product visuals. Per CAPSTONE_BUILD_GUIDE §3.5b.
+	measure 'Product Margin' = DIVIDE ( [Product Profit], [Product Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Capstone\Products
+		lineageTag: 1c13f706-c22c-4ffa-bced-942543461578
+
+	/// Contribution margin per country from mart_country_profit. Use instead of [Profit Margin] on country visuals. Under Approach A, Germany reads 58.5% (was 44.0% on the old base). Per CAPSTONE_BUILD_GUIDE §3.6.
+	measure 'Country Margin' = DIVIDE ( [Country Profit], [Country Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Capstone\Markets
+		lineageTag: e2629d4a-255e-4ec6-ae56-818e49ff08c9
+
+	/// Country AOV with numerator and denominator on the SAME country population. Plain [AOV] cannot be used here: its numerator [Revenue] reads fact_order_item, which has no dim_country relationship, so it returns the grand total for every country.
+	measure 'AOV per Country' = DIVIDE ( [Revenue per Country], [Country Orders] )
+		formatString: \$#,0.00
+		displayFolder: Capstone\Markets
+		lineageTag: 84cabb55-9f22-4bb2-8b5f-20b0e07581b2
+
+	/// Country share of gross revenue. Built on [Revenue per Country] (TREATAS), not [Revenue] -- the latter would give 100% for every country.
+	measure 'Revenue Share' = DIVIDE ( [Revenue per Country], CALCULATE ( [Revenue per Country], ALLSELECTED ( dim_country[country_name] ) ) )
+		formatString: 0.0%
+		displayFolder: Capstone\Markets
+		lineageTag: a9680483-dac9-42f9-9270-954105f4bfb3
+
+	/// Pareto curve: cumulative share of revenue by product rank. Top ~11% of SKUs reach 50%.
+	measure 'Cumulative Revenue %' = DIVIDE ( [Cumulative Revenue], CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) ) )
+		formatString: 0.0%
+		displayFolder: Capstone\Products
+		lineageTag: 0c30eebd-33e7-4be8-9389-b06a790dba48
+
+	/// Prior-year paid order count.
+	measure 'Orders PY' = CALCULATE ( [Paid Orders], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
+		formatString: #,0
+		displayFolder: Capstone\YoY
+		lineageTag: 32c13029-282a-4ab6-a19c-872e3c2d49c3
+
+	/// Gross revenue YoY. 2025 vs 2024 reads -9.4%.
+	measure 'Revenue YoY %' = DIVIDE ( [Revenue] - [Revenue PY], [Revenue PY] )
+		formatString: 0.0%
+		displayFolder: Capstone\YoY
+		lineageTag: 93adf3ca-0593-4d9f-9642-5185a4a69a8f
+
+	/// Contribution profit YoY. 2025 vs 2024 reads -16.0% on the Approach A base (was -11.6% pre-Approach-A).
+	measure 'Profit YoY %' = DIVIDE ( [Contribution Profit] - [Profit PY], [Profit PY] )
+		formatString: 0.0%
+		displayFolder: Capstone\YoY
+		lineageTag: 6d866bb0-e24c-4474-8214-cb4cb261b73d
+
+	/// 3,812 / 4,757 = 80.1%. Note the capstone guide previously printed 80.2%, which came from a stale 3,815 order count.
+	measure 'Paid Success Rate' = DIVIDE ( [Paid Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Capstone\Operations
+		lineageTag: d7c8ed5a-c47d-46bb-b9b7-43628f7a2913
+
+	/// 437 / 4,757 = 9.2% of checkout attempts lost to failed payment.
+	measure 'Failed Rate' = DIVIDE ( [Failed Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Capstone\Operations
+		lineageTag: f2f6c6c7-75c0-4581-99d6-57fc76fed245
+
+	/// Paid order count YoY. 2025 vs 2024 reads -7.2%.
+	measure 'Orders YoY %' = DIVIDE ( [Paid Orders] - [Orders PY], [Orders PY] )
+		formatString: 0.0%
+		displayFolder: Capstone\YoY
+		lineageTag: d6e905c3-a900-4370-948c-04a9f6a4e53a
+
+	/// 384 / 4,266 = 9.0%. Capstone's name for ecom's [Repeat Customer Share]; both are now identical in value since [Distinct Customers] was rebased to the unfiltered customer count.
+	measure 'Repeat Rate' = DIVIDE ( [Repeat Customers], [Distinct Customers] )
+		formatString: 0.0%
+		displayFolder: Capstone\Customers
+		lineageTag: d01e12ea-fc63-4911-b70d-679cbce75439
+
+	/// Share of the customer base whose last order is over 12 months old (~67%). Depends on the calculated column [Recency Segment], which in turn anchors to the dynamic MAX(last_order_date) -- so this stays correct across refreshes.
+	measure 'Lapsed Share' = DIVIDE ( CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_customer_summary[Recency Segment] = "Lapsed 12+mo" ), [Distinct Customers] )
+		formatString: 0.0%
+		displayFolder: Capstone\Customers
+		lineageTag: aa4f0ef4-7951-46e8-a8f9-b850b7907694
+
+	/// Share of customers who never reordered (~91%) -- the headline retention weakness on the Customers page.
+	measure 'One-time Share' = 1 - [Repeat Rate]
+		formatString: 0.0%
+		displayFolder: Capstone\Customers
+		lineageTag: 8bdd9c8e-ebe9-4d4a-8f52-92eca8cb15e9
 
 	partition _Measures = m
 		mode: import

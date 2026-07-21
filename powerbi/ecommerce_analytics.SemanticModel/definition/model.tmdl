@@ -10,7 +10,7 @@ annotation __PBI_TimeIntelligenceEnabled = 0
 
 annotation PBI_QueryOrder = ["dim_country","dim_customer_anonymized","dim_date","dim_payment_method","dim_product","dim_site","fact_order","fact_order_item","fact_refund","mart_country_profit","mart_customer_summary","mart_order_profit","mart_product_profit","fact_order_cost","recon_cost_coverage","recon_csv_vs_dbt_profit","recon_csv_vs_dbt_revenue","recon_payment_fee_coverage","recon_woo_vs_csv_shipping_charged","_Measures"]
 
-annotation PBI_ProTooling = ["DevMode"]
+annotation PBI_ProTooling = ["DevMode","MCP-PBIModeling"]
 
 ref table dim_country
 ref table dim_customer_anonymized
