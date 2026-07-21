@@ -134,6 +134,27 @@ def test_dbt_project_declares_expected_packages_and_schemas():
     assert package_names == {"dbt-labs/dbt_utils", "calogica/dbt_expectations"}
 
 
+COMMENT_PREFIXES = ("--", "#", "//", "///", "/*", "*")
+
+
+def _strip_comment_lines(text: str) -> str:
+    """Drop whole-line comments so prose *documenting* a banned identifier does not
+    read as a *use* of it.
+
+    The rule this guards is that `actual_shipping_cost_usd` must not exist as a real
+    field in any model or DAX measure. The docs and the DAX library deliberately name
+    it in comments to warn that it does not exist (see CLAUDE.md rule #3), which a
+    bare substring scan would flag as the very violation it is warning about.
+    """
+    kept = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(COMMENT_PREFIXES):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def test_no_forbidden_shipping_cost_field_in_implementation_scaffold():
     scanned_roots = ["dbt", "sql", "src", "powerbi"]
     offenders = []
@@ -143,7 +164,7 @@ def test_no_forbidden_shipping_cost_field_in_implementation_scaffold():
             continue
         for path in root.rglob("*"):
             if path.is_file() and path.suffix.lower() in {".sql", ".yml", ".yaml", ".csv", ".py", ".txt"}:
-                text = path.read_text(encoding="utf-8", errors="ignore")
+                text = _strip_comment_lines(path.read_text(encoding="utf-8", errors="ignore"))
                 if "actual_shipping_cost_usd" in text:
                     offenders.append(str(path.relative_to(PROJECT_ROOT)))
 
