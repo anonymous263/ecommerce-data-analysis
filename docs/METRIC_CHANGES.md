@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-07-22 — B2 Payment Fee rebased to the mart column that profit actually subtracts
+
+- **Metric:** B2 Payment Fee (DAX `[Payment Fee]`), and any cost-breakdown visual that sums COGS + Design Fee + Payment Fee.
+- **Old formula:** `SUM(fact_order.payment_fee_usd)` — as literally specified in §B2.
+- **New formula:** `SUM(mart_order_profit.payment_fee_usd)`, i.e. `coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0)`.
+- **Effect on live FOS data:** Payment Fee **$7,069.77 → $7,128.11** (+$58.34). Total cost becomes **$70,744.58**, and the breakdown now reconciles exactly: `157,882.62 − 70,744.58 = 87,138.04 = SUM(contribution_profit_usd)`, delta **$0.00**. Contribution profit, margin, COGS and design fee are all unchanged — only the fee line and totals derived from it move.
+- **Reason:** `[Contribution Profit]` subtracts the **mart** column, so reading `fact_order` meant the cost breakdown never added up to the profit it was supposed to explain — it fell **$137.72 short** on the same order population. Two independent causes stacked: (a) `fact_order` spans non-revenue orders while the mart is revenue-orders-only, and (b) the mart coalesces the CSV `Fee` fallback for the ~20% of orders where Woo carries no fee (the ~70 backfilled orders noted in the 2026-07-16 entry below), which `fact_order` lacks entirely. Sibling measures §B1 `COGS` and §B3 `Design Fee` already read the mart; `[Payment Fee]` was the only cost term reading a different table. The DAX was **faithful to §B2** — the spec itself was stale, written before the fallback landed, which is why `docs/DATA_MODEL.md` §4.2 already documented the `coalesce` correctly while §B2 did not.
+- **Not changed:** `payment_fee_source` still reports **Woo's own** classification (`'missing'` when the fallback supplied the value), so the source mix and the fee value legitimately come from different places — H4 coverage semantics and the §K chip are untouched. Capstone's `[Payment Fee Rate]` keeps its `fact_order` numerator **and** denominator, since it measures the effective processor rate over all order value rather than a P&L line.
+- **Files touched:** `docs/METRICS_DEFINITION.md` (§B2), `powerbi/measures/dax_measures.txt`, `powerbi/ecommerce_analytics.SemanticModel/definition/tables/_Measures.tmdl`, `docs/learning/11-dax-measures-giai-thich.md` (B-2).
+- **Verification:** reconciliation checked directly against `marts_core.mart_order_profit` on real FOS data — implied profit from the cost breakdown equals `contribution_profit_usd` to $0.00. `pytest` 84 passed.
+
+---
+
 ## 2026-07-21 — Customer shipping charge added to the revenue/profit base (Approach A)
 
 - **Metrics:** A-series Revenue (profit base), B-series Contribution Profit & Profit Margin, and every roll-up that reads `mart_order_profit.revenue_usd` / `contribution_profit_usd`.

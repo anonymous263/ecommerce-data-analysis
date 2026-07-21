@@ -358,12 +358,21 @@ Nguồn dữ liệu: `Order Management.csv` (Google Sheet thủ công) → `fact
 ## B-2. `[Payment Fee]`
 
 ```dax
-Payment Fee = SUM ( fact_order[payment_fee_usd] )
+Payment Fee = SUM ( mart_order_profit[payment_fee_usd] )
 ```
 
 **Format:** `\$#,0.00` · **Spec:** §B2
 
-Phí cổng thanh toán, ở cấp đơn (`fact_order`, không phải mart).
+Phí cổng thanh toán, đọc từ **mart** — cùng cột mà `[Contribution Profit]` đem đi trừ.
+
+> ⚠️ **Bẫy (đã từng sai thật):** bản cũ đọc `SUM(fact_order[payment_fee_usd])` = **$7,069.77**, trong khi profit thực sự trừ **$7,128.11** từ mart. Hệ quả: `COGS + Design Fee + Payment Fee` **không bao giờ cộng ra đúng** contribution profit — hụt **$137.72**.
+>
+> Hai nguyên nhân chồng lên nhau:
+> 1. `fact_order` gồm **cả đơn không phải revenue** (failed/cancelled), còn mart chỉ có đơn revenue.
+> 2. Mart có **fallback sang cột `Fee` của CSV** cho ~20% đơn mà Woo không có phí — `fact_order` hoàn toàn không có phần này:
+>    `coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0)`
+>
+> Nhớ quy tắc chung: **mọi số hạng chi phí trong P&L phải đọc từ cùng một bảng mà profit được tính ra.** `[COGS]` và `[Design Fee]` vốn đã đọc mart — `[Payment Fee]` là cái duy nhất lạc nhịp.
 
 Mỗi đơn mang thêm cột `payment_fee_source` — luôn là **một trong bốn** giá trị, theo thứ tự ưu tiên:
 

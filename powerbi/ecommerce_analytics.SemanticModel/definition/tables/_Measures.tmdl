@@ -183,10 +183,10 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isCustom":true}
 
-	/// Total payment-processor fees in USD at the order grain (marts_core.fact_order[payment_fee_usd]). Coverage/exactness of this figure is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip].
+	/// Total payment-processor fees in USD actually charged against profit, read from marts_core.mart_order_profit[payment_fee_usd] (7,128.11 for FOS) — the same column [Contribution Profit] subtracts, so the cost breakdown reconciles. That column is coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0): Woo is primary and the CSV 'Fee' column fills the ~20% of orders where Woo has none. Reading fact_order directly instead loses those fallbacks AND spans non-revenue orders, giving 7,069.77 — $137.72 short of what profit actually subtracts. Coverage/exactness is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip].
 	measure 'Payment Fee' =
 			
-			SUM ( fact_order[payment_fee_usd] )
+			SUM ( mart_order_profit[payment_fee_usd] )
 		formatString: \$#,0.00
 		displayFolder: Profitability
 		lineageTag: 2fd41c7e-31d6-4ea6-8eb5-49513bad508e
@@ -344,7 +344,7 @@ table _Measures
 
 	/// Static explanatory caveat displayed alongside profit visuals, encoding invariants #2/#4/#6 under Approach A: the customer shipping charge is counted as revenue, and COGS is the all-in fulfilment cost (already includes supplier shipping) so shipping is never subtracted as a cost. See docs/METRICS_DEFINITION.md §B5 and docs/METRIC_CHANGES.md.
 	measure 'Profit Caveat Banner' =
-
+			
 			"Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds."
 		displayFolder: Profitability
 		lineageTag: e0090f96-f892-4d71-835d-f5bd78a2641d

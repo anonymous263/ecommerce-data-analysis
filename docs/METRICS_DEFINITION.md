@@ -61,7 +61,10 @@
   2. `'plugin_parser'` — parsed from a plugin-specific location per [WOO_PAYLOAD_AUDIT.md §6](WOO_PAYLOAD_AUDIT.md).
   3. `'seed_estimate'` — fall back to `dbt/seeds/payment_fees.csv` keyed on payment method + country.
   4. `'missing'` — `payment_fee_usd = NULL`, `payment_fee_needs_review = TRUE`.
-- **Formula:** `SUM(fact_order.payment_fee_usd)`
+- **CSV fallback:** when Woo carries no fee at all (`payment_fee_usd IS NULL`, ~20% of orders per the payload audit), `mart_order_profit` falls back to the CSV `Fee` column (`fact_order_cost.payment_fee_fallback_usd`, FX'd):
+  `payment_fee_usd = coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0)`.
+  `payment_fee_source` keeps reporting **Woo's own** classification (`'missing'` when the fallback was used), so the source mix and the value come from different places by design.
+- **Formula:** `SUM(mart_order_profit.payment_fee_usd)` — **not** `SUM(fact_order.payment_fee_usd)`. The mart column is the one `contribution_profit_usd` subtracts, so it is the only version that reconciles: `fact_order` is missing the CSV fallbacks *and* spans non-revenue orders, giving $7,069.77 against the mart's $7,128.11 for FOS. Reading `fact_order` leaves the cost breakdown $137.72 short of the profit it is supposed to explain. Matches siblings §B1 `COGS` and §B3 `Design Fee`, which already read the mart.
 - **Dashboard rule:** if `seed_estimate` + `missing` exceeds 20% of orders in the view, profit cards display an "estimated payment fee" warning chip.
 
 ### B3. Design Fee

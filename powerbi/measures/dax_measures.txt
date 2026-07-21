@@ -132,9 +132,10 @@ COGS =
 SUM ( mart_order_profit[cogs_usd] )
 
 // [Payment Fee]  |  format: \$#,0.00
-// Total payment-processor fees in USD at the order grain (marts_core.fact_order[payment_fee_usd]). Coverage/exactness of this figure is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip]. See docs/METRICS_DEFINITION.md §B2.
+// REVIEW (HIGH — applied): read SUM(fact_order[payment_fee_usd]) = 7,069.77, but [Contribution Profit] subtracts mart_order_profit[payment_fee_usd] = 7,128.11, so COGS + Design Fee + Payment Fee never reconciled to the profit figure ($137.72 short). Two causes: (a) fact_order spans non-revenue orders while the mart is revenue-orders-only, and (b) the mart coalesces the CSV 'Fee' fallback for the ~20% of orders where Woo carries no fee, which fact_order lacks entirely. Corrected to read the mart — the same column profit subtracts, matching sibling measures [COGS] and [Design Fee].
+// Total payment-processor fees in USD charged against profit, from marts_core.mart_order_profit[payment_fee_usd] = coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0). Coverage/exactness is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip]. See docs/METRICS_DEFINITION.md §B2.
 Payment Fee =
-SUM ( fact_order[payment_fee_usd] )
+SUM ( mart_order_profit[payment_fee_usd] )
 
 // [Design Fee]  |  format: \$#,0.00
 // Total design fee in USD summed from marts_core.mart_order_profit[design_fee_usd]. One of the three cost components subtracted from net revenue to reach contribution profit. See docs/METRICS_DEFINITION.md §B3.
