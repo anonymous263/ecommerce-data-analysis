@@ -3,18 +3,24 @@ table recon_woo_vs_csv_shipping_charged
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: c50cc0df-5c28-47d0-8722-89dc9b23d719
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: 2085db63-ad64-45a3-878e-09a6b740d2a1
 		summarizeBy: sum
 		sourceColumn: date_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

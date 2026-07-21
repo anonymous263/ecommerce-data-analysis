@@ -39,9 +39,9 @@ This project replaces ad-hoc reporting with a real warehouse that answers:
 **Hard rules:**
 - The CSV is **not** the source of truth for revenue, orders, refunds, customer shipping charge, or final profit.
 - The CSV **is** the source of truth (for now) for **COGS — which already includes the supplier fulfillment/shipping fee** — plus design fee, supplier, tracking, and other operational fields WooCommerce does not store.
-- The CSV `Shipping` column is **shipping charged to the customer** (revenue-side), *not* supplier shipping cost. It is loaded only for reconciliation against `fact_order.shipping_charged_usd` in `recon_woo_vs_csv_shipping_charged`.
+- The CSV `Shipping` column is **shipping charged to the customer** (revenue-side), *not* supplier shipping cost. The official customer shipping charge is `fact_order.shipping_charged_usd`, which **is counted as revenue** in the profit base (Approach A); the CSV column is used only for reconciliation in `recon_woo_vs_csv_shipping_charged`.
 - The CSV's `Revenue`, `Profit`, `ROI`, `Profit Margin` columns are **never** copied as official metrics — only into `marts_recon.recon_csv_vs_dbt_*` for drift monitoring.
-- There is no `actual_shipping_cost_usd` field in the model. Supplier shipping fee is already inside COGS; contribution profit does not subtract shipping again.
+- There is no `actual_shipping_cost_usd` field in the model. **Customer shipping is revenue** (added to the profit base); the *supplier* shipping fee is already inside COGS (the all-in fulfilment cost), so shipping is never subtracted as a cost. See `docs/METRIC_CHANGES.md` (Approach A, 2026-07-21).
 - `raw.csv_order_management` is **private-only, local-only, gitignored, never exported, and never used in the public sample**.
 - Maven sample lives in its own namespace and never mixes with real Woo marts.
 

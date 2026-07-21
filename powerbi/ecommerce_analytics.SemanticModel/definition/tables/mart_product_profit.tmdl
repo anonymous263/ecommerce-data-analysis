@@ -3,30 +3,40 @@ table mart_product_profit
 
 	column order_item_sk
 		dataType: string
+		isHidden
 		lineageTag: 07db59a0-85bd-4269-8bb6-06d81a85b622
 		summarizeBy: none
 		sourceColumn: order_item_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column order_sk
 		dataType: string
+		isHidden
 		lineageTag: bbfe87f7-e73a-4dd6-bda9-ae16bc6d09e8
 		summarizeBy: none
 		sourceColumn: order_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: a614e106-152e-46dc-a0d2-a7eba0ed4507
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: e8bfeb9d-8401-40ad-9e94-7d7855e9ff59
 		summarizeBy: none
@@ -38,9 +48,12 @@ table mart_product_profit
 
 	column product_sk
 		dataType: string
+		isHidden
 		lineageTag: 9ab75f0a-16fa-485e-8f6d-1bbc8585eecf
 		summarizeBy: none
 		sourceColumn: product_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

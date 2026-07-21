@@ -3,9 +3,12 @@ table recon_csv_vs_dbt_revenue
 
 	column order_sk
 		dataType: string
+		isHidden
 		lineageTag: 17c6499a-6566-48c9-b68d-134efee6ff83
 		summarizeBy: none
 		sourceColumn: order_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

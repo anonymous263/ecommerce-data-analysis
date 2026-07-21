@@ -3,9 +3,12 @@ table recon_cost_coverage
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: 34bb0966-b86d-44ce-87a5-da955a523ff2
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

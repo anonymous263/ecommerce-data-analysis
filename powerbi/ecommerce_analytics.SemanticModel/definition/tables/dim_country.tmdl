@@ -3,9 +3,12 @@ table dim_country
 
 	column country_sk
 		dataType: string
+		isHidden
 		lineageTag: 1df04572-b132-4e95-83c4-daf0dfc6e34a
 		summarizeBy: none
 		sourceColumn: country_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

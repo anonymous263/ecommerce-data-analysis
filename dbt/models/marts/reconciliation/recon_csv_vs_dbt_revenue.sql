@@ -2,15 +2,14 @@
 
 -- Drift monitor: CSV observed Revenue vs dbt official revenue, per order.
 -- CSV Revenue is NEVER an official metric (DATA_MODEL §4.4) — this view exists
--- only to surface divergence. dbt revenue = SUM(fact_order_item.line_revenue_usd)
--- filtered by is_revenue_status (the single source of truth).
+-- only to surface divergence. The official dbt revenue base is now product line
+-- revenue + customer shipping (Approach A, dbt_gross_usd below).
 --
 -- DEFINITIONAL NOTE: the sheet's Revenue is a GROSS order value ≈ line revenue
--- + customer shipping, whereas dbt revenue is NET line revenue (shipping lives
--- separately in fact_order.shipping_charged_usd). So `delta_usd` (vs net) is
--- large by construction (~shipping); the meaningful reconciliation is
--- `delta_vs_gross_usd` (vs dbt_revenue + shipping), which is small. Both are
--- exposed so the divergence is interpretable rather than alarming.
+-- + customer shipping — the SAME basis dbt now uses. So the meaningful, near-zero
+-- reconciliation is `delta_vs_gross_usd` (CSV vs dbt_revenue + shipping). The
+-- legacy `delta_usd` (CSV vs product-only line revenue) is kept only for
+-- continuity and is large by construction (~shipping); it is NOT the headline.
 
 with csv as (
     select order_sk, csv_revenue_observed_usd

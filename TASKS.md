@@ -220,7 +220,7 @@
   - `80–95%` → show with yellow "Partial cost coverage" chip
   - `≥ 95%` → fully trusted (no chip)
 - [ ] Add a second chip whenever **Payment Fee Coverage < 80%**: "Estimated payment fee — XX% from `seed_estimate` or `missing`"
-- [ ] Add the profit caveat banner: "COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again."
+- [ ] Add the profit caveat banner: "Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds." (Approach A — see `docs/METRIC_CHANGES.md`.)
 
 ### Pages
 - [ ] Build **Executive Overview** with tier-gated profit + the Shipping Charged to Customer card

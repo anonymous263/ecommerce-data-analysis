@@ -231,7 +231,7 @@ Rename tab to **Executive Overview**.
 5. **Card** — `[Open Backlog]` (already in KPI row; optional duplicate emphasis).
 
 **Required banners on this page:**
-- **Profit Caveat Banner** (a card/text box bound to `[Profit Caveat Banner]`) — must appear whenever any profit visual shows. Place it directly above or beside the profit cards. Text: "COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again. The CSV `Shipping` column is the customer shipping charge, not a cost. Revenue here is net of refunds."
+- **Profit Caveat Banner** (a card/text box bound to `[Profit Caveat Banner]`) — must appear whenever any profit visual shows. Place it directly above or beside the profit cards. Text: "Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds." (Approach A — see `docs/METRIC_CHANGES.md`.)
 - **Profit Unavailable Banner** (`[Profit Unavailable Banner]`) — only renders when coverage < 80%. In the live GREEN state it returns BLANK and stays hidden.
 
 ### Page 2 — Product Performance
@@ -331,7 +331,7 @@ With coverage **98.79% (GREEN)** and payment-fee **98.03% (≥ 80%)**: all profi
 
 - **Customer page (Page 4) — guest-checkout disclosure (mandatory):** text box stating: "All sites use guest checkout. Customer identity is reconstructed from the hashed, normalized billing email. One person using two emails counts as two customers; a shared inbox counts as one; typos create duplicates. Customer-level rows are private — the public portfolio uses fully synthetic data." (Per `METRICS_DEFINITION §I` / `DASHBOARD_SPEC §4`.)
 - **Country page (Page 3) — shipping labeling (mandatory):** the Shipping Charged Ratio bar and the ratio table column must be labeled **"shipping charged to customer / revenue (NOT shipping cost)"**. This is revenue-side; supplier shipping is inside `cogs_usd`. Never label it "shipping cost". There is no `actual_shipping_cost_usd` anywhere in the model.
-- **Profit Caveat Banner** (Page 1) text is fixed above — it restates that COGS already contains supplier shipping and revenue is net of refunds.
+- **Profit Caveat Banner** (Page 1) text is fixed above — it restates that customer shipping is revenue, COGS is the all-in fulfilment cost (already contains supplier shipping, so shipping is never a cost), and revenue is net of refunds.
 
 ---
 

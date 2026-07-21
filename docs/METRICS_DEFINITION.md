@@ -18,9 +18,9 @@
 - **Formula:** `SUM(fact_order_item.line_revenue_usd) WHERE is_revenue_status`
 - **Caveats:** Gross of refunds. Revenue counts only orders with `is_revenue_status = true` (Woo status `completed`/`processing`/`refunded`, per `WOO_PAYLOAD_AUDIT.md` §5) — `failed`/`cancelled`/`pending` orders are excluded even though their line items still carry a non-null `line_revenue_usd`. CSV `Revenue` is not used — drift only in `recon_csv_vs_dbt_revenue`.
 
-### A2. Net Revenue
-- **Formula:** `Revenue − SUM(fact_refund.refund_amount_usd)`
-- **Caveats:** Refunds booked on refund date.
+### A2. Net Revenue (product, reporting)
+- **Formula:** `Revenue (A1, product) − SUM(fact_refund.refund_amount_usd)`
+- **Caveats:** Refunds booked on refund date. This is the **product-side** net revenue used for sales reporting. It is **not** the profit denominator — the **profit-base net revenue** additionally includes the customer shipping charge (product + shipping − refunds); see §B5. Keep the two distinct in DAX (`[Net Revenue]` vs `[Profit Base Net Revenue]`).
 
 ### A3. Orders
 - **Formula:** `COUNT(DISTINCT fact_order.order_sk) WHERE status IN ('processing','completed','on-hold')`
@@ -37,7 +37,7 @@
 ### A7. Shipping Charged to Customer
 - **Source:** WooCommerce official; CSV is reconciliation only.
 - **Formula:** `SUM(fact_order.shipping_charged_usd)`
-- **Caveats:** This is **revenue-side** (what the customer paid for shipping). It is **not** a cost. Supplier shipping fee is inside `cogs_usd`. The CSV `Shipping` column represents the same concept and is compared in `recon_woo_vs_csv_shipping_charged`.
+- **Caveats:** This is **revenue-side** (what the customer paid for shipping). It is **not** a cost. Supplier shipping fee is inside `cogs_usd`. The CSV `Shipping` column represents the same concept and is compared in `recon_woo_vs_csv_shipping_charged`. **As of Approach A (2026-07-21) this charge is part of the profit-base revenue** — see §B5.
 
 ### A8. Shipping Charged / Revenue
 - **Formula:** `SUM(shipping_charged_usd) / SUM(line_revenue_usd) WHERE is_revenue_status` (denominator = A1 Revenue)
@@ -68,19 +68,22 @@
 - **Source:** `fact_order_cost.design_fee_usd` (manual sheet).
 
 ### B4. Gross Profit
-- **Formula:** `Revenue − COGS`
+- **Formula:** `Profit-Base Net Revenue − COGS` (same revenue base as B5 — product + shipping, net of refunds).
 
 ### B5. Contribution Profit *(locked formula)*
 - **Formula:**
   ```
   Contribution Profit = Net Revenue − COGS − Payment Fee − Design Fee
+
+  where  Net Revenue = (Product Revenue + Customer Shipping) − refunds
+                     = mart_order_profit.net_revenue_usd
   ```
-  where **Net Revenue = A2 = gross Revenue (A1) − refunds** (`SUM(fact_refund.refund_amount_usd)` per order). `mart_order_profit` exposes `gross_revenue_usd`, `refunds_usd`, and `net_revenue_usd`; `revenue_usd` is an alias for **net**. Refunds are booked on the refund date.
-- **Critical caveat (must appear on every profit visual):**
-  > COGS from the manual sheet **already includes** supplier fulfillment/shipping fee where applicable, so shipping cost is **not** subtracted again. The CSV `Shipping` column is the *customer* shipping charge, not a supplier cost. Revenue here is **net of refunds** — a refunded sale is not counted at full value.
+  **Profit-base Net Revenue = (A1 Product Revenue + A7 Shipping Charged) − refunds** (`SUM(fact_refund.refund_amount_usd)` per order, capped at gross so net floors at 0). `mart_order_profit` exposes `gross_product_revenue_usd`, `shipping_charged_usd`, `gross_revenue_usd (= product + shipping)`, `refunds_usd`, and `net_revenue_usd`; `revenue_usd` is an alias for **net**. In DAX this is `[Profit Base Net Revenue] = SUM(mart_order_profit[net_revenue_usd])`, distinct from the product-only `[Net Revenue]` (§A2). Refunds are booked on the refund date.
+- **Why shipping is in the base (Approach A, 2026-07-21):**
+  > The customer shipping charge is money the store received, so it is revenue. `cogs_usd` (CSV column U) is the **all-in** per-order fulfilment cost — it already includes the supplier shipping fee — so both the shipping charged (revenue) and the fulfilment cost appear, never one without the other. The old formula excluded shipping from revenue while subtracting the shipping-inclusive COGS, understating FOS contribution profit by ~$40k ($47.5k → $87.1k). Revenue here is **net of refunds** — a refunded sale is not counted at full value. See `docs/METRIC_CHANGES.md` (2026-07-21).
 
 ### B6. Profit Margin
-- **Formula:** `Contribution Profit / Net Revenue`
+- **Formula:** `Contribution Profit / Profit-Base Net Revenue` (denominator = B5's net revenue = product + shipping − refunds; DAX `[Profit Base Net Revenue]`, **not** the product-only `[Net Revenue]`).
 
 ### B7. ROI (POD definition)
 - **Formula:** `Contribution Profit / COGS`

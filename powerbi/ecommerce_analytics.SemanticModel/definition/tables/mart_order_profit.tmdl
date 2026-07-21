@@ -3,22 +3,29 @@ table mart_order_profit
 
 	column order_sk
 		dataType: string
+		isHidden
 		lineageTag: 5946d651-9982-43fc-a479-7bc61fc2a7ee
 		summarizeBy: none
 		sourceColumn: order_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column site_sk
 		dataType: string
+		isHidden
 		lineageTag: 4919851b-e1cc-48b0-941b-1fe096cbb2c4
 		summarizeBy: none
 		sourceColumn: site_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: f4b793a6-97e0-49ee-b425-0e383cacf553
 		summarizeBy: none

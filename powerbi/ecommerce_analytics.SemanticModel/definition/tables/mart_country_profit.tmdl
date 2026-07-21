@@ -3,6 +3,7 @@ table mart_country_profit
 
 	column country_profit_sk
 		dataType: string
+		isHidden
 		lineageTag: d300ebc7-074d-4326-aeb9-75635667a5aa
 		summarizeBy: none
 		sourceColumn: country_profit_sk
@@ -13,6 +14,7 @@ table mart_country_profit
 
 	column country_sk
 		dataType: string
+		isHidden
 		lineageTag: 30a02afa-e09d-4093-8938-65314ea77859
 		summarizeBy: none
 		sourceColumn: country_sk
@@ -23,6 +25,7 @@ table mart_country_profit
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: fec0034c-4b88-4fe8-b9c1-d1d64c2b9c38
 		summarizeBy: none

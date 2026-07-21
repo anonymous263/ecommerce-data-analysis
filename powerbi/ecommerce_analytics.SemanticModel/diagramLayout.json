@@ -5,18 +5,18 @@
       "ordinal": 0,
       "scrollPosition": {
         "x": 0,
-        "y": 48.648700603781066
+        "y": 0
       },
       "nodes": [
         {
           "location": {
-            "x": 2731.4669531176114,
-            "y": 693.68194460486575
+            "x": 405.41215957437123,
+            "y": 0
           },
           "nodeIndex": "_Measures",
           "nodeLineageTag": "a0426c5b-05c6-4ed5-a7a1-402d3e13566e",
           "size": {
-            "height": 104,
+            "height": 300,
             "width": 234
           },
           "zIndex": 0
@@ -251,7 +251,7 @@
         }
       ],
       "name": "All tables",
-      "zoomValue": 53.4443873676232,
+      "zoomValue": 42.516710771498751,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
@@ -260,8 +260,8 @@
     {
       "ordinal": 1,
       "scrollPosition": {
-        "x": 0,
-        "y": 0
+        "x": 613.0086013765482,
+        "y": 358.00707252523819
       },
       "nodes": [
         {
@@ -374,7 +374,7 @@
         }
       ],
       "name": "Core Sales",
-      "zoomValue": 63.330192671392282,
+      "zoomValue": 79.60736585166444,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,

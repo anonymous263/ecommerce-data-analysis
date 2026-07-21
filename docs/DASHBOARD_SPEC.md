@@ -59,7 +59,7 @@ Pages not yet dashboard-visible are hidden in the published `.pbix`.
 - Cost coverage %, Payment fee coverage %, Payment fee source mix.
 
 **Profit caveat banner (must appear whenever any profit visual is shown):**
-> COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again. The CSV `Shipping` column is the *customer shipping charge*, not a cost.
+> Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds. *(Approach A — see `docs/METRIC_CHANGES.md`.)*
 
 ---
 

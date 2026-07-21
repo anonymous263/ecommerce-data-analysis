@@ -257,9 +257,11 @@ Shipping Charged to Customer = SUM(fact_order[shipping_charged_usd])
 
 **Bất biến #3:** `actual_shipping_cost_usd` **không tồn tại** trong dự án này. Không có ở model, không có ở DAX, không có ở đâu cả. Nếu bạn thấy tham chiếu tới nó ở bất kỳ đâu — đó là bug.
 
-**Bất biến #2 + #6:** chi phí ship của nhà cung cấp **đã nằm sẵn bên trong `cogs_usd`**. Nên công thức lợi nhuận **không trừ ship lần nữa**.
+**Bất biến #6:** chi phí ship của nhà cung cấp **đã nằm sẵn bên trong `cogs_usd`** (cột U = chi phí fulfill all-in một đơn). Nên khi tính profit ta **không bao giờ trừ ship như một chi phí lần nữa**.
 
-Ghép hai điều trên: nếu ai đó "thấy có shipping mà chưa trừ" rồi thêm `- [Shipping Charged to Customer]` vào công thức profit, họ sẽ **trừ nhầm doanh thu vào chi phí**, mà chi phí ship thật thì **đã bị trừ rồi** ở trong COGS. Lợi nhuận sai kép, và trông vẫn "hợp lý".
+**Bất biến #2 + #4 (Approach A, 2026-07-21):** vì ship khách trả LÀ doanh thu (tiền store nhận về), nó được **cộng vào cơ sở doanh thu** của profit: `net_revenue = (product + shipping) − refund`. Store vừa **thu** ship của khách vừa **trả** COGS all-in để fulfill → cả hai vế đều xuất hiện. Công thức cũ bỏ quên vế thu này → thiếu ~$40k lợi nhuận ($47.5k → $87.1k); xem `docs/METRIC_CHANGES.md`.
+
+Ghép lại, **hai lỗi cần tránh**: (1) **trừ** `- [Shipping Charged to Customer]` vào công thức profit như một chi phí — sai, vì ship đã là doanh thu và chi phí ship NCC đã nằm trong COGS; (2) **quên cộng** ship vào doanh thu — chính là lỗi model cũ. Đúng là: ship nằm ở **phía doanh thu**, một lần, đã gộp sẵn trong `mart_order_profit[net_revenue_usd]`.
 
 Đây chính là lý do tồn tại `[Profit Caveat Banner]` (xem B-16) — dán cảnh báo này **thẳng lên dashboard**.
 
@@ -417,9 +419,9 @@ Profit Base Net Revenue = SUM ( mart_order_profit[net_revenue_usd] )
 
 **Format:** `\$#,0.00` · **Spec:** §B6
 
-Mẫu số chính xác của Profit Margin. Giá trị thực FOS: **$117,911.47**.
+Mẫu số chính xác của Profit Margin = **(product + ship) − refund** (Approach A). Giá trị thực FOS: **$157,882.62**.
 
-Vì sao tồn tại riêng thay vì dùng `[Net Revenue]` (A-2)? Vì phải **khớp tuyệt đối với mart**. Xem lại A-2. `[Net Revenue]` tính live trong DAX; measure này đọc số dbt đã chốt. Khi hai bên lệch nhau vài đồng vì logic netting/capping refund, **luôn tin bản của mart**.
+Vì sao tồn tại riêng thay vì dùng `[Net Revenue]` (A-2)? Hai lý do: (1) phải **khớp tuyệt đối với mart**; (2) `[Net Revenue]` (A-2) là net **product-only** cho báo cáo sales, còn mẫu số margin phải là net **product + ship** (Approach A). Chênh giữa hai bên chính bằng phần ship khách trả (~$40k). `[Net Revenue]` tính live trong DAX; measure này đọc số dbt đã chốt — khi lệch, **luôn tin bản của mart**.
 
 ## B-6. `[Contribution Profit]` — công thức bị khoá
 
@@ -427,15 +429,16 @@ Vì sao tồn tại riêng thay vì dùng `[Net Revenue]` (A-2)? Vì phải **kh
 Contribution Profit = SUM ( mart_order_profit[contribution_profit_usd] )
 ```
 
-**Format:** `\$#,0.00` · **Spec:** §B5 · **Giá trị thực FOS: $47,535.65**
+**Format:** `\$#,0.00` · **Spec:** §B5 · **Giá trị thực FOS: $87,138.04**
 
-**Công thức khoá (bất biến #2):**
+**Công thức khoá (bất biến #2, Approach A):**
 
 ```
 Contribution Profit = Net Revenue − COGS − Design Fee − Payment Fee
+  Net Revenue = (product + ship khách trả) − refund
 ```
 
-**Không có số hạng ship.** Vì ship NCC đã nằm trong COGS rồi.
+**Ship nằm ở vế doanh thu, không phải vế chi phí.** Ship khách trả được **cộng vào** Net Revenue; còn chi phí ship của NCC đã nằm trong COGS nên **không trừ ship lần nữa** như một chi phí.
 
 **Điểm thiết kế quan trọng nhất:** DAX **không tự tính** công thức này. Nó chỉ `SUM` một cột dbt đã tính sẵn.
 
@@ -449,9 +452,9 @@ Vì sao? Nếu viết `[Profit Base Net Revenue] - [COGS] - [Design Fee] - [Paym
 Profit Margin = DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )
 ```
 
-**Format:** `0.0%` · **Spec:** §B6 · **Giá trị thực FOS: 40.19%**
+**Format:** `0.0%` · **Spec:** §B6 · **Giá trị thực FOS: 55.19%**
 
-Mẫu số là **net** revenue (không phải gross) — theo spec §B6. Cả tử và mẫu đều đọc từ cùng một mart `mart_order_profit`, nên tự động nhất quán population.
+Mẫu số là **net revenue gồm ship** (`[Profit Base Net Revenue]` = product + ship − refund, Approach A), **không** phải `[Net Revenue]` product-only. Cả tử và mẫu đều đọc từ cùng mart `mart_order_profit`, nên tự động nhất quán population.
 
 ## B-8. `[ROI]`
 
@@ -639,14 +642,14 @@ Chip **thứ hai**, độc lập với B-14. Một visual có thể mang **cả 
 
 ```dax
 Profit Caveat Banner =
-"COGS includes supplier fulfillment/shipping fee based on the manual sheet, so contribution profit does not subtract shipping again. The CSV Shipping column is the customer shipping charge, not a cost."
+"Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds."
 ```
 
-**Format:** không (text) · **Spec:** §B5
+**Format:** không (text) · **Spec:** §B5 (Approach A, 2026-07-21)
 
 **Measure "tĩnh"** — không đọc dữ liệu, luôn trả về đúng một chuỗi. Trông vô dụng, nhưng đây là cách đưa **bất biến #2/#4/#6** lên thẳng mặt dashboard.
 
-Vì sao cần: người xem dashboard **không đọc** `CLAUDE.md`, không đọc `METRICS_DEFINITION.md`. Nếu họ thấy có cột "Shipping" mà lợi nhuận không trừ nó, phản xạ tự nhiên là *"thiếu rồi!"* → họ tự trừ → sai. Banner chặn đứng phản xạ đó **ngay tại chỗ họ đang nhìn**.
+Vì sao cần: người xem dashboard **không đọc** `CLAUDE.md`, không đọc `METRICS_DEFINITION.md`. Với Approach A, ship khách trả **đã được cộng vào doanh thu**; banner nói rõ điều đó (ship là doanh thu, không phải chi phí; COGS đã all-in) để không ai hiểu nhầm rồi tự trừ ship như một chi phí — **ngay tại chỗ họ đang nhìn**.
 
 Spec §B5 ghi rõ caveat này **phải xuất hiện trên mọi visual lợi nhuận**.
 

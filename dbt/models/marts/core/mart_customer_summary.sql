@@ -27,6 +27,14 @@ order_refunds as (
     group by order_sk
 ),
 
+order_ship as (
+    -- customer shipping charge is revenue (Approach A) — pulled from fact_order
+    -- (already FX'd to USD). Added only for revenue-bearing orders below so
+    -- cancelled/failed orders don't contribute phantom shipping revenue.
+    select order_sk, shipping_charged_usd
+    from {{ ref('fact_order') }}
+),
+
 order_profit as (
     select order_sk, contribution_profit_usd
     from {{ ref('mart_order_profit') }}
@@ -49,14 +57,23 @@ joined as (
         b.country_code,
         b.order_date,
         b.order_sk,
-        -- net of refunds, floored at 0 per order: Woo refunds are full-order
-        -- (incl. shipping) so an uncapped subtraction from line-revenue-only would
-        -- push a fully-refunded order's revenue negative (see mart_order_profit).
-        greatest(coalesce(r.gross_revenue_usd, 0) - coalesce(rf.refunds_usd, 0), 0) as order_revenue_usd,
+        -- revenue base = product line revenue + customer shipping (Approach A),
+        -- net of refunds, floored at 0 per order. Shipping is added only when the
+        -- order actually sold a product (gross_revenue_usd > 0), so cancelled/
+        -- failed orders contribute no phantom shipping revenue. Woo refunds are
+        -- full-order (incl. shipping); now that the base also includes shipping,
+        -- the greatest(...,0) floor only guards the rare over-refund.
+        greatest(
+            coalesce(r.gross_revenue_usd, 0)
+            + case when coalesce(r.gross_revenue_usd, 0) > 0
+                   then coalesce(sh.shipping_charged_usd, 0) else 0 end
+            - coalesce(rf.refunds_usd, 0)
+        , 0) as order_revenue_usd,
         p.contribution_profit_usd        as order_profit_usd
     from base b
     left join order_rev r on r.order_sk = b.order_sk
     left join order_refunds rf on rf.order_sk = b.order_sk
+    left join order_ship sh on sh.order_sk = b.order_sk
     left join order_profit p on p.order_sk = b.order_sk
 ),
 

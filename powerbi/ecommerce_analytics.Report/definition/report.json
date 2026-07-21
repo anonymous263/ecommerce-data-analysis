@@ -11,7 +11,7 @@
       "type": "SharedResources"
     },
     "customTheme": {
-      "name": "Ecommerce_POD_Analytics8365652878346745.json",
+      "name": "FOS_Ops___Cyan___Sand6321525325039176.json",
       "reportVersionAtImport": {
         "visual": "2.10.0",
         "report": "3.4.0",
@@ -65,8 +65,13 @@
       "type": "RegisteredResources",
       "items": [
         {
-          "name": "Ecommerce_POD_Analytics8365652878346745.json",
-          "path": "Ecommerce_POD_Analytics8365652878346745.json",
+          "name": "background5394362284502421.png",
+          "path": "background5394362284502421.png",
+          "type": "Image"
+        },
+        {
+          "name": "FOS_Ops___Cyan___Sand6321525325039176.json",
+          "path": "FOS_Ops___Cyan___Sand6321525325039176.json",
           "type": "CustomTheme"
         }
       ]

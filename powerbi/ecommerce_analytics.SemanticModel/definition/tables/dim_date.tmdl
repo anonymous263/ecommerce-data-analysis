@@ -4,10 +4,13 @@ table dim_date
 
 	column date_sk
 		dataType: int64
+		isHidden
 		formatString: 0
 		lineageTag: 06988136-2397-4c2a-863f-802730c2ba0b
 		summarizeBy: none
 		sourceColumn: date_sk
+
+		changedProperty = IsHidden
 
 		annotation SummarizationSetBy = Automatic
 

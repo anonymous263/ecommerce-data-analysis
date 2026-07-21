@@ -4,30 +4,36 @@
 -- Grain: one order line item, restricted to orders present in mart_order_profit
 -- (same revenue-bearing-order universe as order-level profit).
 --
--- COGS (and now design_fee/payment_fee/refunds) live only at order level in
--- the sheet/Woo, so every one of these terms is allocated to lines by the SAME
--- revenue share:
+-- COGS, design_fee, payment_fee, refunds AND customer shipping all live only at
+-- order level (in the sheet / in Woo), so every one of these terms is allocated
+-- to lines by the SAME revenue share:
 --     line_<term>_usd = order.<term>_usd * (line.line_revenue_usd / order.revenue_usd)
 -- Every row is tagged cost_allocation_method='allocated_by_revenue_share',
 -- cost_confidence=0.60 so dashboards can show the allocation caveat.
+--
+-- SHIPPING (Approach A, 2026-07-21): shipping_charged_usd is revenue, so it is
+-- allocated to lines exactly like the cost terms and folded into
+-- line_net_revenue_usd. line_revenue_usd itself stays product-only (CLAUDE.md
+-- rule #1 — the raw item-grain revenue column is never mutated); the allocated
+-- shipping is a separate line_shipping_usd column.
 --
 -- NOTE (denominator scope): order_rev.order_revenue_usd sums ALL lines on the
 -- order, not just is_revenue_status ones (line_revenue_usd is never zeroed for
 -- non-revenue lines — see fact_order_item). This mart is restricted (via the
 -- order_profit CTE, sourced from mart_order_profit) to orders where
--- gross_revenue_usd > 0, i.e. is_revenue_status = true — and is_revenue_status
--- is an ORDER-level property (derived from the single parent order status,
--- identical across every line of one order), so for every order in scope here
--- order_rev.order_revenue_usd (unfiltered) is numerically IDENTICAL to
--- mart_order_profit.gross_revenue_usd (filtered). That equality is what makes
--- every allocation below conserve EXACTLY: SUM(line_<term>_usd) over all lines
--- of an order equals the order's <term>_usd, and therefore
--- SUM(line_profit_usd) over all lines equals mart_order_profit.contribution_profit_usd.
+-- gross_product_revenue_usd > 0, i.e. is_revenue_status = true — and
+-- is_revenue_status is an ORDER-level property (identical across every line of
+-- one order), so for every order in scope here order_rev.order_revenue_usd
+-- (unfiltered) is numerically IDENTICAL to
+-- mart_order_profit.gross_product_revenue_usd (filtered). That equality is what
+-- makes every allocation below conserve EXACTLY: the revenue shares sum to 1
+-- across an order's lines, so SUM(line_<term>_usd) equals the order's <term>_usd
+-- (including shipping), and therefore SUM(line_profit_usd) equals
+-- mart_order_profit.contribution_profit_usd.
 --
--- cogs_usd/design_fee_usd/payment_fee_usd are coalesced to 0 before allocation
--- (matching mart_order_profit's own contribution_profit_usd treatment of nulls
--- as 0), so line-level conservation holds even for the handful of orders with
--- an unknown individual cost component.
+-- shipping/cogs/design/payment are coalesced to 0 before allocation (matching
+-- mart_order_profit's own contribution_profit_usd treatment of nulls as 0), so
+-- line-level conservation holds even for orders with an unknown cost component.
 
 with items as (
     select
@@ -54,11 +60,12 @@ order_rev as (
 order_profit as (
     -- sourced from mart_order_profit (not fact_order_cost/fact_refund directly)
     -- so this mart shares the exact order-level totals it must conserve to.
-    -- effective_refund_usd (capped at gross, see mart_order_profit) is what's
-    -- allocated — NOT the raw refunds_usd — so line net revenue floors at 0 and
-    -- SUM(line_profit_usd) conserves to the capped order contribution_profit_usd.
+    -- shipping_charged_usd and effective_refund_usd (capped at gross, see
+    -- mart_order_profit) are what's allocated — NOT raw refunds_usd — so line
+    -- net revenue floors correctly and SUM(line_profit_usd) conserves to the
+    -- order contribution_profit_usd.
     select
-        order_sk, cogs_usd, design_fee_usd, payment_fee_usd,
+        order_sk, shipping_charged_usd, cogs_usd, design_fee_usd, payment_fee_usd,
         effective_refund_usd, contribution_profit_usd
     from {{ ref('mart_order_profit') }}
 ),
@@ -79,6 +86,7 @@ allocated as (
             when orv.order_revenue_usd is not null and orv.order_revenue_usd <> 0
             then i.line_revenue_usd / orv.order_revenue_usd
         end                       as revenue_share,
+        op.shipping_charged_usd,
         op.cogs_usd,
         op.design_fee_usd,
         op.payment_fee_usd,
@@ -99,13 +107,20 @@ select
     quantity,
     line_revenue_usd,
 
+    round(coalesce(shipping_charged_usd, 0) * revenue_share, 6)                as line_shipping_usd,
     round(coalesce(effective_refund_usd, 0) * revenue_share, 6)                as line_refund_usd,
-    round(line_revenue_usd - coalesce(effective_refund_usd, 0) * revenue_share, 6) as line_net_revenue_usd,
+    round(
+        line_revenue_usd
+        + coalesce(shipping_charged_usd, 0) * revenue_share
+        - coalesce(effective_refund_usd, 0) * revenue_share
+    , 6)                                                              as line_net_revenue_usd,
     round(coalesce(cogs_usd, 0)        * revenue_share, 6)            as line_cogs_usd,
     round(coalesce(design_fee_usd, 0)  * revenue_share, 6)            as line_design_fee_usd,
     round(coalesce(payment_fee_usd, 0) * revenue_share, 6)            as line_payment_fee_usd,
     round(
-        (line_revenue_usd - coalesce(effective_refund_usd, 0) * revenue_share)
+        (line_revenue_usd
+         + coalesce(shipping_charged_usd, 0) * revenue_share
+         - coalesce(effective_refund_usd, 0) * revenue_share)
         - coalesce(cogs_usd, 0)        * revenue_share
         - coalesce(design_fee_usd, 0)  * revenue_share
         - coalesce(payment_fee_usd, 0) * revenue_share
