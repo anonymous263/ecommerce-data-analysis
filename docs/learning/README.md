@@ -25,6 +25,7 @@
 | 09 | `09-truc-quan-hoa-powerbi.md` | Power BI: semantic model, quan hệ (relationship), bảng `_Measures`, **DAX**, gating lợi nhuận, các trang dashboard | Chuyển marts thành dashboard có thể tin cậy |
 | 10 | `10-bai-hoc-va-ap-dung.md` | Tổng kết: các khái niệm/quy tắc **có thể tái sử dụng** cho dự án BI/DA khác | Đúc kết để áp dụng lần sau |
 | 11 | `11-dax-measures-giai-thich.md` | **Từ điển measure & DAX**: giải thích từng công thức trong `dax_measures.txt` — đọc hiểu, vì sao viết vậy, viết sai hỏng ra sao; phụ lục tra cứu hàm DAX + các REVIEW còn tồn | Đọc và viết được DAX; hiểu filter context, `TREATAS`, `KEEPFILTERS`, gating |
+| 12 | `12-dax-formatting-chuan-sqlbi.md` | **Format DAX chuẩn SQLBI**: 8 rules kèm lý do (space, `table[column]` vs `[measure]`, xuống dòng/thụt 4, VAR/RETURN, toán tử...), before/after từ measure thật của project, format UDF, công cụ (daxformatter, `Shift+Alt+F`) | Viết DAX đọc được như văn xuôi; review format người khác có căn cứ |
 
 > **Từ điển dữ liệu (07)** đã được tách thành 3 file theo schema:
 > `07a-schema-raw-staging.md`, `07b-schema-marts-core.md`, `07c-schema-marts-ops-recon.md`.
@@ -57,6 +58,6 @@ tiết "chuẩn", xem:
 
 ---
 
-*Trạng thái: hoàn tất — 14 chương (00–11, với 07 tách thành 07a/07b/07c) đã viết xong,
+*Trạng thái: hoàn tất — 15 chương (00–12, với 07 tách thành 07a/07b/07c) đã viết xong,
 bám sát code và schema thật của repo. Bộ tài liệu sẽ cần cập nhật khi pipeline thay đổi
 (ví dụ khi triển khai Phase 5 fulfillment hoặc Phase 6 GA4).*
