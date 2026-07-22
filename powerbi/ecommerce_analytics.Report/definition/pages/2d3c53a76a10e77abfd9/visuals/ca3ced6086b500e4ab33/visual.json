@@ -1,15 +1,16 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
-  "name": "1a407b708b36795b125a",
+  "name": "ca3ced6086b500e4ab33",
   "position": {
-    "x": 1382,
-    "y": 621.33333333333326,
-    "z": 1000,
-    "height": 300,
+    "x": 616.66666666666674,
+    "y": 130,
+    "z": 5001,
+    "height": 200,
     "width": 300
   },
   "visual": {
     "visualType": "card",
+    "autoSelectVisualType": true,
     "query": {
       "queryState": {
         "Values": {
@@ -22,30 +23,15 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Contribution Profit"
+                  "Property": "Lapsed Share"
                 }
               },
-              "queryRef": "_Measures.Contribution Profit",
-              "nativeQueryRef": "Contribution Profit"
+              "queryRef": "_Measures.Lapsed Share",
+              "nativeQueryRef": "Lapsed Share"
             }
           ]
         }
       }
-    },
-    "objects": {
-      "labels": [
-        {
-          "properties": {
-            "labelDisplayUnits": {
-              "expr": {
-                "Literal": {
-                  "Value": "1D"
-                }
-              }
-            }
-          }
-        }
-      ]
     },
     "drillFilterOtherVisuals": true
   }

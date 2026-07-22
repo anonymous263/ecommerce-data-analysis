@@ -1,0 +1,260 @@
+DEFINE
+	MEASURE '_Measures'[Revenue] = CALCULATE(
+			SUM(fact_order_item[line_revenue_usd]),
+			fact_order_item[is_revenue_status] = TRUE()
+		)
+	MEASURE '_Measures'[Quantity Sold] = CALCULATE(
+			SUM(fact_order_item[quantity]),
+			fact_order_item[is_revenue_status] = TRUE()
+		)
+	MEASURE '_Measures'[Refund Amount] = SUM(fact_refund[refund_amount_usd])
+	MEASURE '_Measures'[Net Revenue] = [Revenue] - [Refund Amount]
+	MEASURE '_Measures'[Profit Base Net Revenue] = SUM(mart_order_profit[net_revenue_usd])
+	MEASURE '_Measures'[Paid Orders] = DISTINCTCOUNT(mart_order_profit[order_sk])
+	MEASURE '_Measures'[AOV] = DIVIDE(
+			[Revenue],
+			[Paid Orders]
+		)
+	MEASURE '_Measures'[Shipping Charged] = SUM(fact_order[shipping_charged_usd])
+	MEASURE '_Measures'[Contribution Profit] = SUM(mart_order_profit[contribution_profit_usd])
+	MEASURE '_Measures'[Profit Margin] = DIVIDE(
+			[Contribution Profit],
+			[Profit Base Net Revenue]
+		)
+	MEASURE '_Measures'[COGS] = SUM(mart_order_profit[cogs_usd])
+	MEASURE '_Measures'[Design Fee] = SUM(mart_order_profit[design_fee_usd])
+	MEASURE '_Measures'[Payment Fee] = SUM(mart_order_profit[payment_fee_usd])
+	MEASURE '_Measures'[Total Cost] = [COGS] + [Design Fee] + [Payment Fee]
+	MEASURE '_Measures'[Cost Ratio] = DIVIDE(
+			[Total Cost],
+			[Profit Base Net Revenue]
+		)
+	MEASURE '_Measures'[COGS Ratio] = DIVIDE(
+			[COGS],
+			[Profit Base Net Revenue]
+		)
+	MEASURE '_Measures'[Cost per Order] = DIVIDE(
+			[Total Cost],
+			[Paid Orders]
+		)
+	MEASURE '_Measures'[Cost per Unit] = DIVIDE(
+			[Total Cost],
+			[Quantity Sold]
+		)
+	MEASURE '_Measures'[Distinct Products Sold] = CALCULATE(
+			DISTINCTCOUNT(fact_order_item[product_sk]),
+			fact_order_item[is_revenue_status] = TRUE()
+		)
+	MEASURE '_Measures'[Avg Units per Order] = DIVIDE(
+			[Quantity Sold],
+			[Paid Orders]
+		)
+	MEASURE '_Measures'[Cumulative Revenue] = VAR cur = [Revenue]
+		RETURN
+			CALCULATE(
+				[Revenue],
+				FILTER(
+					ALLSELECTED(dim_product[product_name]),
+					[Revenue] >= cur
+				)
+			)
+	MEASURE '_Measures'[Cumulative Revenue %] = DIVIDE(
+			[Cumulative Revenue],
+			CALCULATE(
+				[Revenue],
+				ALLSELECTED(dim_product[product_name])
+			)
+		)
+	MEASURE '_Measures'[Product Profit] = SUM(mart_product_profit[line_profit_usd])
+	MEASURE '_Measures'[Product Net Revenue] = SUM(mart_product_profit[line_net_revenue_usd])
+	MEASURE '_Measures'[Product Margin] = DIVIDE(
+			[Product Profit],
+			[Product Net Revenue]
+		)
+	MEASURE '_Measures'[Revenue per Country] = CALCULATE(
+			[Revenue],
+			TREATAS(
+				VALUES(fact_order[order_sk]),
+				fact_order_item[order_sk]
+			)
+		)
+	MEASURE '_Measures'[Country Profit] = SUM(mart_country_profit[contribution_profit_usd])
+	MEASURE '_Measures'[Country Net Revenue] = SUM(mart_country_profit[revenue_usd])
+	MEASURE '_Measures'[Country Margin] = DIVIDE(
+			[Country Profit],
+			[Country Net Revenue]
+		)
+	MEASURE '_Measures'[Country Orders] = SUM(mart_country_profit[order_count])
+	MEASURE '_Measures'[AOV per Country] = DIVIDE(
+			[Revenue per Country],
+			[Country Orders]
+		)
+	MEASURE '_Measures'[Revenue Share] = DIVIDE(
+			[Revenue per Country],
+			CALCULATE(
+				[Revenue per Country],
+				ALLSELECTED(dim_country[country_name])
+			)
+		)
+	MEASURE '_Measures'[Distinct Customers] = DISTINCTCOUNT(mart_customer_summary[customer_sk])
+	MEASURE '_Measures'[Repeat Customers] = CALCULATE(
+			COUNTROWS(mart_customer_summary),
+			mart_customer_summary[is_repeat] = TRUE()
+		)
+	MEASURE '_Measures'[Repeat Rate] = DIVIDE(
+			[Repeat Customers],
+			[Distinct Customers]
+		)
+	MEASURE '_Measures'[One-time Share] = 1 - [Repeat Rate]
+	MEASURE '_Measures'[Orders per Customer] = DIVIDE(
+			SUM(mart_customer_summary[total_orders]),
+			[Distinct Customers]
+		)
+	MEASURE '_Measures'[New Customers] = DISTINCTCOUNT(mart_customer_summary[customer_sk])
+	MEASURE '_Measures'[Lapsed Share] = DIVIDE(
+			CALCULATE(
+				COUNTROWS(mart_customer_summary),
+				mart_customer_summary[Recency Segment] = "Lapsed 12+mo"
+			),
+			[Distinct Customers]
+		)
+	MEASURE '_Measures'[Order Attempts] = COUNTROWS(fact_order)
+	MEASURE '_Measures'[Completed Orders] = CALCULATE(
+			COUNTROWS(fact_order),
+			fact_order[status] = "completed"
+		)
+	MEASURE '_Measures'[Failed Orders] = CALCULATE(
+			COUNTROWS(fact_order),
+			fact_order[status] = "failed"
+		)
+	MEASURE '_Measures'[Cancelled Orders] = CALCULATE(
+			COUNTROWS(fact_order),
+			fact_order[status] = "cancelled"
+		)
+	MEASURE '_Measures'[Open Backlog] = CALCULATE(
+			COUNTROWS(fact_order),
+			fact_order[status] = "processing"
+		)
+	MEASURE '_Measures'[Paid Success Rate] = DIVIDE(
+			[Paid Orders],
+			[Order Attempts]
+		)
+	MEASURE '_Measures'[Failed Rate] = DIVIDE(
+			[Failed Orders],
+			[Order Attempts]
+		)
+	MEASURE '_Measures'[Cancellation Rate] = DIVIDE(
+			[Cancelled Orders],
+			[Order Attempts]
+		)
+	MEASURE '_Measures'[Refunded Orders] = DISTINCTCOUNT(fact_refund[order_sk])
+	MEASURE '_Measures'[Refund Rate] = DIVIDE(
+			[Refunded Orders],
+			[Paid Orders]
+		)
+	MEASURE '_Measures'[Payment Fee Rate] = DIVIDE(
+			SUM(fact_order[payment_fee_usd]),
+			SUM(fact_order[order_total_usd])
+		)
+	MEASURE '_Measures'[Revenue MoM %] = MOM_PERC([Revenue])
+	MEASURE '_Measures'[Revenue MoM Delta] = MOM_ICON([Revenue])
+	MEASURE '_Measures'[Revenue MoM Color] = MOM_COLOR([Revenue])
+	MEASURE '_Measures'[Profit MoM %] = MOM_PERC([Contribution Profit])
+	MEASURE '_Measures'[Profit MoM Delta] = MOM_ICON([Contribution Profit])
+	MEASURE '_Measures'[Profit MoM Color] = MOM_COLOR([Contribution Profit])
+	MEASURE '_Measures'[Orders MoM %] = MOM_PERC([Paid Orders])
+	MEASURE '_Measures'[Orders MoM Delta] = MOM_ICON([Paid Orders])
+	MEASURE '_Measures'[Orders MoM Color] = MOM_COLOR([Paid Orders])
+	MEASURE '_Measures'[Total Cost MoM %] = MOM_PERC([Total Cost])
+	MEASURE '_Measures'[Total Cost MoM Delta] = MOM_ICON([Total Cost])
+	MEASURE '_Measures'[Total Cost MoM Color] = DELTA_COLOR_INVERSE(MOM_PERC([Total Cost]))
+	MEASURE '_Measures'[Revenue YoY %] = YOY_PERC([Revenue])
+	MEASURE '_Measures'[Revenue YoY Delta] = YOY_ICON([Revenue])
+	MEASURE '_Measures'[Revenue YoY Color] = YOY_COLOR([Revenue])
+	MEASURE '_Measures'[Profit YoY %] = YOY_PERC([Contribution Profit])
+	MEASURE '_Measures'[Profit YoY Delta] = YOY_ICON([Contribution Profit])
+	MEASURE '_Measures'[Profit YoY Color] = YOY_COLOR([Contribution Profit])
+	MEASURE '_Measures'[Orders YoY %] = YOY_PERC([Paid Orders])
+	MEASURE '_Measures'[Orders YoY Delta] = YOY_ICON([Paid Orders])
+	MEASURE '_Measures'[Orders YoY Color] = YOY_COLOR([Paid Orders])
+	MEASURE '_Measures'[Total Cost YoY %] = YOY_PERC([Total Cost])
+	MEASURE '_Measures'[Total Cost YoY Delta] = YOY_ICON([Total Cost])
+	MEASURE '_Measures'[Total Cost YoY Color] = DELTA_COLOR_INVERSE(YOY_PERC([Total Cost]))
+
+EVALUATE
+	SUMMARIZECOLUMNS(
+		"Revenue", [Revenue],
+		"Quantity Sold", [Quantity Sold],
+		"Refund Amount", [Refund Amount],
+		"Net Revenue", [Net Revenue],
+		"Profit Base Net Revenue", [Profit Base Net Revenue],
+		"Paid Orders", [Paid Orders],
+		"AOV", [AOV],
+		"Shipping Charged", [Shipping Charged],
+		"Contribution Profit", [Contribution Profit],
+		"Profit Margin", [Profit Margin],
+		"COGS", [COGS],
+		"Design Fee", [Design Fee],
+		"Payment Fee", [Payment Fee],
+		"Total Cost", [Total Cost],
+		"Cost Ratio", [Cost Ratio],
+		"COGS Ratio", [COGS Ratio],
+		"Cost per Order", [Cost per Order],
+		"Cost per Unit", [Cost per Unit],
+		"Distinct Products Sold", [Distinct Products Sold],
+		"Avg Units per Order", [Avg Units per Order],
+		"Cumulative Revenue", [Cumulative Revenue],
+		"Cumulative Revenue %", [Cumulative Revenue %],
+		"Product Profit", [Product Profit],
+		"Product Net Revenue", [Product Net Revenue],
+		"Product Margin", [Product Margin],
+		"Revenue per Country", [Revenue per Country],
+		"Country Profit", [Country Profit],
+		"Country Net Revenue", [Country Net Revenue],
+		"Country Margin", [Country Margin],
+		"Country Orders", [Country Orders],
+		"AOV per Country", [AOV per Country],
+		"Revenue Share", [Revenue Share],
+		"Distinct Customers", [Distinct Customers],
+		"Repeat Customers", [Repeat Customers],
+		"Repeat Rate", [Repeat Rate],
+		"One-time Share", [One-time Share],
+		"Orders per Customer", [Orders per Customer],
+		"New Customers", [New Customers],
+		"Lapsed Share", [Lapsed Share],
+		"Order Attempts", [Order Attempts],
+		"Completed Orders", [Completed Orders],
+		"Failed Orders", [Failed Orders],
+		"Cancelled Orders", [Cancelled Orders],
+		"Open Backlog", [Open Backlog],
+		"Paid Success Rate", [Paid Success Rate],
+		"Failed Rate", [Failed Rate],
+		"Cancellation Rate", [Cancellation Rate],
+		"Refunded Orders", [Refunded Orders],
+		"Refund Rate", [Refund Rate],
+		"Payment Fee Rate", [Payment Fee Rate],
+		"Revenue MoM %", [Revenue MoM %],
+		"Revenue MoM Delta", [Revenue MoM Delta],
+		"Revenue MoM Color", [Revenue MoM Color],
+		"Profit MoM %", [Profit MoM %],
+		"Profit MoM Delta", [Profit MoM Delta],
+		"Profit MoM Color", [Profit MoM Color],
+		"Orders MoM %", [Orders MoM %],
+		"Orders MoM Delta", [Orders MoM Delta],
+		"Orders MoM Color", [Orders MoM Color],
+		"Total Cost MoM %", [Total Cost MoM %],
+		"Total Cost MoM Delta", [Total Cost MoM Delta],
+		"Total Cost MoM Color", [Total Cost MoM Color],
+		"Revenue YoY %", [Revenue YoY %],
+		"Revenue YoY Delta", [Revenue YoY Delta],
+		"Revenue YoY Color", [Revenue YoY Color],
+		"Profit YoY %", [Profit YoY %],
+		"Profit YoY Delta", [Profit YoY Delta],
+		"Profit YoY Color", [Profit YoY Color],
+		"Orders YoY %", [Orders YoY %],
+		"Orders YoY Delta", [Orders YoY Delta],
+		"Orders YoY Color", [Orders YoY Color],
+		"Total Cost YoY %", [Total Cost YoY %],
+		"Total Cost YoY Delta", [Total Cost YoY Delta],
+		"Total Cost YoY Color", [Total Cost YoY Color]
+	)

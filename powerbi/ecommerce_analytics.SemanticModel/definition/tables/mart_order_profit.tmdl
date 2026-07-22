@@ -188,7 +188,9 @@ table mart_order_profit
 				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
 				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "mart_order_profit"]}[Data]
 				in
-				  #"Navigation 1"
+				    #"Navigation 1"
 
 	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
 

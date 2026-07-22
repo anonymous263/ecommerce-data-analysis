@@ -10,7 +10,6 @@
   },
   "visual": {
     "visualType": "card",
-    "autoSelectVisualType": true,
     "query": {
       "queryState": {
         "Values": {
@@ -23,15 +22,48 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Gross Profit"
+                  "Property": "Revenue"
                 }
               },
-              "queryRef": "_Measures.Gross Profit",
-              "nativeQueryRef": "Gross Profit"
+              "queryRef": "_Measures.Revenue",
+              "nativeQueryRef": "Revenue"
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "_Measures"
+                  }
+                },
+                "Property": "Revenue"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
       }
+    },
+    "objects": {
+      "labels": [
+        {
+          "properties": {
+            "labelDisplayUnits": {
+              "expr": {
+                "Literal": {
+                  "Value": "1D"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "drillFilterOtherVisuals": true
   }

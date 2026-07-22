@@ -1,0 +1,683 @@
+// ============================================================
+// FOS PERIOD DELTA UDF — FULL TOOLKIT
+// MoM / YoY / PoP / MTD / QoQ / YTD / WoW / DoD + styling artifact
+// ============================================================
+// Yêu cầu: Power BI Desktop (Sep-2025+) với Preview feature
+//   "DAX user-defined functions" bật (Options > Preview features).
+// Cách apply: DAX query view > dán TOÀN BỘ khối DEFINE dưới đây
+//   > bấm "Update model with changes".
+//
+// Date table: dim_date[date_day] (đã Mark as date table).
+//
+// ĐIỂM KHÁC TOOLKIT GỐC (quan trọng):
+//   1) Anchor data-aware: mọi hàm neo vào NGÀY CUỐI CÓ DỮ LIỆU của
+//      chính measure (helper Last_Data_Date), không neo MAX(dim_date)
+//      thô — dim_date dài hơn dữ liệu thật nên bản gốc trả blank
+//      trên card không có date slicer.
+//   2) Icon 1 dòng gọn kiểu artifact: "▲ 5.2% MoM" / "▼ 9.4% YoY" / "–".
+//   3) Màu theo palette artifact: tăng #2E8B4F · giảm #E5484D
+//      · blank #9AA3AF · zero #6B7280. Delta_Color_Inverse cho metric
+//      "tăng là XẤU" (Total Cost, Failed Rate, Refund Rate...).
+//   4) Delta_Color parse text bằng vị trí dấu % — nhận icon của MỌI kỳ
+//      (MoM/YoY/PoP/QoQ/...) không cần strip từng nhãn.
+//
+// INDEX (25 functions):
+//   Helper : Last_Data_Date
+//   Core   : MoM_Perc/Icon · YoY_Perc/Icon
+//   PoP    : PoP_Perc/Icon            (kỳ trước cùng độ dài selection)
+//   MTD    : MoM_MTD_Perc/Icon · YoY_MTD_Perc/Icon
+//   QoQ    : QoQ_Perc/Icon            (QTD vs QTD quý trước)
+//   YTD    : YTD_Perc/Icon · YoY_YTD_Perc/Icon (alias — cùng semantics)
+//   WoW    : WoW_Perc/Icon            (7 ngày cuối vs 7 ngày trước đó)
+//   DoD    : DoD_Perc/Icon            (ngày cuối vs ngày liền trước)
+//   Color  : Delta_Color · Delta_Color_Inverse · MoM_Color · YoY_Color
+//
+// Lưu ý đọc số: tháng/kỳ cuối dữ liệu là PARTIAL (dữ liệu FOS dừng
+//   2026-07-13) — MoM/YoY của kỳ đó so partial vs full nên âm sâu là
+//   đúng toán học. PoP phụ thuộc date slicer; không slicer sẽ trả "–".
+// ============================================================
+
+DEFINE
+
+	// ----------------------------
+	// HELPER: ngày cuối có dữ liệu của measure trong selection hiện tại
+	// ----------------------------
+
+	FUNCTION Last_Data_Date = (_measure: EXPR) =>
+		CALCULATE(
+			MAX(dim_date[date_day]),
+			FILTER(
+				ALLSELECTED(dim_date[date_day]),
+				NOT ISBLANK(CALCULATE(_measure))
+			)
+		)
+
+	// ----------------------------
+	// CORE: MoM (trọn tháng vs trọn tháng trước) / YoY (cùng tháng năm trước)
+	// ----------------------------
+
+	FUNCTION MoM_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CM1 = DATE(YEAR(MaxD), MONTH(MaxD), 1)
+		VAR CM2 = EOMONTH(
+			MaxD,
+			0
+		)
+		VAR PM1 = EOMONTH(
+			MaxD,
+			-2
+		) + 1
+		VAR PM2 = EOMONTH(
+			MaxD,
+			-1
+		)
+		VAR CM = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= CM1 && dim_date[date_day] <= CM2
+			)
+		)
+		VAR PM = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PM1 && dim_date[date_day] <= PM2
+			)
+		)
+		RETURN
+			DIVIDE(
+				CM - PM,
+				PM,
+				BLANK()
+			)
+
+	FUNCTION YoY_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CY1 = DATE(YEAR(MaxD), MONTH(MaxD), 1)
+		VAR CY2 = EOMONTH(
+			MaxD,
+			0
+		)
+		VAR PY1 = EDATE(
+			CY1,
+			-12
+		)
+		VAR PY2 = EOMONTH(
+			PY1,
+			0
+		)
+		VAR CY = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= CY1 && dim_date[date_day] <= CY2
+			)
+		)
+		VAR PY = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PY1 && dim_date[date_day] <= PY2
+			)
+		)
+		RETURN
+			DIVIDE(
+				CY - PY,
+				PY,
+				BLANK()
+			)
+
+	FUNCTION MoM_Icon = (_measure: EXPR) =>
+		VAR d = MOM_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " MoM"
+			)
+
+	FUNCTION YoY_Icon = (_measure: EXPR) =>
+		VAR d = YOY_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " YoY"
+			)
+
+	// ----------------------------
+	// PoP: kỳ liền trước có cùng độ dài với selection hiện tại
+	// (dùng với date slicer; không có slicer thì selection = toàn lịch -> "–")
+	// ----------------------------
+
+	FUNCTION PoP_Perc = (_measure: EXPR) =>
+		VAR _StartDate = MIN(dim_date[date_day])
+		VAR _EndDate = MAX(dim_date[date_day])
+		VAR _PeriodLen = DATEDIFF(
+			_StartDate,
+			_EndDate,
+			DAY
+		) + 1
+		VAR _PrevStart = _StartDate - _PeriodLen
+		VAR _PrevEnd = _StartDate - 1
+		VAR _CurrVal = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= _StartDate && dim_date[date_day] <= _EndDate
+			)
+		)
+		VAR _PrevVal = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= _PrevStart && dim_date[date_day] <= _PrevEnd
+			)
+		)
+		RETURN
+			DIVIDE(
+				_CurrVal - _PrevVal,
+				_PrevVal,
+				BLANK()
+			)
+
+	FUNCTION PoP_Icon = (_measure: EXPR) =>
+		VAR d = POP_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " PoP"
+			)
+
+	// ----------------------------
+	// MTD: month-to-date (đến ngày cuối có dữ liệu) vs cùng span tháng trước / năm trước
+	// (EDATE tự kẹp cuối tháng: 31/3 -1 tháng = 28/2)
+	// ----------------------------
+
+	FUNCTION MoM_MTD_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CM1 = DATE(YEAR(MaxD), MONTH(MaxD), 1)
+		VAR PrevEnd = EDATE(
+			MaxD,
+			-1
+		)
+		VAR PM1 = DATE(YEAR(PrevEnd), MONTH(PrevEnd), 1)
+		VAR CM_MTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= CM1 && dim_date[date_day] <= MaxD
+			)
+		)
+		VAR PM_MTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PM1 && dim_date[date_day] <= PrevEnd
+			)
+		)
+		RETURN
+			DIVIDE(
+				CM_MTD - PM_MTD,
+				PM_MTD,
+				BLANK()
+			)
+
+	FUNCTION MoM_MTD_Icon = (_measure: EXPR) =>
+		VAR d = MOM_MTD_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " MTD MoM"
+			)
+
+	FUNCTION YoY_MTD_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CM1 = DATE(YEAR(MaxD), MONTH(MaxD), 1)
+		VAR PrevEnd = EDATE(
+			MaxD,
+			-12
+		)
+		VAR PY1 = DATE(YEAR(PrevEnd), MONTH(PrevEnd), 1)
+		VAR CY_MTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= CM1 && dim_date[date_day] <= MaxD
+			)
+		)
+		VAR PY_MTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PY1 && dim_date[date_day] <= PrevEnd
+			)
+		)
+		RETURN
+			DIVIDE(
+				CY_MTD - PY_MTD,
+				PY_MTD,
+				BLANK()
+			)
+
+	FUNCTION YoY_MTD_Icon = (_measure: EXPR) =>
+		VAR d = YOY_MTD_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " MTD YoY"
+			)
+
+	// ----------------------------
+	// QoQ: quarter-to-date vs cùng span quý trước
+	// ----------------------------
+
+	FUNCTION QoQ_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR QStart = DATE(YEAR(MaxD), INT((MONTH(MaxD) - 1) / 3) * 3 + 1, 1)
+		VAR PrevEnd = EDATE(
+			MaxD,
+			-3
+		)
+		VAR PQStart = EDATE(
+			QStart,
+			-3
+		)
+		VAR CQ = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= QStart && dim_date[date_day] <= MaxD
+			)
+		)
+		VAR PQ = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PQStart && dim_date[date_day] <= PrevEnd
+			)
+		)
+		RETURN
+			DIVIDE(
+				CQ - PQ,
+				PQ,
+				BLANK()
+			)
+
+	FUNCTION QoQ_Icon = (_measure: EXPR) =>
+		VAR d = QOQ_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " QoQ"
+			)
+
+	// ----------------------------
+	// YTD: year-to-date vs cùng span năm trước
+	// (YoY_YTD giữ để tương thích API toolkit gốc — cùng semantics với YTD)
+	// ----------------------------
+
+	FUNCTION YTD_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR YStart = DATE(YEAR(MaxD), 1, 1)
+		VAR PrevEnd = EDATE(
+			MaxD,
+			-12
+		)
+		VAR PYStart = DATE(YEAR(MaxD) - 1, 1, 1)
+		VAR CYTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= YStart && dim_date[date_day] <= MaxD
+			)
+		)
+		VAR PYTD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= PYStart && dim_date[date_day] <= PrevEnd
+			)
+		)
+		RETURN
+			DIVIDE(
+				CYTD - PYTD,
+				PYTD,
+				BLANK()
+			)
+
+	FUNCTION YTD_Icon = (_measure: EXPR) =>
+		VAR d = YTD_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " YTD"
+			)
+
+	FUNCTION YoY_YTD_Perc = (_measure: EXPR) =>
+		YTD_PERC(_measure)
+
+	FUNCTION YoY_YTD_Icon = (_measure: EXPR) =>
+		VAR d = YOY_YTD_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " YTD YoY"
+			)
+
+	// ----------------------------
+	// WoW: 7 ngày cuối có dữ liệu vs 7 ngày liền trước
+	// ----------------------------
+
+	FUNCTION WoW_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CurrWeek = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= MaxD - 6 && dim_date[date_day] <= MaxD
+			)
+		)
+		VAR PrevWeek = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] >= MaxD - 13 && dim_date[date_day] <= MaxD - 7
+			)
+		)
+		RETURN
+			DIVIDE(
+				CurrWeek - PrevWeek,
+				PrevWeek,
+				BLANK()
+			)
+
+	FUNCTION WoW_Icon = (_measure: EXPR) =>
+		VAR d = WOW_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " WoW"
+			)
+
+	// ----------------------------
+	// DoD: ngày cuối có dữ liệu vs ngày liền trước
+	// (ngày trước không có dữ liệu -> "–"; bình thường với daily gaps)
+	// ----------------------------
+
+	FUNCTION DoD_Perc = (_measure: EXPR) =>
+		VAR MaxD = LAST_DATA_DATE(_measure)
+		VAR CD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] = MaxD
+			)
+		)
+		VAR PD = CALCULATE(
+			_measure,
+			FILTER(
+				ALL(dim_date[date_day]),
+				dim_date[date_day] = MaxD - 1
+			)
+		)
+		RETURN
+			DIVIDE(
+				CD - PD,
+				PD,
+				BLANK()
+			)
+
+	FUNCTION DoD_Icon = (_measure: EXPR) =>
+		VAR d = DOD_PERC(_measure)
+		RETURN
+			IF(
+				ISBLANK(d),
+				"–",
+				IF(
+					d >= 0,
+					UNICHAR(9650),
+					UNICHAR(9660)
+				) & " " & FORMAT(
+					ABS(d),
+					"0.0%"
+				) & " DoD"
+			)
+
+	// ----------------------------
+	// COLOR HELPERS (palette artifact: tăng #2E8B4F · giảm #E5484D
+	//   · blank #9AA3AF · zero #6B7280)
+	// Nhận cả số (từ *_Perc) lẫn text (từ *_Icon của MỌI kỳ) — parse bằng
+	// vị trí dấu %, không phụ thuộc nhãn kỳ.
+	// ----------------------------
+
+	FUNCTION Delta_Color = (_value: EXPR) =>
+		VAR IsText = NOT ISNONTEXT(_value)
+		VAR PctPos = IF(
+			IsText,
+			FIND(
+				"%",
+				_value,
+				1,
+				0
+			),
+			0
+		)
+		VAR NumText = IF(
+			IsText && PctPos > 0,
+			TRIM(SUBSTITUTE(
+				SUBSTITUTE(
+					LEFT(
+						_value,
+						PctPos - 1
+					),
+					UNICHAR(9650),
+					""
+				),
+				UNICHAR(9660),
+				""
+			))
+		)
+		VAR HasDown = IsText && CONTAINSSTRING(
+			_value,
+			UNICHAR(9660)
+		)
+		VAR NumRaw = IF(
+			ISBLANK(_value),
+			BLANK(),
+			IF(
+				IsText,
+				IF(
+					PctPos > 0,
+					DIVIDE(
+						VALUE(NumText),
+						100
+					),
+					BLANK()
+				),
+				_value
+			)
+		)
+		VAR NumSigned = IF(
+			IsText,
+			IF(
+				HasDown,
+				-ABS(NumRaw),
+				ABS(NumRaw)
+			),
+			NumRaw
+		)
+		RETURN
+			SWITCH(
+				TRUE(),
+				ISBLANK(NumSigned), "#9AA3AF",
+				NumSigned > 0, "#2E8B4F",
+				NumSigned < 0, "#E5484D",
+				"#6B7280"
+			)
+
+	FUNCTION Delta_Color_Inverse = (_value: EXPR) =>
+		VAR IsText = NOT ISNONTEXT(_value)
+		VAR PctPos = IF(
+			IsText,
+			FIND(
+				"%",
+				_value,
+				1,
+				0
+			),
+			0
+		)
+		VAR NumText = IF(
+			IsText && PctPos > 0,
+			TRIM(SUBSTITUTE(
+				SUBSTITUTE(
+					LEFT(
+						_value,
+						PctPos - 1
+					),
+					UNICHAR(9650),
+					""
+				),
+				UNICHAR(9660),
+				""
+			))
+		)
+		VAR HasDown = IsText && CONTAINSSTRING(
+			_value,
+			UNICHAR(9660)
+		)
+		VAR NumRaw = IF(
+			ISBLANK(_value),
+			BLANK(),
+			IF(
+				IsText,
+				IF(
+					PctPos > 0,
+					DIVIDE(
+						VALUE(NumText),
+						100
+					),
+					BLANK()
+				),
+				_value
+			)
+		)
+		VAR NumSigned = IF(
+			IsText,
+			IF(
+				HasDown,
+				-ABS(NumRaw),
+				ABS(NumRaw)
+			),
+			NumRaw
+		)
+		RETURN
+			SWITCH(
+				TRUE(),
+				ISBLANK(NumSigned), "#9AA3AF",
+				NumSigned > 0, "#E5484D",
+				NumSigned < 0, "#2E8B4F",
+				"#6B7280"
+			)
+
+	// ----------------------------
+	// CONVENIENCE COLOR: gọi thẳng theo kỳ (các kỳ khác dùng
+	//   Delta_Color ( <Kỳ>_Perc ( [Measure] ) ) hoặc _Inverse tương ứng)
+	// ----------------------------
+
+	FUNCTION MoM_Color = (_measure: EXPR) =>
+		DELTA_COLOR(MOM_PERC(_measure))
+
+	FUNCTION YoY_Color = (_measure: EXPR) =>
+		DELTA_COLOR(YOY_PERC(_measure))
+
+		// ============================================================
+		// VÍ DỤ MEASURE ÁP DỤNG (tạo trong _Measures sau khi có UDF):
+		//
+		//   Revenue MoM %        = MoM_Perc ( [Revenue] )                        -- 0.0%
+		//   Revenue MoM Delta    = MoM_Icon ( [Revenue] )                        -- text label card
+		//   Revenue MoM Color    = MoM_Color ( [Revenue] )                       -- fx font color
+		//   Revenue YoY Delta    = YoY_Icon ( [Revenue] )
+		//   Revenue YoY Color    = YoY_Color ( [Revenue] )
+		//   Revenue QoQ Delta    = QoQ_Icon ( [Revenue] )
+		//   Revenue QoQ Color    = Delta_Color ( QoQ_Perc ( [Revenue] ) )
+		//   Revenue WoW Delta    = WoW_Icon ( [Revenue] )
+		//   Revenue PoP Delta    = PoP_Icon ( [Revenue] )                        -- cần date slicer
+		//
+		//   -- Metric "tăng là XẤU" -> dùng Inverse:
+		//   Total Cost MoM Delta  = MoM_Icon ( [Total Cost] )
+		//   Total Cost MoM Color  = Delta_Color_Inverse ( MoM_Perc ( [Total Cost] ) )
+		//   Failed Rate YoY Color = Delta_Color_Inverse ( YoY_Perc ( [Failed Rate] ) )
+		// ============================================================

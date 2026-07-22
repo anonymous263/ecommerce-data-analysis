@@ -1,11 +1,11 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
-  "name": "1a407b708b36795b125a",
+  "name": "a4cb695d0616135048d6",
   "position": {
-    "x": 1382,
-    "y": 621.33333333333326,
-    "z": 1000,
-    "height": 300,
+    "x": 1153.3333333333335,
+    "y": 23.333333333333336,
+    "z": 4000,
+    "height": 211.66666666666669,
     "width": 300
   },
   "visual": {
@@ -22,11 +22,11 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Contribution Profit"
+                  "Property": "Net Revenue"
                 }
               },
-              "queryRef": "_Measures.Contribution Profit",
-              "nativeQueryRef": "Contribution Profit"
+              "queryRef": "_Measures.Net Revenue",
+              "nativeQueryRef": "Net Revenue"
             }
           ]
         }

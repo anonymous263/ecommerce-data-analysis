@@ -1,876 +1,570 @@
 table _Measures
 	lineageTag: a0426c5b-05c6-4ed5-a7a1-402d3e13566e
 
-	/// Gross revenue (before refunds). Sum of line_revenue_usd on revenue-status order items only. Revenue lives once at the item grain — never read from fact_order (no revenue column there, deliberate anti-double-count).
+	/// Gross product revenue ($119,376.98). Lives once at item grain (rule #1) - never read revenue from fact_order. Slices by product/date/site, NOT by country (use [Revenue per Country]).
 	measure Revenue =
 			
-			CALCULATE(
-			    SUM(fact_order_item[line_revenue_usd]),
-			    fact_order_item[is_revenue_status] = TRUE()
+			CALCULATE (
+			    SUM ( fact_order_item[line_revenue_usd] ),
+			    fact_order_item[is_revenue_status] = TRUE ()
 			)
-		formatString: \$#,0.00
+		formatString: \$#,0
 		displayFolder: Sales
-		lineageTag: a63dfddc-2b76-4495-8332-4b39cca9208c
+		lineageTag: f208adad-a1e1-4f3e-8f0b-3fb9e873c7b2
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// Units sold on revenue-status lines (4,312).
+	measure 'Quantity Sold' =
+			
+			CALCULATE (
+			    SUM ( fact_order_item[quantity] ),
+			    fact_order_item[is_revenue_status] = TRUE ()
+			)
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 4c370e46-fc40-4d7c-8f1f-6a711b153ab8
 
-	/// Product Revenue (§A1) minus refunds — product-side NET for sales reporting only. [Refund Amount] is defined in group C (Refunds). This is NOT the profit-margin denominator; the margin base is [Profit Base Net Revenue] = SUM(mart_order_profit[net_revenue_usd]) = product + customer shipping − refund (Approach A, 2026-07-21).
+	/// Raw refunded value from fact_refund ($1,465.51). NOTE: the mart P&L uses capped effective_refund_usd ($1,346.02) - this raw figure is for the sales KPI and refund health only. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refund Amount' =
+			
+			SUM ( fact_refund[refund_amount_usd] )
+		formatString: \$#,0
+		displayFolder: Operations
+		lineageTag: 418c0cb7-f9c3-4470-bb22-32e19ddb6e96
+
+	/// Product-side net for SALES KPI display only ($117,911.47) = gross product revenue minus raw refunds. NOT the margin denominator - that is [Profit Base Net Revenue] (product + shipping - refund).
 	measure 'Net Revenue' =
 			
 			[Revenue] - [Refund Amount]
-		formatString: \$#,0.00
+		formatString: \$#,0
 		displayFolder: Sales
-		lineageTag: f78e1109-534b-46ef-91ce-dc6f4a033f76
+		lineageTag: d05ebe4f-76c5-447b-bd18-bca998a40e4b
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Distinct count of revenue-status orders (processing, completed, on-hold). Denominator for AOV.
-	measure Orders =
-			
-			CALCULATE(
-			    DISTINCTCOUNT(fact_order[order_sk]),
-			    fact_order[status] IN { "processing", "completed", "on-hold" }
-			)
-		formatString: #,0
-		displayFolder: Sales
-		lineageTag: 7655d605-2c5f-4fe1-8e78-b2048b219e78
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Total units sold across order items. Denominator for AIV.
-	measure 'Quantity Sold' =
-			
-			CALCULATE(
-			    SUM(fact_order_item[quantity]),
-			    fact_order_item[is_revenue_status] = TRUE()
-			)
-		formatString: #,0
-		displayFolder: Sales
-		lineageTag: 019218d0-7005-4b1a-828a-95102652254b
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Revenue],[Orders]) = $31.51 over 3,789 fact_order revenue-status orders; now DIVIDE([Revenue],[Paid Orders]) = $31.32 over the 3,812 orders in mart_order_profit. KNOCK-ON: [AOV (min 10 orders)] reuses this measure but still guards on [Orders], so its guard population and its value population no longer match -- harmless at 10-order thresholds, but do not treat it as an exact ecom §G3 implementation any more. The repo files powerbi/measures/dax_measures.txt and docs/METRICS_DEFINITION.md §A5 still document the ecom form.
-	measure AOV = DIVIDE ( [Revenue], [Paid Orders] )
-		formatString: \$#,0.00
-		displayFolder: Sales
-		lineageTag: 6fc7f1cc-291d-4265-b8cd-c7ed9291070a
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Average Item Value = gross Revenue (§A1) / Quantity Sold (§A4).
-	measure AIV =
-			
-			DIVIDE([Revenue], [Quantity Sold])
-		formatString: \$#,0.00
-		displayFolder: Sales
-		lineageTag: 042e3f58-11b3-4357-8c8f-52d070649d1b
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Revenue-side shipping — what the customer paid at checkout (Woo). This is NOT a cost and must never enter a profit or COGS formula; there is no actual_shipping_cost_usd field.
-	measure 'Shipping Charged to Customer' =
-			
-			SUM(fact_order[shipping_charged_usd])
-		formatString: \$#,0.00
-		displayFolder: Sales
-		lineageTag: a4d56771-8450-49f5-838b-87aaa69e51f1
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Shipping charged to customer (§A7) / gross Revenue (§A1). Labeled 'shipping charged to customer / revenue' — NOT shipping cost.
-	measure 'Shipping Charged % of Revenue' =
-			
-			DIVIDE([Shipping Charged to Customer], [Revenue])
-		formatString: 0.0%
-		displayFolder: Sales
-		lineageTag: b5046cc1-6508-445b-87d0-7624091b7723
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Count of orders still in 'processing' status (awaiting fulfillment) — operational backlog available in Phase 4.
-	measure 'Open Order Backlog' =
-			
-			CALCULATE(
-			    DISTINCTCOUNT(fact_order[order_sk]),
-			    fact_order[status] = "processing"
-			)
-		formatString: #,0
-		displayFolder: Sales
-		lineageTag: ba58bcdb-245b-4801-b3f9-0dd88269a12f
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Month-over-month change in gross Revenue (§A1) vs the prior month via DATEADD on dim_date. Exec card delta. Requires a contiguous dim_date marked as the date table.
-	measure 'Revenue MoM %' = ```
-			
-			VAR CurrentPeriod = [Revenue]
-			VAR PriorPeriod =
-			    CALCULATE(
-			        [Revenue],
-			        DATEADD(dim_date[date_day], -1, MONTH)
-			    )
-			RETURN
-			    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
-			
-			```
-		formatString: 0.0%
-		displayFolder: Sales
-		lineageTag: a2e902e1-1905-4ad2-b427-d693b7563d20
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Month-over-month change in Net Revenue (§A2, gross minus refunds) vs the prior month via DATEADD on dim_date. Exec card delta.
-	measure 'Net Revenue MoM %' =
-			
-			VAR CurrentPeriod = [Net Revenue]
-			VAR PriorPeriod =
-			    CALCULATE(
-			        [Net Revenue],
-			        DATEADD(dim_date[date_day], -1, MONTH)
-			    )
-			RETURN
-			    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
-		formatString: 0.0%
-		displayFolder: Sales
-		lineageTag: c3640f25-f3cc-4c16-a208-bc50fa71cb8b
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Month-over-month change in Shipping Charged to Customer (§A7, revenue-side) vs the prior month via DATEADD on dim_date.
-	measure 'Shipping Charged MoM %' =
-			
-			VAR CurrentPeriod = [Shipping Charged to Customer]
-			VAR PriorPeriod =
-			    CALCULATE(
-			        [Shipping Charged to Customer],
-			        DATEADD(dim_date[date_day], -1, MONTH)
-			    )
-			RETURN
-			    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
-		formatString: " 0.0%"
-		displayFolder: Sales
-		lineageTag: 43ec4238-82de-40f5-8c7b-31a9a35cef90
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Month-over-month change in Contribution Profit vs the prior month via DATEADD on dim_date.
-	measure 'Contribution Profit MoM %' =
-			
-			VAR CurrentPeriod = [Contribution Profit]
-			VAR PriorPeriod =
-			    CALCULATE(
-			        [Contribution Profit],
-			        DATEADD(dim_date[date_day], -1, MONTH)
-			    )
-			RETURN
-			    DIVIDE(CurrentPeriod - PriorPeriod, PriorPeriod)
-		formatString: 0.0%
-		displayFolder: Sales
-		lineageTag: fb5e15c4-4ba0-45f7-8d7e-24bd826ff3d7
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Total cost of goods sold in USD, summed from the order-profit mart (marts_core.mart_order_profit). Per METRICS_DEFINITION §B1, cogs_usd ALREADY includes the supplier fulfillment/shipping fee — do NOT add any shipping term on top of this.
-	measure COGS =
-			
-			SUM ( mart_order_profit[cogs_usd] )
-		formatString: \$#,0.00
-		displayFolder: Profitability
-		lineageTag: 618bb69c-8fa7-4f33-a07f-9437fe6745e2
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Total payment-processor fees in USD actually charged against profit, read from marts_core.mart_order_profit[payment_fee_usd] (7,128.11 for FOS) — the same column [Contribution Profit] subtracts, so the cost breakdown reconciles. That column is coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0): Woo is primary and the CSV 'Fee' column fills the ~20% of orders where Woo has none. Reading fact_order directly instead loses those fallbacks AND spans non-revenue orders, giving 7,069.77 — $137.72 short of what profit actually subtracts. Coverage/exactness is surfaced separately via [Payment Fee Coverage %] and [Payment Fee Chip].
-	measure 'Payment Fee' =
-			
-			SUM ( mart_order_profit[payment_fee_usd] )
-		formatString: \$#,0.00
-		displayFolder: Profitability
-		lineageTag: 2fd41c7e-31d6-4ea6-8eb5-49513bad508e
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Total design fee in USD summed from marts_core.mart_order_profit[design_fee_usd]. One of the three cost components subtracted from net revenue to reach contribution profit.
-	measure 'Design Fee' =
-			
-			SUM ( mart_order_profit[design_fee_usd] )
-		formatString: \$#,0.00
-		displayFolder: Profitability
-		lineageTag: 0018495b-f1d8-4879-a397-333140e1f52c
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Gross profit = gross Revenue (A1) minus COGS (B1). This deliberately does NOT subtract design fee or payment fee (that is Contribution Profit, B5) and never subtracts shipping.
-	measure 'Gross Profit' =
-			
-			[Revenue] - [COGS]
-		formatString: " \$#,0.00"
-		displayFolder: Profitability
-		lineageTag: a68e5ad2-e028-43db-9eb6-5329a7d32301
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Exact net-revenue denominator used for profit margin: (product revenue + customer shipping) − refunds, read directly from the pre-computed marts_core.mart_order_profit[net_revenue_usd] so it reconciles to the mart (157,882.62 for FOS). Includes shipping revenue (Approach A, 2026-07-21). Prefer this over recomputing in DAX. Underpins §B6. See docs/METRICS_DEFINITION.md §B6 and docs/METRIC_CHANGES.md.
+	/// The margin/cost-ratio denominator ($157,882.62) = product revenue + customer shipping - capped refund. Read straight from mart_order_profit so it reconciles. Not for display KPIs.
 	measure 'Profit Base Net Revenue' =
 			
 			SUM ( mart_order_profit[net_revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Sales
+		lineageTag: efe3aa94-b22d-4c98-8f5a-dfbc5f0ac57a
+
+	/// Orders in mart_order_profit (3,812 = completed 3,699 + processing 89 + refunded 24). 
+	/// The shared denominator for every cost/profit ratio.
+	measure 'Paid Orders' =
+			
+			DISTINCTCOUNT ( mart_order_profit[order_sk] )
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 575908bb-eec9-4dd7-91d5-ad2491796606
+
+	/// Average order value $31.32 = gross revenue / paid orders. Do not use on country visuals (numerator has no country relationship) - use [AOV per Country].
+	measure AOV =
+			
+			DIVIDE ( [Revenue], [Paid Orders] )
 		formatString: \$#,0.00
-		displayFolder: Profitability
-		lineageTag: 89b694bc-1f7f-4ea3-bffa-42939672f91a
+		displayFolder: Sales
+		lineageTag: 922d5711-ad57-46db-9be7-8ff165976176
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// Customer shipping charge, all orders ($50,648.98). Counted as REVENUE under Approach A, never a cost; there is no actual_shipping_cost_usd anywhere.
+	measure 'Shipping Charged' =
+			
+			SUM ( fact_order[shipping_charged_usd] )
+		formatString: \$#,0
+		displayFolder: Sales
+		lineageTag: 28113a6b-e499-4efb-a8d2-5b6eef79df77
 
-	/// Contribution profit in USD, summed from the pre-computed marts_core.mart_order_profit[contribution_profit_usd] (87,138.04 for FOS). Locked formula = net_revenue − cogs − design_fee − payment_fee, where net_revenue = (product revenue + customer shipping) − refund (Approach A, 2026-07-21). Customer shipping is revenue; cogs_usd is the all-in fulfilment cost (already includes supplier shipping). See docs/METRIC_CHANGES.md.
+	/// Contribution profit $87,138.04 = net_revenue - cogs - design_fee - payment_fee, pre-computed in mart_order_profit. 
+	/// Slices by date/site only - use [Product Profit] / [Country Profit] on product/country visuals or you get the grand total on every row.
 	measure 'Contribution Profit' =
 			
 			SUM ( mart_order_profit[contribution_profit_usd] )
-		formatString: \$#,0.00
-		displayFolder: Profitability
-		lineageTag: f81bff96-5ac4-487b-9db8-cfd0c12bf2b5
+		formatString: \$#,0
+		displayFolder: Profit
+		lineageTag: 2e562f6c-75ce-4958-bf02-8d69fd3d3480
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Contribution profit margin = Contribution Profit (B5) ÷ [Profit Base Net Revenue] (= product + customer shipping − refund, Approach A), safe-divided (55.19% for FOS). Denominator is the shipping-inclusive net revenue, NOT the product-only [Net Revenue]. See docs/METRICS_DEFINITION.md §B6 and docs/METRIC_CHANGES.md.
+	/// 55.2% = Contribution Profit / Profit Base Net Revenue (shipping-inclusive base). Using product-only [Net Revenue] as denominator is WRONG (gives 40.2% mixed-base nonsense).
 	measure 'Profit Margin' =
 			
 			DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )
 		formatString: 0.0%
-		displayFolder: Profitability
-		lineageTag: a51c2fe3-094d-4efe-876c-4a8e9552a094
+		displayFolder: Profit
+		lineageTag: edb1415b-66b6-4ad0-8a2f-4cea0c0b10c2
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Return on cost of goods = Contribution Profit (B5) ÷ COGS (B1), safe-divided. Expresses profit generated per dollar of product cost. See docs/METRICS_DEFINITION.md §B7.
-	measure ROI =
+	/// All-in per-order fulfilment cost ($61,061.72) - ALREADY includes the supplier fulfillment/shipping fee (rule #6). Never add a shipping cost term on top.
+	measure COGS =
 			
-			DIVIDE ( [Contribution Profit], [COGS] )
+			SUM ( mart_order_profit[cogs_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: 427b11c2-40b1-4c54-8038-5ae18a51e438
+
+	/// Design fee ($2,554.75), one of the three cost components of contribution profit.
+	measure 'Design Fee' =
+			
+			SUM ( mart_order_profit[design_fee_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: a0e84259-1441-459a-87d7-39f60bb9f891
+
+	/// Processor fees ($7,128.11) from mart_order_profit - the exact column [Contribution Profit] subtracts (coalesce of Woo fee + CSV fallback). Reading fact_order gives $7,069.77 and breaks reconciliation.
+	measure 'Payment Fee' =
+			
+			SUM ( mart_order_profit[payment_fee_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: 886c4486-4be6-4aec-8ab7-9e2dfff7854c
+
+	/// $70,744.58. Reconciles exactly: [Profit Base Net Revenue] - [Total Cost] = [Contribution Profit].
+	measure 'Total Cost' =
+			
+			[COGS] + [Design Fee] + [Payment Fee]
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: 076d4f19-2aa6-4c85-a1fd-8ec8891567d1
+
+	/// 44.8%. Denominator MUST be [Profit Base Net Revenue]; the product-only base gives the stale pre-Approach-A 59.8%.
+	measure 'Cost Ratio' =
+			
+			DIVIDE ( [Total Cost], [Profit Base Net Revenue] )
 		formatString: 0.0%
-		displayFolder: Profitability
-		lineageTag: cf41c33d-100a-41a9-84b5-3c2af02499d0
+		displayFolder: Cost
+		lineageTag: 5aa590ff-bfc6-4958-a76c-21087a5c9057
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// All-sites cost coverage percentage, read from the reconciliation view marts_recon.recon_cost_coverage on the '__ALL__' roll-up row. Stored on a 0–100 scale (e.g. 98.79). Drives every tier-gating measure in §J/§K. See docs/METRICS_DEFINITION.md §J.
-	measure 'Cost Coverage %' = ```
+	/// 38.7% (was 51.6% against the old product-only base).
+	measure 'COGS Ratio' =
 			
-			CALCULATE (
-			    MAX ( recon_cost_coverage[cost_coverage_pct] ),
-			    recon_cost_coverage[site_sk] = "__ALL__"
-			)
+			DIVIDE ( [COGS], [Profit Base Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Cost
+		lineageTag: e90f1872-f45c-4bd3-a63e-10b3a3d9e5e4
+
+	/// $18.56 = $70,744.58 / 3,812.
+	measure 'Cost per Order' =
 			
-			```
-		formatString: 0.00\%
-		displayFolder: Profitability
-		lineageTag: fc1ec8e2-af91-476a-bcaf-6aa6bc987be0
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Payment-fee coverage percentage (revenue-order basis, same as H1) from marts_recon.recon_payment_fee_coverage on the '__ALL__' roll-up row, stored on a 0–100 scale (e.g. 98.03). When below 80 it activates [Payment Fee Chip] per invariant #6. See docs/METRICS_DEFINITION.md §H4/§K + METRIC_CHANGES.md.
-	measure 'Payment Fee Coverage %' =
-			
-			CALCULATE (
-			    MAX ( recon_payment_fee_coverage[fee_coverage_pct] ),
-			    recon_payment_fee_coverage[payment_fee_source] = "__ALL__"
-			)
-		formatString: 0.00\%
-		displayFolder: Profitability
-		lineageTag: eb767b9b-773a-4a7b-9416-af02139f0c73
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Data-quality tier driving dashboard gating: green (≥95%, fully trusted, no chip), yellow (80–95%, partial-coverage chip), red (<80%, profit visuals hidden + 'Profit unavailable' banner). Thresholds per invariant #5. See docs/METRICS_DEFINITION.md §J.
-	measure 'Coverage Tier' =
-			
-			SWITCH (
-			    TRUE (),
-			    [Cost Coverage %] >= 95, "green",
-			    [Cost Coverage %] >= 80, "yellow",
-			    "red"
-			)
-		displayFolder: Profitability
-		lineageTag: 2db2c367-daf5-40f5-9b5d-ae340922de63
-
-	/// Returns 1 when cost coverage ≥80% (profit is trustworthy enough to show), else 0. Apply as a visual-level filter (keep rows where flag = 1) to hide profit visuals when coverage is in the red tier, per invariant #5 / §J. See docs/METRICS_DEFINITION.md §J.
-	measure 'Profit Visible Flag' =
-			
-			IF ( [Cost Coverage %] >= 80, 1, 0 )
-		formatString: #,0
-		displayFolder: Profitability
-		lineageTag: d59556f5-1f4e-445a-8a46-77f7e51b0be1
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Red-tier banner text shown only when cost coverage <80%; BLANK otherwise so the banner card collapses. Pairs with [Profit Visible Flag] = 0 to explain why profit visuals are hidden (§J, invariant #5). See docs/METRICS_DEFINITION.md §J.
-	measure 'Profit Unavailable Banner' =
-			
-			IF (
-			    [Cost Coverage %] < 80,
-			    "Profit unavailable — cost coverage too low",
-			    BLANK ()
-			)
-		displayFolder: Profitability
-		lineageTag: 82fde36c-3371-44cd-bca2-af7e495769db
-
-	/// Yellow-tier chip text shown only when cost coverage is in the 80–95% band; BLANK otherwise. Divides the 0–100 coverage value by 100 before the 0.0% format so it renders correctly (e.g. '(90.0%)'). Per invariant #5 / §J. See docs/METRICS_DEFINITION.md §J.
-	measure 'Partial Coverage Chip' =
-			
-			IF (
-			    AND ( [Cost Coverage %] >= 80, [Cost Coverage %] < 95 ),
-			    "Partial cost coverage ("
-			        & FORMAT ( [Cost Coverage %] / 100, "0.0%" )
-			        & ") — usable but not owner-trusted",
-			    BLANK ()
-			)
-		displayFolder: Profitability
-		lineageTag: 169195c8-0766-4141-a90b-287fa7b1b7f2
-
-	/// Second chip shown on every profit visual when payment-fee coverage <80% (98.03% revenue-order basis for FOS → chip OFF). Reports the estimated share (100 − coverage) sourced from seed_estimate/missing. Per invariant #6 / §K. See docs/METRICS_DEFINITION.md §K.
-	measure 'Payment Fee Chip' = ```
-			
-			IF (
-			    [Payment Fee Coverage %] < 80,
-			    "Estimated payment fee — "
-			        & FORMAT ( ( 100 - [Payment Fee Coverage %] ) / 100, "0.0%" )
-			        & " from seed_estimate or missing",
-			    BLANK ()
-			)
-			
-			```
-		displayFolder: Profitability
-		lineageTag: 8696a0cb-9fe5-4989-a8dc-38ba61aff21e
-
-	/// Static explanatory caveat displayed alongside profit visuals, encoding invariants #2/#4/#6 under Approach A: the customer shipping charge is counted as revenue, and COGS is the all-in fulfilment cost (already includes supplier shipping) so shipping is never subtracted as a cost. See docs/METRICS_DEFINITION.md §B5 and docs/METRIC_CHANGES.md.
-	measure 'Profit Caveat Banner' =
-			
-			"Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds."
-		displayFolder: Profitability
-		lineageTag: e0090f96-f892-4d71-835d-f5bd78a2641d
-
-	/// Product-page chip shown when any product rows in the current filter context have a cost_allocation_method other than 'line_exact' (i.e. cost was spread by revenue share rather than measured per line) in marts_core.mart_product_profit; BLANK when every selected row is line-exact. See docs/METRICS_DEFINITION.md §B8.
-	measure 'Product Profit Allocation Chip' = ```
-			
-			VAR NonExactRows =
-			    CALCULATE (
-			        COUNTROWS ( mart_product_profit ),
-			        mart_product_profit[cost_allocation_method] <> "line_exact"
-			    )
-			RETURN
-			    IF (
-			        NOT ISBLANK ( NonExactRows ) && NonExactRows > 0,
-			        "Profit allocated by revenue share — not exact line-level cost",
-			        BLANK ()
-			    )
-			
-			```
-		displayFolder: Profitability
-		lineageTag: f2703786-d3f8-43d7-b27a-54c576797715
-
-	/// Count of refund rows in fact_refund (one row per Woo refund event). See docs/METRICS_DEFINITION.md §C1. Expected whole-dataset value: 34.
-	measure 'Refunded Order Count' =
-			
-			COUNTROWS ( fact_refund )
-		formatString: #,0
-		displayFolder: Refund / Cancellation
-		lineageTag: a7d27eac-132d-4139-bf15-8c34b6480ded
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Total refunded value in USD from fact_refund. See docs/METRICS_DEFINITION.md §C2.
-	measure 'Refund Amount' =
-			
-			SUM ( fact_refund[refund_amount_usd] )
+			DIVIDE ( [Total Cost], [Paid Orders] )
 		formatString: \$#,0.00
-		displayFolder: Refund / Cancellation
-		lineageTag: 9c190032-fbcd-4f34-9bc2-3722787bbacd
+		displayFolder: Cost
+		lineageTag: 1d25a82f-24c8-49f0-af8b-5b61d6adf168
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// $16.41 = $70,744.58 / 4,312.
+	measure 'Cost per Unit' =
+			
+			DIVIDE ( [Total Cost], [Quantity Sold] )
+		formatString: \$#,0.00
+		displayFolder: Cost
+		lineageTag: 3a499d45-eb4d-47df-a48a-5facc1fd4b56
 
-	/// Distinct orders that reached a settleable state (excludes 'failed' and 'pending'); the denominator for refund/cancellation rates. See docs/METRICS_DEFINITION.md §C3.
-	measure 'Eligible Orders' = ```
+	/// Distinct SKUs with at least one revenue-status line.
+	measure 'Distinct Products Sold' =
 			
 			CALCULATE (
-			    DISTINCTCOUNT ( fact_order[order_sk] ),
-			    NOT ( fact_order[status] IN { "failed", "pending" } )
+			    DISTINCTCOUNT ( fact_order_item[product_sk] ),
+			    fact_order_item[is_revenue_status] = TRUE ()
 			)
-			
-			```
 		formatString: #,0
-		displayFolder: Refund / Cancellation
-		lineageTag: 4a8d27b5-c7b3-4706-be61-19e6844f6545
+		displayFolder: Products
+		lineageTag: 9306c1b2-2c71-42df-b449-4f6cb246590a
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Distinct orders that either have at least one refund row (fact_refund) OR carry status = 'cancelled' in fact_order, de-duplicated so an order counted once even if both. TREATAS remaps fact_refund[order_sk] onto fact_order[order_sk] so UNION/DISTINCT share lineage. Numerator of Refund Rate. See docs/METRICS_DEFINITION.md §C3.
-	measure 'Refunded or Cancelled Orders' =
+	/// 1.13 = 4,312 / 3,812.
+	measure 'Avg Units per Order' =
 			
-			VAR CancelledKeys =
-			    CALCULATETABLE (
-			        VALUES ( fact_order[order_sk] ),
-			        fact_order[status] = "cancelled"
-			    )
-			VAR RefundedKeys =
-			    TREATAS (
-			        VALUES ( fact_refund[order_sk] ),
-			        fact_order[order_sk]
-			    )
-			VAR CombinedKeys =
-			    DISTINCT ( UNION ( CancelledKeys, RefundedKeys ) )
+			DIVIDE ( [Quantity Sold], [Paid Orders] )
+		formatString: #,0.00
+		displayFolder: Products
+		lineageTag: 1a659016-e389-4368-80d4-f0fc25835ebc
+
+	/// Pareto numerator: running revenue across products ranked descending. Place on a visual with dim_product[product_name].
+	measure 'Cumulative Revenue' =
+			
+			VAR CurrentRevenue = [Revenue]
 			RETURN
-			    COUNTROWS ( CombinedKeys )
-		formatString: #,0
-		displayFolder: Refund / Cancellation
-		lineageTag: f0d252b8-c39a-44b7-aeec-d2ee25a65a5b
+			    CALCULATE (
+			        [Revenue],
+			        FILTER (
+			            ALLSELECTED ( dim_product[product_name] ),
+			            [Revenue] >= CurrentRevenue
+			        )
+			    )
+		formatString: \$#,0
+		displayFolder: Products
+		lineageTag: 12d3be24-1ac5-4f28-8013-2b46d28e4d12
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Refunded or Cancelled Orders],[Eligible Orders]) -- a combined refund+cancellation failure rate; now refunds ONLY: 34 / 3,812 = 0.9%. Cancellations are reported separately by [Cancellation Rate]. KNOCK-ON: [Refund Rate (min 10 orders)] reuses this but still guards on [Eligible Orders]. The measure [Refunded or Cancelled Orders] is now unused by anything -- keep it if you want the old combined rate back.
-	measure 'Refund Rate' = DIVIDE ( [Refunded Orders], [Paid Orders] )
-		formatString: 0.0%
-		displayFolder: Refund / Cancellation
-		lineageTag: e71c0299-e5be-4991-9015-3f5dc01f5cd3
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Denominator changed from [Eligible Orders] (settleable orders, excludes failed/pending) to [Order Attempts] (all 4,757 rows), giving 497 / 4,757 = 10.4%. The capstone basis makes the three operations rates additive against one funnel: Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100%. Does not implement ecom §C4 any more.
-	measure 'Cancellation Rate' = DIVIDE ( [Cancelled Orders], [Order Attempts] )
-		formatString: 0.0%
-		displayFolder: Refund / Cancellation
-		lineageTag: 14c90891-e567-4404-bca3-92eedd5c3533
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Refunded dollars as a share of gross Revenue = Refund Amount / Revenue. [Revenue] is the group-A gross revenue measure (SUM fact_order_item[line_revenue_usd] filtered to is_revenue_status = TRUE()). See docs/METRICS_DEFINITION.md §C5.
-	measure 'Refund Revenue Share' =
+	/// Pareto curve: cumulative revenue share by product rank. Top ~11% of SKUs reach 50%.
+	measure 'Cumulative Revenue %' =
 			
 			DIVIDE (
-			    [Refund Amount],
-			    [Revenue]
+			    [Cumulative Revenue],
+			    CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) )
 			)
 		formatString: 0.0%
-		displayFolder: Refund / Cancellation
-		lineageTag: 2cd4553c-3108-4877-ab02-dfde7874054f
+		displayFolder: Products
+		lineageTag: ce1e3d6e-0a5b-43d0-a239-ceb278def160
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// Line-grain contribution profit from mart_product_profit (has dim_product relationship; sums to $87,138.04).
+	/// Use this - never [Contribution Profit] - on product visuals, which would silently show the grand total on every row.
+	measure 'Product Profit' =
+			
+			SUM ( mart_product_profit[line_profit_usd] )
+		formatString: \$#,0
+		displayFolder: Products
+		lineageTag: 94710e1a-f4db-4662-b3fc-537cc38e6d3a
 
-	/// Per-country gross revenue grouped correctly by country while preserving invariant #1 (revenue from fact_order_item). See docs/METRICS_DEFINITION.md §G2.
+	/// Line-grain net revenue ($157,882.62 total, matches [Profit Base Net Revenue]). Denominator for [Product Margin]. Per CAPSTONE_BUILD_GUIDE 3.5b.
+	measure 'Product Net Revenue' =
+			
+			SUM ( mart_product_profit[line_net_revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Products
+		lineageTag: 26a53e62-ecba-4160-8116-2bf1bc5d0ddb
+
+	/// Line-grain margin, safe to slice by product. Use instead of [Profit Margin] on product visuals.
+	measure 'Product Margin' =
+			
+			DIVIDE ( [Product Profit], [Product Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Products
+		lineageTag: 3be583d3-606b-4744-b20d-23a09854773b
+
+	/// GROSS revenue by country: TREATAS transfers country-filtered fact_order keys onto fact_order_item, preserving rule #1. Plain [Revenue] returns the grand total for every country. Per CAPSTONE_BUILD_GUIDE 3.6.
 	measure 'Revenue per Country' =
 			
 			CALCULATE (
 			    [Revenue],
 			    TREATAS ( VALUES ( fact_order[order_sk] ), fact_order_item[order_sk] )
 			)
-			-- Transfers the country-filtered fact_order rows to fact_order_item via order_sk,
-			-- so per-country revenue still sums fact_order_item[line_revenue_usd] (is_revenue_status = TRUE inside [Revenue]).
-			-- Alternative: enable a country_sk bridge / bidirectional cross-filter dim_country -> fact_order -> fact_order_item.
-			-- Do NOT read revenue from fact_order (no revenue column) and do NOT substitute mart_country_profit[revenue_usd] (that is NET revenue, not gross A1).
-		formatString: \$#,0.00
-		displayFolder: Site & Geography
-		lineageTag: 8649f52a-fedf-4744-8524-3763e9c1cf9d
+		formatString: \$#,0
+		displayFolder: Markets
+		lineageTag: 5968397f-fcd7-4203-88e7-5e8867398a85
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// AOV per country/site with a sample-size guard: returns [AOV] only when at least 10 orders are in context, else BLANK() so thin slices are hidden. Guard rebased from [Orders] to [Paid Orders] on 2026-07-22 so it counts the SAME population [AOV] now divides by -- leaving it on [Orders] would have guarded 3,789 orders while dividing by 3,812.
-	measure 'AOV (min 10 orders)' =
-			VAR OrderCount = [Paid Orders]
-			RETURN
-			    IF (
-			        OrderCount >= 10,
-			        [AOV],
-			        BLANK ()
-			    )
-		formatString: \$#,0.00
-		displayFolder: Site & Geography
-		lineageTag: 4f3cbf05-4def-4f3e-904f-c5ff5b192c35
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// as a plain §A8 reuse, the numerator SUM(fact_order[shipping_charged_usd]) filters by country but the denominator [Revenue] (fact_order_item, no country_sk) does not, giving country-shipping / TOTAL-revenue. To fix per-country, use a dedicated measure that filters both sides to the same country orders
-	measure 'Shipping Charged Ratio by Country' =
+	/// Contribution profit from mart_country_profit, the only profit table with a dim_country relationship (sums to $87,138.04). Use instead of [Contribution Profit] on country visuals. Per CAPSTONE_BUILD_GUIDE 3.6.
+	measure 'Country Profit' =
 			
-			VAR ShipByCountry = SUM ( fact_order[shipping_charged_usd] )
-			VAR RevByCountry = CALCULATE ( [Revenue], TREATAS ( VALUES ( fact_order[order_sk] ), fact_order_item[order_sk] ) )
-			RETURN DIVIDE ( ShipByCountry, RevByCountry )
+			SUM ( mart_country_profit[contribution_profit_usd] )
+		formatString: \$#,0
+		displayFolder: Markets
+		lineageTag: 724521e3-0e9e-41c9-b2fe-89cdb9e5a1d0
+
+	/// NAME TRAP: mart_country_profit[revenue_usd] is NET revenue incl. shipping ($157,882.62 total), NOT gross. Never label it 'Revenue' on a visual - gross by country is [Revenue per Country]. Denominator for [Country Margin]. Per CAPSTONE_BUILD_GUIDE 3.6.
+	measure 'Country Net Revenue' =
+			
+			SUM ( mart_country_profit[revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Markets
+		lineageTag: 32cfa5a7-db5f-4028-88fe-ab9eb8c3c201
+
+	/// Margin per country. Use instead of [Profit Margin] on country visuals. Germany reads 58.5% under Approach A. Per CAPSTONE_BUILD_GUIDE 3.6.
+	measure 'Country Margin' =
+			
+			DIVIDE ( [Country Profit], [Country Net Revenue] )
 		formatString: 0.0%
-		displayFolder: Site & Geography
-		lineageTag: fcf52f4f-4111-41df-9139-dcf38fca055a
+		displayFolder: Markets
+		lineageTag: 8bb0cf33-0e5d-448d-aa7a-5b111b0bf9a4
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// Orders per country (3,812 total, matches [Paid Orders]). Use instead of [Paid Orders] on country visuals. Per CAPSTONE_BUILD_GUIDE 3.6.
+	measure 'Country Orders' =
+			
+			SUM ( mart_country_profit[order_count] )
+		formatString: #,0
+		displayFolder: Markets
+		lineageTag: 8e4439b8-9cfb-42bc-816d-770588ee32e8
 
-	/// By-country/site refund rate with a sample-size guard. Guard rebased from [Eligible Orders] to [Paid Orders] on 2026-07-22 to match [Refund Rate]'s new denominator (refunds / paid orders). Note both this and [Refund Rate] read fact_refund and fact_order, neither of which slices by country -- on a country visual they return the all-store rate. Use only for site-level slicing until a country-aware refund measure exists.
-	measure 'Refund Rate (min 10 orders)' =
-			VAR OrderCount = [Paid Orders]
-			RETURN
-			    IF (
-			        OrderCount >= 10,
-			        [Refund Rate],
-			        BLANK ()
-			    )
+	/// Country AOV with numerator and denominator on the SAME country population. Plain [AOV] returns the grand-total AOV for every country. Per CAPSTONE_BUILD_GUIDE Page 4 note.
+	measure 'AOV per Country' =
+			
+			DIVIDE ( [Revenue per Country], [Country Orders] )
+		formatString: \$#,0.00
+		displayFolder: Markets
+		lineageTag: 35d76eba-f1d9-448f-946e-6e20732ff26b
+
+	/// Country share of gross revenue, built on [Revenue per Country] - plain [Revenue] would give 100% for every country. Per CAPSTONE_BUILD_GUIDE 3.6.
+	measure 'Revenue Share' =
+			
+			DIVIDE (
+			    [Revenue per Country],
+			    CALCULATE ( [Revenue per Country], ALLSELECTED ( dim_country[country_name] ) )
+			)
 		formatString: 0.0%
-		displayFolder: Site & Geography
-		lineageTag: 9f1ea783-6df2-452b-89fe-332f31159bfb
+		displayFolder: Markets
+		lineageTag: 12f7b199-bab9-4bef-b543-9144ebe8bc8d
 
-		annotation PBI_FormatHint = {"isCustom":true}
+	/// Full customer base (4,266) incl. guest/unknown-email checkouts (capstone decision 2026-07-22; ecom filtered to 4,263). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Distinct Customers' =
+			
+			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: 4473184f-f316-4437-a51b-c500a479e92c
 
-	/// share of orders with a non-null cogs_usd, read straight from the dbt-computed recon '__ALL__' row (cogs_coverage_pct, e.g. 98.79) so the value matches dbt exactly rather than being recomputed in DAX. Target ≥ 80%. Value is pre-scaled 0–100, so the literal-percent format (0.0"%") avoids a ×100. See docs/METRICS_DEFINITION.md §H3.
-	measure 'COGS Coverage %' =
+	/// Customers with more than one lifetime order (384). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Repeat Customers' =
 			
 			CALCULATE (
-			    MAX ( recon_cost_coverage[cogs_coverage_pct] ),
-			    recon_cost_coverage[site_sk] = "__ALL__"
+			    COUNTROWS ( mart_customer_summary ),
+			    mart_customer_summary[is_repeat] = TRUE ()
 			)
-		formatString: 0.0"%"
-		displayFolder: Data Quality & Coverage
-		lineageTag: b75f5633-a011-4cd1-b375-3dbf7cfe696e
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// share of product-profit line items whose cost was allocated by exact line match (cost_allocation_method = 'line_exact') rather than an order-level split. A quality signal for cost granularity, not a gate. Computed live from mart_product_profit → 0–1 fraction, so standard 0.0% (×100) is correct here. See docs/METRICS_DEFINITION.md §H2.
-	measure 'Cost Allocation Coverage %' =
-			
-			VAR LineExactRows =
-			    CALCULATE (
-			        COUNTROWS ( mart_product_profit ),
-			        mart_product_profit[cost_allocation_method] = "line_exact"
-			    )
-			VAR TotalRows =
-			    COUNTROWS ( mart_product_profit )
-			RETURN
-			    DIVIDE ( LineExactRows, TotalRows )
-		formatString: 0.0%
-		displayFolder: Data Quality & Coverage
-		lineageTag: eb79a65e-fdba-4b33-8cce-fc4fd913569f
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// the current payment_fee_source's share of all orders across the real source rows (excludes the '__ALL__' aggregate). Feeds the Payment Fee Source Mix visual when a normalized 0–100% proportion is wanted instead of raw counts. See docs/METRICS_DEFINITION.md §H4b.
-	measure 'Payment Fee Source Share' =
-			
-			VAR SourceOrders =
-			    CALCULATE (
-			        SUM ( recon_payment_fee_coverage[order_count] ),
-			        KEEPFILTERS ( recon_payment_fee_coverage[payment_fee_source] <> "__ALL__" )
-			    )
-			VAR TotalSourceOrders =
-			    CALCULATE (
-			        SUM ( recon_payment_fee_coverage[order_count] ),
-			        REMOVEFILTERS ( recon_payment_fee_coverage[payment_fee_source] ),
-			        recon_payment_fee_coverage[payment_fee_source] <> "__ALL__"
-			    )
-			RETURN
-			    DIVIDE ( SourceOrders, TotalSourceOrders )
-		formatString: 0.0%
-		displayFolder: Data Quality & Coverage
-		lineageTag: c8a6ff5c-fb83-464c-98c2-4d373c7212b8
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// the average per-row percentage delta between Woo's shipping_charged_usd and the CSV Shipping column, for an at-a-glance reconciliation health number above the detail table. Report only — both sides are revenue-side shipping charged to the customer, not cost. delta_pct is pre-scaled (e.g. -1.23 = -1.23%), so the literal-percent format avoids ×100. See docs/METRICS_DEFINITION.md §H10.
-	measure 'Woo vs CSV Shipping Drift %' =
-			
-			AVERAGE ( recon_woo_vs_csv_shipping_charged[delta_pct] )
-		formatString: 0.0"%"
-		displayFolder: Data Quality & Coverage
-		lineageTag: c860f251-2327-4298-86b1-580651a6cefb
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was CALCULATE(DISTINCTCOUNT(customer_hash), dim_customer_anonymized[is_unknown_email]=FALSE()) = 4,263 known-email customers; now the unfiltered customer base = 4,266, i.e. guest/unknown-email checkouts are INCLUDED. Difference is only 3 customers today but the semantics differ: this no longer implements ecom §I1. Repo docs still describe the filtered form.
-	measure 'Distinct Customers' = DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
 		formatString: #,0
-		displayFolder: Customer
-		lineageTag: 89f6f4c6-b7b8-44a3-8f63-3f0c23dba649
+		displayFolder: Customers
+		lineageTag: dee130ee-b1eb-4391-a03c-95d8052ff03c
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Share of the customer base that has ordered more than once: repeat customers (mart_customer_summary[is_repeat] = TRUE()) divided by all customers. Safe-divided so an empty base returns blank. See docs/METRICS_DEFINITION.md §I2.
-	measure 'Repeat Customer Share' = ```
+	/// 9.0% = 384 / 4,266. Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Repeat Rate' =
 			
-			VAR RepeatCustomers =
+			DIVIDE ( [Repeat Customers], [Distinct Customers] )
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 5cda2e61-6811-4c8b-a9bc-ffbceab64a58
+
+	/// ~91% never reordered - the headline retention weakness on the Customers page. Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'One-time Share' =
+			
+			1 - [Repeat Rate]
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 3d32ee47-b1fc-44d5-8699-403d1eff0bae
+
+	/// Lifetime average 1.12 = 4,757 / 4,266. Lifetime-only: does NOT respond to the date slicer (mart_customer_summary has no dim_date relationship). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Orders per Customer' =
+			
+			DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
+		formatString: #,0.00
+		displayFolder: Customers
+		lineageTag: 75c0a0dc-9430-45da-857e-ddc8725e59cb
+
+	/// Use with mart_customer_summary[first_order_date] on the axis = new-customer acquisition per period. On a bare card it is simply the total base. Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'New Customers' =
+			
+			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: 0dd6047a-3b1b-450b-882f-2f79cceb197f
+
+	/// ~67% of the base last ordered 12+ months ago. Depends on the [Recency Segment] calculated column, whose anchor is the dynamic MAX(last_order_date). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Lapsed Share' =
+			
+			DIVIDE (
 			    CALCULATE (
 			        COUNTROWS ( mart_customer_summary ),
-			        mart_customer_summary[is_repeat] = TRUE ()
-			    )
-			VAR AllCustomers =
-			    COUNTROWS ( mart_customer_summary )
-			RETURN
-			    DIVIDE ( RepeatCustomers, AllCustomers )
+			        mart_customer_summary[Recency Segment] = "Lapsed 12+mo"
+			    ),
+			    [Distinct Customers]
+			)
+		formatString: 0.0%
+		displayFolder: Customers
+		lineageTag: 858e14e1-cd14-4430-bc80-b7c6162867d7
+
+	/// Every order row regardless of status (4,757) - the checkout-funnel denominator. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Order Attempts' =
 			
-			```
-		formatString: 0.0%
-		displayFolder: Customer
-		lineageTag: 59e9fde8-e36a-4775-b3f7-209800631a11
+			COUNTROWS ( fact_order )
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 9cc4332d-76c4-43d4-acbc-089fb1606517
 
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// OVERWRITTEN 2026-07-22 with the capstone definition (owner decision). Was DIVIDE([Orders],[Distinct Customers]) = 0.89, which mixes a filter-context order count with a lifetime customer count; now DIVIDE(SUM(total_orders),[Distinct Customers]) = 1.12, a true lifetime average (4,757 / 4,266). The capstone form is the more defensible one for a Customers page, but it is lifetime-only and does NOT respond to a date slicer.
-	measure 'Orders per Customer' = DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
-		formatString: #,0.00
-		displayFolder: Customer
-		lineageTag: 484383c8-c148-4e79-8435-88d6230fd0b1
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Share of lifetime customer revenue generated by repeat customers: summed total_revenue_usd for is_repeat = TRUE() divided by total customer revenue. Uses mart_customer_summary lifetime revenue (customer-grain), not the item-grain gross Revenue measure. See docs/METRICS_DEFINITION.md §I4.
-	measure 'Repeat Revenue Share' =
+	/// Status = completed (3,699). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Completed Orders' =
 			
-			VAR RepeatRevenue =
-			    CALCULATE (
-			        SUM ( mart_customer_summary[total_revenue_usd] ),
-			        mart_customer_summary[is_repeat] = TRUE ()
-			    )
-			VAR TotalCustomerRevenue =
-			    SUM ( mart_customer_summary[total_revenue_usd] )
-			RETURN
-			    DIVIDE ( RepeatRevenue, TotalCustomerRevenue )
-		formatString: 0.0%
-		displayFolder: Customer
-		lineageTag: a1cffe40-e6bc-4052-9773-b253853a87ec
-
-		annotation PBI_FormatHint = {"isCustom":true}
-
-	/// Distinct orders present in mart_order_profit = completed 3,699 + processing 89 + refunded 24 = 3,812. NOT the same population as ecom's [Orders] (fact_order status in processing/completed/on-hold = 3,789). Capstone uses this so every cost/profit ratio shares the mart's denominator. Per CAPSTONE_BUILD_GUIDE §3.1.
-	measure 'Paid Orders' = DISTINCTCOUNT ( mart_order_profit[order_sk] )
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "completed"
+			)
 		formatString: #,0
-		displayFolder: Capstone\Sales
-		lineageTag: 1fb18cd8-8f38-42be-9933-df6436238bc5
+		displayFolder: Operations
+		lineageTag: 0d000558-2edd-4f91-85f0-4ec1ddf9a22d
 
-	/// Customer shipping charge across all orders ($50,648.98). Capstone's shorter name for ecom's [Shipping Charged to Customer] -- identical formula. Counted as REVENUE under Approach A, never as a cost.
-	measure 'Shipping Charged' = SUM ( fact_order[shipping_charged_usd] )
-		formatString: \$#,0
-		displayFolder: Capstone\Sales
-		lineageTag: f5c1b174-e125-4c4e-81b9-8ca730fd868d
-
-	/// COGS + Design Fee + Payment Fee = $70,744.58. Reconciles exactly: [Profit Base Net Revenue] - [Total Cost] = [Contribution Profit]. This only holds because [Payment Fee] reads mart_order_profit (fixed 2026-07-22); reading fact_order left it $137.72 short.
-	measure 'Total Cost' = [COGS] + [Design Fee] + [Payment Fee]
-		formatString: \$#,0
-		displayFolder: Capstone\Cost
-		lineageTag: 4854a6ce-610e-446b-8c4a-d89baad37777
-
-	/// Distinct SKUs with at least one revenue-status line. Per CAPSTONE_BUILD_GUIDE §3.5.
-	measure 'Distinct Products Sold' = CALCULATE ( DISTINCTCOUNT ( fact_order_item[product_sk] ), fact_order_item[is_revenue_status] = TRUE () )
+	/// Status = failed (437) - payment never settled. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Failed Orders' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "failed"
+			)
 		formatString: #,0
-		displayFolder: Capstone\Products
-		lineageTag: 11f279aa-f2f9-401c-82d3-3dcdf18d65df
+		displayFolder: Operations
+		lineageTag: fa001892-557b-40c0-9e20-79ca8998d22a
 
-	/// Contribution profit at LINE grain from mart_product_profit, which has a dim_product relationship. Use this -- never [Contribution Profit] -- on any visual sliced by product: mart_order_profit has NO relationship to dim_product, so [Contribution Profit] silently returns the $87,138.04 grand total for every product row. Sums to the same $87,138.04 in total. Per CAPSTONE_BUILD_GUIDE §3.5b.
-	measure 'Product Profit' = SUM ( mart_product_profit[line_profit_usd] )
-		formatString: \$#,0
-		displayFolder: Capstone\Products
-		lineageTag: 6637dc3a-cb96-400a-b918-43d15f85f5d7
-
-	/// Line-grain net revenue ($157,882.62 in total, matching [Profit Base Net Revenue]). Denominator for [Product Margin]. Per CAPSTONE_BUILD_GUIDE §3.5b.
-	measure 'Product Net Revenue' = SUM ( mart_product_profit[line_net_revenue_usd] )
-		formatString: \$#,0
-		displayFolder: Capstone\Products
-		lineageTag: e0d8c180-b623-49b7-8ef7-f2296a2d5143
-
-	/// Contribution profit from mart_country_profit, the only profit table with a dim_country relationship. Use this -- never [Contribution Profit] -- on any visual sliced by country. Sums to $87,138.04. Per CAPSTONE_BUILD_GUIDE §3.6.
-	measure 'Country Profit' = SUM ( mart_country_profit[contribution_profit_usd] )
-		formatString: \$#,0
-		displayFolder: Capstone\Markets
-		lineageTag: f1b95439-fd51-4a35-b90f-3cc0b4173ad6
-
-	/// WARNING on the column name: mart_country_profit[revenue_usd] is NET revenue including shipping ($157,882.62 total = [Profit Base Net Revenue]), NOT gross. Never label it 'Revenue' on a visual -- for gross revenue by country use [Revenue per Country]. Denominator for [Country Margin].
-	measure 'Country Net Revenue' = SUM ( mart_country_profit[revenue_usd] )
-		formatString: \$#,0
-		displayFolder: Capstone\Markets
-		lineageTag: 280e605a-75eb-4334-b841-f9fc0e6002ff
-
-	/// Order count per country from mart_country_profit (3,812 in total, matching [Paid Orders]). Use instead of [Paid Orders] on country visuals -- mart_order_profit has no dim_country relationship.
-	measure 'Country Orders' = SUM ( mart_country_profit[order_count] )
+	/// Status = cancelled (497). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Cancelled Orders' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "cancelled"
+			)
 		formatString: #,0
-		displayFolder: Capstone\Markets
-		lineageTag: 72ab6a36-923a-42b5-9a72-8b5c2cc4198a
+		displayFolder: Operations
+		lineageTag: 1ca7eb54-8708-4769-b77f-3b7ddb3be836
 
-	/// Every order row regardless of status (4,757) -- the checkout-funnel denominator. Per CAPSTONE_BUILD_GUIDE §3.8.
-	measure 'Order Attempts' = COUNTROWS ( fact_order )
+	/// Orders still in processing, awaiting fulfilment (90). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Open Backlog' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "processing"
+			)
 		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: 2fab9809-00e2-4e3d-a000-9bd1e782c472
+		displayFolder: Operations
+		lineageTag: 6ae68e38-34e2-4cf5-b963-7c65d4ab4e68
 
-	/// Orders with status = 'completed' (3,699).
-	measure 'Completed Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "completed" )
+	/// 80.1% = 3,812 / 4,757. With Failed 9.2% + Cancelled 10.4% the funnel rates are additive. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Paid Success Rate' =
+			
+			DIVIDE ( [Paid Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: a1bbd699-ae0f-436d-b56d-49e40715671c
+
+	/// 9.2% = 437 / 4,757 of checkout attempts lost to failed payment. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Failed Rate' =
+			
+			DIVIDE ( [Failed Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: 39845d8b-da1f-42e6-b9ce-eba5f0c78907
+
+	/// 10.4% = 497 / 4,757 (funnel basis, additive with Paid/Failed rates). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Cancellation Rate' =
+			
+			DIVIDE ( [Cancelled Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: 29001d67-9739-4dfe-ab59-273f7513a292
+
+	/// Distinct orders with at least one refund row (34) - robust if an order ever gets multiple refunds. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refunded Orders' =
+			
+			DISTINCTCOUNT ( fact_refund[order_sk] )
 		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: 6c3995c1-f60e-4474-b268-e1d9016e74f2
+		displayFolder: Operations
+		lineageTag: 12470660-1f93-4e9f-a1f2-c887f101fe5e
 
-	/// Orders with status = 'failed' (437) -- payment never settled.
-	measure 'Failed Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "failed" )
-		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: 60abfd89-46c5-4749-9fa3-b11fca4100f1
-
-	/// Orders with status = 'cancelled' (497).
-	measure 'Cancelled Orders' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "cancelled" )
-		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: 3083c3ac-ad20-4abe-8a03-280a04762293
-
-	/// Orders still in 'processing' awaiting fulfilment (90). Capstone's COUNTROWS variant of ecom's [Open Order Backlog] (DISTINCTCOUNT) -- same value.
-	measure 'Open Backlog' = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "processing" )
-		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: fd8d288a-d02a-4e5a-a9df-9f4f51dc209b
-
-	/// Distinct orders with at least one refund row (34). More robust than ecom's [Refunded Order Count] = COUNTROWS(fact_refund), which double-counts an order that gets more than one refund; the two coincide today.
-	measure 'Refunded Orders' = DISTINCTCOUNT ( fact_refund[order_sk] )
-		formatString: #,0
-		displayFolder: Capstone\Operations
-		lineageTag: 14d100f3-ce88-40d9-a780-548d3804eb4f
-
-	/// Effective processor rate over ALL order value. Deliberately keeps fact_order on BOTH sides -- this is an operational rate per payment method, not a P&L line, so it is exempt from the 2026-07-22 rule that cost terms must read mart_order_profit.
-	measure 'Payment Fee Rate' = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_order[order_total_usd] ) )
+	/// 0.9% = 34 / 3,812 - refund health only; cancellations are reported separately by [Cancellation Rate]. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refund Rate' =
+			
+			DIVIDE ( [Refunded Orders], [Paid Orders] )
 		formatString: 0.0%
-		displayFolder: Capstone\Operations
-		lineageTag: 26991049-3af9-4dce-9ca2-beb069876a76
+		displayFolder: Operations
+		lineageTag: 45cd1a9d-7a51-49fa-80e1-2bdf3496481b
 
-	/// Customers with more than one lifetime order (384).
-	measure 'Repeat Customers' = CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_customer_summary[is_repeat] = TRUE () )
-		formatString: #,0
-		displayFolder: Capstone\Customers
-		lineageTag: 069d0a76-4d17-4351-a207-4eff6494c790
-
-	/// Customer count intended for use with mart_customer_summary[first_order_date] on the axis, which turns it into new-customer acquisition per period. On a bare card it is simply the total customer base.
-	measure 'New Customers' = DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
-		formatString: #,0
-		displayFolder: Capstone\Customers
-		lineageTag: dd49b993-5922-4321-88d9-b5dd5c13c8e2
-
-	/// Running revenue total across products ranked descending -- the Pareto numerator. Place on a visual with dim_product[product_name]. Per CAPSTONE_BUILD_GUIDE §3.5.
-	measure 'Cumulative Revenue' =
-			VAR cur = [Revenue]
-			RETURN
-			    CALCULATE ( [Revenue], FILTER ( ALLSELECTED ( dim_product[product_name] ), [Revenue] >= cur ) )
-		formatString: \$#,0
-		displayFolder: Capstone\Products
-		lineageTag: eda521eb-276d-45bf-9cc2-237ff1729830
-
-	/// Prior-year gross revenue. Requires dim_date marked as the date table.
-	measure 'Revenue PY' = CALCULATE ( [Revenue], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
-		formatString: \$#,0
-		displayFolder: Capstone\YoY
-		lineageTag: 61cb5b34-1630-4839-bbc5-0f357356222c
-
-	/// Prior-year contribution profit.
-	measure 'Profit PY' = CALCULATE ( [Contribution Profit], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
-		formatString: \$#,0
-		displayFolder: Capstone\YoY
-		lineageTag: 63c2e42e-3e5a-4026-a8f8-4bb58978aa5b
-
-	/// Units per paid order (4,312 / 3,812 = 1.13).
-	measure 'Avg Units per Order' = DIVIDE ( [Quantity Sold], [Paid Orders] )
-		formatString: #,0.00
-		displayFolder: Capstone\Products
-		lineageTag: 4623b3f4-18c6-47c9-a817-24b1743bc7f7
-
-	/// Total Cost / Profit Base Net Revenue = 44.8%. Denominator MUST be [Profit Base Net Revenue] (product + shipping - refund, $157,882.62), not the product-only [Net Revenue] -- using the latter gives the pre-Approach-A 59.8% and understates the business.
-	measure 'Cost Ratio' = DIVIDE ( [Total Cost], [Profit Base Net Revenue] )
+	/// Effective processor rate over ALL order value. Deliberately fact_order on both sides - an ops rate per payment method, not a P&L line (P&L fee is [Payment Fee] from the mart). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Payment Fee Rate' =
+			
+			DIVIDE (
+			    SUM ( fact_order[payment_fee_usd] ),
+			    SUM ( fact_order[order_total_usd] )
+			)
 		formatString: 0.0%
-		displayFolder: Capstone\Cost
-		lineageTag: b86e460d-a775-4719-ad57-a801cf876d8a
+		displayFolder: Operations
+		lineageTag: 5ec64c69-b49c-4b6c-899b-a4a37505b76c
 
-	/// COGS / Profit Base Net Revenue = 38.7% (was 51.6% against the old product-only base).
-	measure 'COGS Ratio' = DIVIDE ( [COGS], [Profit Base Net Revenue] )
-		formatString: 0.0%
-		displayFolder: Capstone\Cost
-		lineageTag: 6a2791fb-587c-41d3-a0ef-0aa2cdbee7b3
+	/// Compact card label via UDF MoM_Icon, artifact style: '▲ 5.2% MoM' / '▼ 9.4% MoM' / '-'. Pair with [Revenue MoM Color] on font color fx.
+	measure 'Revenue MoM Icon' =
+			
+			MoM_Icon ( [Revenue] )
+		displayFolder: MoM
+		lineageTag: 56f150ae-36d6-4614-9016-38ab16a696e4
 
-	/// $70,744.58 / 3,812 = $18.56.
-	measure 'Cost per Order' = DIVIDE ( [Total Cost], [Paid Orders] )
-		formatString: \$#,0.00
-		displayFolder: Capstone\Cost
-		lineageTag: 6948351b-f018-42f8-94a5-afcf4cd6a906
+	/// Hex for conditional font color of [Revenue MoM Icon]: up #2E8B4F, down #E5484D, blank #9AA3AF. Apply via Format > Font color > fx > Field value.
+	measure 'Revenue MoM Color' =
+			
+			MoM_Color ( [Revenue] )
+		displayFolder: MoM
+		lineageTag: 9948ace6-6103-4fd6-9515-9401ad09dd7a
 
-	/// $70,744.58 / 4,312 = $16.41.
-	measure 'Cost per Unit' = DIVIDE ( [Total Cost], [Quantity Sold] )
-		formatString: \$#,0.00
-		displayFolder: Capstone\Cost
-		lineageTag: b29dd5f4-a08c-4e40-a9a8-dcd096ef4ce6
+	/// Card label for profit MoM. Pair with [Profit MoM Color].
+	measure 'Profit MoM Icon' =
+			
+			MoM_Icon ( [Contribution Profit] )
+		displayFolder: MoM
+		lineageTag: 1d29bbd3-ef81-4765-8cf9-df2fe7d34e1d
 
-	/// Line-grain contribution margin, safe to slice by product. Use instead of [Profit Margin] on product visuals. Per CAPSTONE_BUILD_GUIDE §3.5b.
-	measure 'Product Margin' = DIVIDE ( [Product Profit], [Product Net Revenue] )
-		formatString: 0.0%
-		displayFolder: Capstone\Products
-		lineageTag: 1c13f706-c22c-4ffa-bced-942543461578
+	/// Hex for [Profit MoM Icon] font color.
+	measure 'Profit MoM Color' =
+			
+			MoM_Color ( [Contribution Profit] )
+		displayFolder: MoM
+		lineageTag: e041102f-7610-4989-8a5c-1df8784dfc4e
 
-	/// Contribution margin per country from mart_country_profit. Use instead of [Profit Margin] on country visuals. Under Approach A, Germany reads 58.5% (was 44.0% on the old base). Per CAPSTONE_BUILD_GUIDE §3.6.
-	measure 'Country Margin' = DIVIDE ( [Country Profit], [Country Net Revenue] )
-		formatString: 0.0%
-		displayFolder: Capstone\Markets
-		lineageTag: e2629d4a-255e-4ec6-ae56-818e49ff08c9
+	/// Card label for orders MoM. Pair with [Orders MoM Color].
+	measure 'Orders MoM Icon' =
+			
+			MoM_Icon ( [Paid Orders] )
+		displayFolder: MoM
+		lineageTag: 21223076-8660-4db0-9e54-4c89861404ea
 
-	/// Country AOV with numerator and denominator on the SAME country population. Plain [AOV] cannot be used here: its numerator [Revenue] reads fact_order_item, which has no dim_country relationship, so it returns the grand total for every country.
-	measure 'AOV per Country' = DIVIDE ( [Revenue per Country], [Country Orders] )
-		formatString: \$#,0.00
-		displayFolder: Capstone\Markets
-		lineageTag: 84cabb55-9f22-4bb2-8b5f-20b0e07581b2
+	/// Hex for [Orders MoM Icon] font color.
+	measure 'Orders MoM Color' =
+			
+			MoM_Color ( [Paid Orders] )
+		displayFolder: MoM
+		lineageTag: 016425aa-0e77-4298-924e-e5cefa555be1
 
-	/// Country share of gross revenue. Built on [Revenue per Country] (TREATAS), not [Revenue] -- the latter would give 100% for every country.
-	measure 'Revenue Share' = DIVIDE ( [Revenue per Country], CALCULATE ( [Revenue per Country], ALLSELECTED ( dim_country[country_name] ) ) )
-		formatString: 0.0%
-		displayFolder: Capstone\Markets
-		lineageTag: a9680483-dac9-42f9-9270-954105f4bfb3
+	/// Card label for cost MoM. Pair with [Total Cost MoM Color] (inverse palette).
+	measure 'Total Cost MoM Icon' =
+			
+			MoM_Icon ( [Total Cost] )
+		displayFolder: MoM
+		lineageTag: 81d405c4-c8de-43ac-aff7-efbec1a98aaa
 
-	/// Pareto curve: cumulative share of revenue by product rank. Top ~11% of SKUs reach 50%.
-	measure 'Cumulative Revenue %' = DIVIDE ( [Cumulative Revenue], CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) ) )
-		formatString: 0.0%
-		displayFolder: Capstone\Products
-		lineageTag: 0c30eebd-33e7-4be8-9389-b06a790dba48
+	/// INVERSE hex for [Total Cost MoM Icon]: cost up = red #E5484D, cost down = green #2E8B4F.
+	measure 'Total Cost MoM Color' =
+			
+			Delta_Color_Inverse ( MoM_Perc ( [Total Cost] ) )
+		displayFolder: MoM
+		lineageTag: 18590212-bc08-4765-a2b8-3047e5fec8f8
 
-	/// Prior-year paid order count.
-	measure 'Orders PY' = CALCULATE ( [Paid Orders], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
-		formatString: #,0
-		displayFolder: Capstone\YoY
-		lineageTag: 32c13029-282a-4ab6-a19c-872e3c2d49c3
+	/// Compact card label via UDF YoY_Icon: '▼ 9.4% YoY'. Pair with [Revenue YoY Color] on font color fx.
+	measure 'Revenue YoY Icon' =
+			
+			YoY_Icon ( [Revenue] )
+		displayFolder: YoY
+		lineageTag: 23ba0f4e-b60e-4d2e-ab4e-aeefd3c1410c
 
-	/// Gross revenue YoY. 2025 vs 2024 reads -9.4%.
-	measure 'Revenue YoY %' = DIVIDE ( [Revenue] - [Revenue PY], [Revenue PY] )
-		formatString: 0.0%
-		displayFolder: Capstone\YoY
-		lineageTag: 93adf3ca-0593-4d9f-9642-5185a4a69a8f
+	/// Hex for [Revenue YoY Icon] font color: up #2E8B4F, down #E5484D, blank #9AA3AF.
+	measure 'Revenue YoY Color' =
+			
+			YoY_Color ( [Revenue] )
+		displayFolder: YoY
+		lineageTag: 2d843c62-3058-4931-9446-2fe3eb380857
 
-	/// Contribution profit YoY. 2025 vs 2024 reads -16.0% on the Approach A base (was -11.6% pre-Approach-A).
-	measure 'Profit YoY %' = DIVIDE ( [Contribution Profit] - [Profit PY], [Profit PY] )
-		formatString: 0.0%
-		displayFolder: Capstone\YoY
-		lineageTag: 6d866bb0-e24c-4474-8214-cb4cb261b73d
+	/// Card label for profit YoY. Pair with [Profit YoY Color].
+	measure 'Profit YoY Icon' =
+			
+			YoY_Icon ( [Contribution Profit] )
+		displayFolder: YoY
+		lineageTag: 0a20a0d2-1d49-4682-8ef4-a19765372ae8
 
-	/// 3,812 / 4,757 = 80.1%. Note the capstone guide previously printed 80.2%, which came from a stale 3,815 order count.
-	measure 'Paid Success Rate' = DIVIDE ( [Paid Orders], [Order Attempts] )
-		formatString: 0.0%
-		displayFolder: Capstone\Operations
-		lineageTag: d7c8ed5a-c47d-46bb-b9b7-43628f7a2913
+	/// Hex for [Profit YoY Icon] font color.
+	measure 'Profit YoY Color' =
+			
+			YoY_Color ( [Contribution Profit] )
+		displayFolder: YoY
+		lineageTag: aecd0467-7a08-46c1-8eaa-534facc00b9a
 
-	/// 437 / 4,757 = 9.2% of checkout attempts lost to failed payment.
-	measure 'Failed Rate' = DIVIDE ( [Failed Orders], [Order Attempts] )
-		formatString: 0.0%
-		displayFolder: Capstone\Operations
-		lineageTag: f2f6c6c7-75c0-4581-99d6-57fc76fed245
+	/// Card label for orders YoY. Pair with [Orders YoY Color].
+	measure 'Orders YoY Icon' =
+			
+			YoY_Icon ( [Paid Orders] )
+		displayFolder: YoY
+		lineageTag: 20b27fef-2988-4705-8727-181fc3f6411c
 
-	/// Paid order count YoY. 2025 vs 2024 reads -7.2%.
-	measure 'Orders YoY %' = DIVIDE ( [Paid Orders] - [Orders PY], [Orders PY] )
-		formatString: 0.0%
-		displayFolder: Capstone\YoY
-		lineageTag: d6e905c3-a900-4370-948c-04a9f6a4e53a
+	/// Hex for [Orders YoY Icon] font color.
+	measure 'Orders YoY Color' =
+			
+			YoY_Color ( [Paid Orders] )
+		displayFolder: YoY
+		lineageTag: f8384d48-64a6-456d-809c-29db69109ec3
 
-	/// 384 / 4,266 = 9.0%. Capstone's name for ecom's [Repeat Customer Share]; both are now identical in value since [Distinct Customers] was rebased to the unfiltered customer count.
-	measure 'Repeat Rate' = DIVIDE ( [Repeat Customers], [Distinct Customers] )
-		formatString: 0.0%
-		displayFolder: Capstone\Customers
-		lineageTag: d01e12ea-fc63-4911-b70d-679cbce75439
+	/// Card label for cost YoY. Pair with [Total Cost YoY Color] (inverse palette).
+	measure 'Total Cost YoY Icon' =
+			
+			YoY_Icon ( [Total Cost] )
+		displayFolder: YoY
+		lineageTag: dcfc834d-79ea-48d5-9a05-7428ad9449da
 
-	/// Share of the customer base whose last order is over 12 months old (~67%). Depends on the calculated column [Recency Segment], which in turn anchors to the dynamic MAX(last_order_date) -- so this stays correct across refreshes.
-	measure 'Lapsed Share' = DIVIDE ( CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_customer_summary[Recency Segment] = "Lapsed 12+mo" ), [Distinct Customers] )
-		formatString: 0.0%
-		displayFolder: Capstone\Customers
-		lineageTag: aa4f0ef4-7951-46e8-a8f9-b850b7907694
-
-	/// Share of customers who never reordered (~91%) -- the headline retention weakness on the Customers page.
-	measure 'One-time Share' = 1 - [Repeat Rate]
-		formatString: 0.0%
-		displayFolder: Capstone\Customers
-		lineageTag: 8bdd9c8e-ebe9-4d4a-8f52-92eca8cb15e9
+	/// INVERSE hex for [Total Cost YoY Icon]: cost up = red #E5484D, cost down = green #2E8B4F.
+	measure 'Total Cost YoY Color' =
+			
+			Delta_Color_Inverse ( YoY_Perc ( [Total Cost] ) )
+		displayFolder: YoY
+		lineageTag: 61aea43a-8c39-48cd-986e-4df07c524337
 
 	partition _Measures = m
 		mode: import

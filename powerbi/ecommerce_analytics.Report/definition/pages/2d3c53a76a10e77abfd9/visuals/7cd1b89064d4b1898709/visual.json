@@ -1,15 +1,16 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
-  "name": "1a407b708b36795b125a",
+  "name": "7cd1b89064d4b1898709",
   "position": {
-    "x": 1382,
+    "x": 420.83333333333337,
     "y": 621.33333333333326,
-    "z": 1000,
+    "z": 3000,
     "height": 300,
     "width": 300
   },
   "visual": {
     "visualType": "card",
+    "autoSelectVisualType": true,
     "query": {
       "queryState": {
         "Values": {
@@ -22,30 +23,15 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Contribution Profit"
+                  "Property": "Profit Margin"
                 }
               },
-              "queryRef": "_Measures.Contribution Profit",
-              "nativeQueryRef": "Contribution Profit"
+              "queryRef": "_Measures.Profit Margin",
+              "nativeQueryRef": "Profit Margin"
             }
           ]
         }
       }
-    },
-    "objects": {
-      "labels": [
-        {
-          "properties": {
-            "labelDisplayUnits": {
-              "expr": {
-                "Literal": {
-                  "Value": "1D"
-                }
-              }
-            }
-          }
-        }
-      ]
     },
     "drillFilterOtherVisuals": true
   }

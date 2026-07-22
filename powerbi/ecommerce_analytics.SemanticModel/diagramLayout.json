@@ -384,7 +384,7 @@
       "ordinal": 2,
       "scrollPosition": {
         "x": 0,
-        "y": 140.6290022211374
+        "y": 325.50083660173374
       },
       "nodes": [
         {
@@ -598,13 +598,13 @@
         }
       ],
       "name": "Data Quality",
-      "zoomValue": 70.95554390096882,
+      "zoomValue": 79.553182037699813,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
       "tablesLocked": false
     }
   ],
-  "selectedDiagram": "Profit",
+  "selectedDiagram": "Data Quality",
   "defaultDiagram": "All tables"
 }

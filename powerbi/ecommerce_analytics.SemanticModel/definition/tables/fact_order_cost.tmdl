@@ -139,7 +139,9 @@ table fact_order_cost
 				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
 				  #"Navigation 1" = Source{[Schema = "marts_operations", Item = "fact_order_cost"]}[Data]
 				in
-				  #"Navigation 1"
+				    #"Navigation 1"
 
 	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
 

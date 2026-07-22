@@ -1,12 +1,12 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
-  "name": "1a407b708b36795b125a",
+  "name": "6259e3a1839031d654e8",
   "position": {
-    "x": 1382,
-    "y": 621.33333333333326,
-    "z": 1000,
+    "x": 916.66666666666674,
+    "y": 280,
+    "z": 5002,
     "height": 300,
-    "width": 300
+    "width": 333.33333333333337
   },
   "visual": {
     "visualType": "card",
@@ -22,11 +22,11 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Contribution Profit"
+                  "Property": "Profit Base Net Revenue"
                 }
               },
-              "queryRef": "_Measures.Contribution Profit",
-              "nativeQueryRef": "Contribution Profit"
+              "queryRef": "_Measures.Profit Base Net Revenue",
+              "nativeQueryRef": "Profit Base Net Revenue"
             }
           ]
         }
