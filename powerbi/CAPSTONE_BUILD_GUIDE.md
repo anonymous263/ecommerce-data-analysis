@@ -116,6 +116,26 @@ Chọn `dim_date` → **Table tools → Mark as date table** → cột `date_day
 
 ## 3. Measures & Calculated columns
 
+### 3.0 Bảng nguồn chuẩn — metric nào đọc bảng nào (TRA TRƯỚC KHI DỰNG VISUAL)
+
+Nguyên tắc thống nhất dữ liệu của model: **mỗi metric có đúng MỘT nguồn chuẩn; mọi visual đều đọc từ nguồn đó**. Các bảng fact/mart *cố ý* cho số khác nhau vì trả lời câu hỏi khác nhau (mart đã áp refund capping, payment-fee coalesce, và gồm đơn refunded trong P&L) — đừng "sửa" chênh lệch bằng cách đổi nguồn.
+
+| Câu hỏi kinh doanh | Nguồn chuẩn DUY NHẤT | Measure | KHÔNG lấy từ |
+|---|---|---|---|
+| P&L: profit, margin, cost, fee | `mart_order_profit` (order) · `mart_product_profit` (product) · `mart_country_profit` (country) | `Contribution Profit` · `Profit Margin` · `Total Cost` · `COGS` · `Payment Fee` · `Product Profit` · `Country Profit`… | `fact_order[payment_fee_usd]` (thiếu fallback CSV, hụt $58.34) · CSV Revenue/Profit (rule #5) |
+| Doanh thu gross sản phẩm | `fact_order_item` | `[Revenue]` · `[Revenue per Country]` (TREATAS) · `Quantity Sold` | `fact_order` (không có cột revenue — cố ý) · `mart_country_profit[revenue_usd]` (đó là NET) |
+| Shipping khách trả (revenue-side) | `fact_order` | `Shipping Charged` | — (không tồn tại supplier shipping cost riêng) |
+| Funnel vận hành: fail/cancel/backlog | `fact_order` (mọi status, 4,757) | `Order Attempts` · `Failed Rate` · `Cancellation Rate` · `Open Backlog` · `Payment Fee Rate` | mart (mart không chứa đơn failed/cancelled) |
+| Refund health | `fact_refund` | `Refunded Orders` · `Refund Amount` | mart `effective_refund_usd` (đã cap — dùng cho P&L, không dùng cho KPI refund thô) |
+| Khách hàng lifetime | `mart_customer_summary` | `Distinct Customers` · `Repeat Rate` · `Orders per Customer` · `Lapsed Share` | `fact_order` đếm khách theo filter context |
+
+**3 quy tắc thực thi:**
+1. **Không trộn 2 cơ sở trong 1 visual** — vd. không đặt `[Revenue]` cạnh `[Product Net Revenue]` trong cùng bảng mà không ghi chú cơ sở.
+2. **Tử & mẫu cùng dân số** — mọi ratio chia cho `[Paid Orders]` (3,812, dân số mart) hoặc `[Order Attempts]` (4,757, funnel); margin/cost ratio luôn chia `[Profit Base Net Revenue]`.
+3. **Nhãn đúng bản chất** — `mart_country_profit[revenue_usd]` là NET (gồm shipping), cấm dán nhãn "Revenue".
+
+**Chênh lệch hợp lệ đã định lượng** (đừng hoảng khi thấy): `Paid Orders` 3,812 vs `Orders` 3,789 (mart gồm 24 đơn refunded, trừ 1 on-hold) · Payment Fee $7,128.11 (mart) vs $7,069.77 (fact) · Refund $1,465.51 (thô) vs $1,346.02 (capped) · Revenue $119,376.98 (item) vs $119,290.31 (mart coverage, −0.07%). Chi tiết: Phụ lục B.
+
 Tạo bảng đo lường: **Home → Enter data →** đặt tên `_Measures` → Load → xóa cột dummy sau khi thêm measure đầu tiên. Mỗi measure: **New measure**, dán DAX, đặt **Format** ở ribbon.
 
 ### 3.1 Sales / Revenue
@@ -210,7 +230,13 @@ Lapsed Share = DIVIDE ( CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_cu
 ```
 **Calculated columns** trên `mart_customer_summary` (Table tools → New column):
 ```DAX
-Days Since Last Order = DATEDIFF ( mart_customer_summary[last_order_date], DATE ( 2026, 7, 14 ), DAY )   -- 2026-07-14 = ngày cuối dữ liệu; cập nhật khi refresh
+Days Since Last Order =
+DATEDIFF (
+    mart_customer_summary[last_order_date],
+    CALCULATE ( MAX ( mart_customer_summary[last_order_date] ), ALL ( mart_customer_summary ) ),
+    DAY )
+-- Neo động = ngày đơn mới nhất trong bảng (hiện là 2026-07-14), tự đúng sau mỗi refresh.
+-- KHÔNG hardcode DATE(2026,7,14): sẽ âm thầm stale khi có đơn mới → Recency Segment / Lapsed Share sai dần.
 Recency Segment =
 SWITCH ( TRUE(),
     mart_customer_summary[Days Since Last Order] < 90,  "Active 0-3mo",
@@ -283,7 +309,9 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 | Top markets | **Clustered bar** | Axis `dim_country[country_name]` · Values **`[Revenue per Country]`** (§3.6 — `[Revenue]` sẽ ra grand total cho mọi nước) · Filter Top N = 10 by `[Revenue per Country]` |
 | Revenue → Profit bridge | **Waterfall** | Category = 1 field trục "breakdown"; đơn giản nhất: dùng **Waterfall** với Category `dim_date` **hoặc** tạo bảng phụ. *Cách dễ:* dùng 1 **Stacked/Clustered** thể hiện Net Rev, −COGS, −Design, −Pmt fee, Profit qua bảng disconnected (xem ghi chú dưới). |
 
-> **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
+> **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Profit Base Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
+>
+> ⚠️ Bước khởi đầu **bắt buộc** là `[Profit Base Net Revenue]` (product + shipping − refund, $157,882.62) — đúng cơ sở mà `[Contribution Profit]` trừ chi phí. Dùng `[Net Revenue]` (product-only, $117,911.47) sẽ làm waterfall **không cân**: 117,911 − 70,745 = $47,167 ≠ $87,138 (lệch ~$39,971 = phần shipping, tàn dư pre-Approach-A). Kiểm chứng: 157,882.62 − 61,061.72 − 2,554.75 − 7,128.11 = **87,138.04** ✓.
 
 ### PAGE 2 — Cost & Margin
 **KPI (5 card):** Total Cost · Cost Ratio · COGS Ratio · Cost per Order (+ Cost per Unit ở label) · Profit Margin.
