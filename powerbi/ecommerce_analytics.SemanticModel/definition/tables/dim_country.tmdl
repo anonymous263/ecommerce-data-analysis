@@ -55,3 +55,5 @@ table dim_country
 
 	annotation PBI_ResultType = Table
 
+	annotation PBI_NavigationStepName = Navigation
+

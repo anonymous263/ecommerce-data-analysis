@@ -181,6 +181,16 @@ table mart_product_profit
 
 		annotation SummarizationSetBy = Automatic
 
+	column line_shipping_usd
+		dataType: double
+		lineageTag: cb78941b-9547-4c58-b8fe-eeae15917197
+		summarizeBy: sum
+		sourceColumn: line_shipping_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	partition mart_product_profit = m
 		mode: import
 		source =
@@ -191,4 +201,6 @@ table mart_product_profit
 				  #"Navigation 1"
 
 	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
 

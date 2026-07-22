@@ -161,6 +161,26 @@ table mart_order_profit
 
 		annotation SummarizationSetBy = Automatic
 
+	column gross_product_revenue_usd
+		dataType: double
+		lineageTag: 3acf55a9-229c-4a84-b7b2-6a0326510fa3
+		summarizeBy: sum
+		sourceColumn: gross_product_revenue_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column shipping_charged_usd
+		dataType: double
+		lineageTag: b3f18e93-5f78-4f06-8b82-acd2ed0b0410
+		summarizeBy: sum
+		sourceColumn: shipping_charged_usd
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	partition mart_order_profit = m
 		mode: import
 		source =
