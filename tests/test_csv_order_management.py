@@ -76,6 +76,17 @@ def test_parse_order_code_rejects_blank_and_non_numeric():
     assert cim.parse_order_code("nan") is None
 
 
+def test_parse_order_code_rejects_offplatform_suffixed_codes():
+    # "160970_1" marks an off-platform order shipped with Woo order 160970;
+    # it must be SKIPPED, not parsed — Python's int()/float() accept "_" as a
+    # digit separator ("160970_1" -> 1609701, a phantom Woo ID).
+    assert cim.parse_order_code("160970_1") is None
+    assert cim.parse_order_code("160970_12") is None
+    assert cim.parse_order_code("160970-1") is None
+    assert cim.parse_order_code("1_000") is None
+    assert cim.parse_order_code("73874.5") is None  # non-zero decimal tail
+
+
 def test_parse_order_date_reads_us_format():
     assert cim.parse_order_date("03/28/2023") == date(2023, 3, 28)
     assert cim.parse_order_date("") is None

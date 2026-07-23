@@ -129,21 +129,29 @@ def parse_percent(value: Any) -> float | None:
     return number / 100.0 if number is not None else None
 
 
+# Strictly digits, optionally with a pandas float-coercion tail ('73874.0').
+# Deliberately rejects suffixed off-platform codes like '160970_1' — int()/
+# float() would silently accept '_' as a digit separator and mint a phantom
+# Woo ID (1609701), so suffixed codes must never reach the numeric parse.
+_ORDER_CODE_PATTERN = re.compile(r"^\d+(?:\.0*)?$")
+
+
 def parse_order_code(value: Any) -> int | None:
     """Parse ``Order Code`` as a plain integer ``woo_order_id``; else ``None``.
 
-    Blank / non-numeric (sub-header text, empty child rows) -> ``None`` so the
-    caller skips the row. Tolerates pandas float coercion (``'73874.0'``).
+    Blank / non-numeric (sub-header text, empty child rows) and suffixed
+    off-platform codes (``'160970_1'`` = an outside order shipped with Woo
+    order 160970) -> ``None`` so the caller skips the row. Tolerates pandas
+    float coercion (``'73874.0'``).
     """
     if value is None:
         return None
     raw = str(value).strip().replace(",", "")
     if not raw or raw.lower() == "nan":
         return None
-    try:
-        return int(float(raw))
-    except ValueError:
+    if not _ORDER_CODE_PATTERN.match(raw):
         return None
+    return int(float(raw))
 
 
 def parse_order_date(value: Any) -> date | None:
@@ -256,11 +264,18 @@ def build_raw_rows(frame: pd.DataFrame, extracted_at: datetime) -> list[dict[str
 
     rows: list[dict[str, Any]] = []
     seen: set[tuple[str, int]] = set()
+    skipped_off_platform: set[str] = set()
     for _, row in normalised.iterrows():
-        woo_order_id = parse_order_code(row["Order Code"]) if "Order Code" in row.index else None
-        if woo_order_id is None:
-            continue
+        code_text = _clean_cell(row["Order Code"]) if "Order Code" in row.index else None
         site_code = _clean_cell(row["Project"]) if "Project" in row.index else None
+        woo_order_id = parse_order_code(code_text)
+        if woo_order_id is None:
+            # A non-blank code on a row that carries a site is a deliberate
+            # off-platform marker (e.g. '160970_1'), not sub-header noise —
+            # surface it so exclusions stay auditable.
+            if code_text is not None and site_code is not None:
+                skipped_off_platform.add(code_text)
+            continue
         if site_code is None:
             continue
         key = (site_code, woo_order_id)
@@ -268,6 +283,11 @@ def build_raw_rows(frame: pd.DataFrame, extracted_at: datetime) -> list[dict[str
             continue
         seen.add(key)
         rows.append(_to_raw_row(row, woo_order_id, extracted_at))
+    if skipped_off_platform:
+        logger.warning(
+            "Skipped %d off-platform order code(s) (kept in sheet, excluded from raw): %s",
+            len(skipped_off_platform), sorted(skipped_off_platform),
+        )
     return rows
 
 
