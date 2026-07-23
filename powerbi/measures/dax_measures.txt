@@ -1,6 +1,11 @@
 // =============================================================================
 // Power BI DAX Measure Library — Ecommerce Analytics (Phase 4 MVP)
 // =============================================================================
+// !! SUPERSEDED (2026-07-22): the shipped model is the capstone measure set in
+// !! ecommerce_analytics.SemanticModel/definition/tables/_Measures.tmdl.
+// !! Live values quoted in comments below are frozen pre-cleanup (e.g. 3,812
+// !! paid orders, $87,138.04 profit); current canonicals: docs/METRIC_CHANGES.md
+// !! (2026-07-23 entry). Formulas remain a valid reference.
 // Source of truth for every formula: docs/METRICS_DEFINITION.md
 // All measures live in the `_Measures` table.
 //

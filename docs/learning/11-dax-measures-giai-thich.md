@@ -124,7 +124,7 @@ Toàn bộ dự án dùng `DIVIDE`. Không có ngoại lệ. `BLANK()` khiến P
 
 **Quy tắc nhận biết:** thân measure có `DIVIDE(...)` trên cột thô → phân số → `0.0%`. Thân measure là `MAX(recon_…[…_pct])` → dbt đã scale sẵn 0–100 → format literal.
 
-**Sai chỗ này = lỗi 100×.** Cho `[Cost Coverage %]` (trả về `98.79`) format `0.0%` sẽ hiện `9879.0%`, và vì `[Coverage Tier]` so sánh `>= 95` nên gating vẫn báo "green" — **sai âm thầm, không có thông báo lỗi nào**.
+**Sai chỗ này = lỗi 100×.** Cho `[Cost Coverage %]` (trả về `98.92`) format `0.0%` sẽ hiện `9892.0%`, và vì `[Coverage Tier]` so sánh `>= 95` nên gating vẫn báo "green" — **sai âm thầm, không có thông báo lỗi nào**.
 
 ---
 
@@ -365,7 +365,7 @@ Payment Fee = SUM ( mart_order_profit[payment_fee_usd] )
 
 Phí cổng thanh toán, đọc từ **mart** — cùng cột mà `[Contribution Profit]` đem đi trừ.
 
-> ⚠️ **Bẫy (đã từng sai thật):** bản cũ đọc `SUM(fact_order[payment_fee_usd])` = **$7,069.77**, trong khi profit thực sự trừ **$7,128.11** từ mart. Hệ quả: `COGS + Design Fee + Payment Fee` **không bao giờ cộng ra đúng** contribution profit — hụt **$137.72**.
+> ⚠️ **Bẫy (đã từng sai thật):** bản cũ đọc `SUM(fact_order[payment_fee_usd])` = **$7,069.77**, trong khi profit thực sự trừ **$7,131.11** từ mart. Hệ quả: `COGS + Design Fee + Payment Fee` **không bao giờ cộng ra đúng** contribution profit — hụt **$61.34**.
 >
 > Hai nguyên nhân chồng lên nhau:
 > 1. `fact_order` gồm **cả đơn không phải revenue** (failed/cancelled), còn mart chỉ có đơn revenue.
@@ -428,7 +428,7 @@ Profit Base Net Revenue = SUM ( mart_order_profit[net_revenue_usd] )
 
 **Format:** `\$#,0.00` · **Spec:** §B6
 
-Mẫu số chính xác của Profit Margin = **(product + ship) − refund** (Approach A). Giá trị thực FOS: **$157,882.62**.
+Mẫu số chính xác của Profit Margin = **(product + ship) − refund** (Approach A). Giá trị thực FOS: **$157,614.83**.
 
 Vì sao tồn tại riêng thay vì dùng `[Net Revenue]` (A-2)? Hai lý do: (1) phải **khớp tuyệt đối với mart**; (2) `[Net Revenue]` (A-2) là net **product-only** cho báo cáo sales, còn mẫu số margin phải là net **product + ship** (Approach A). Chênh giữa hai bên chính bằng phần ship khách trả (~$40k). `[Net Revenue]` tính live trong DAX; measure này đọc số dbt đã chốt — khi lệch, **luôn tin bản của mart**.
 
@@ -438,7 +438,7 @@ Vì sao tồn tại riêng thay vì dùng `[Net Revenue]` (A-2)? Hai lý do: (1)
 Contribution Profit = SUM ( mart_order_profit[contribution_profit_usd] )
 ```
 
-**Format:** `\$#,0.00` · **Spec:** §B5 · **Giá trị thực FOS: $87,138.04**
+**Format:** `\$#,0.00` · **Spec:** §B5 · **Giá trị thực FOS: $86,670.64**
 
 **Công thức khoá (bất biến #2, Approach A):**
 
@@ -495,7 +495,7 @@ CALCULATE (
 )
 ```
 
-**Format:** `0.00\%` · **Spec:** §J · **Giá trị thực: 98.79% (GREEN)**
+**Format:** `0.00\%` · **Spec:** §J · **Giá trị thực: 98.92% (GREEN)**
 
 Độ phủ chi phí: tỷ lệ **đơn có doanh thu** có `cogs_usd > 0`.
 
@@ -505,7 +505,7 @@ CALCULATE (
 
 **2. Dòng `'__ALL__'` là gì?** Bảng `recon_cost_coverage` có một dòng cho mỗi site, **cộng thêm** một dòng tổng hợp mang khoá `'__ALL__'`. Đây là kỹ thuật đặt sẵn dòng roll-up ở tầng dbt để BI khỏi phải tự tính tổng có trọng số (coverage là tỷ lệ — **không cộng được**, phải tính lại từ tử/mẫu gốc).
 
-**3. Thang 0–100.** dbt đã scale sẵn (`98.79`, không phải `0.9879`) → phải dùng format `%` literal. Xem §0.6.
+**3. Thang 0–100.** dbt đã scale sẵn (`98.92`, không phải `0.9892`) → phải dùng format `%` literal. Xem §0.6.
 
 **Bài học mang đi:** với các chỉ số **không cộng được** (tỷ lệ, trung bình có trọng số), hãy tính sẵn dòng roll-up ở tầng transform thay vì để BI tự gộp. BI gộp tỷ lệ = gần như luôn sai (nó sẽ lấy trung bình của các tỷ lệ, thay vì tỷ lệ của các tổng).
 
@@ -556,7 +556,7 @@ SWITCH ( TRUE (),
     <mặc định> )
 ```
 
-Dễ đọc hơn `IF` lồng nhau rất nhiều. **Thứ tự cực kỳ quan trọng**: `>= 95` phải đứng trước `>= 80`, vì `98.79` thoả **cả hai** — cái đứng trước thắng. Đảo thứ tự → mọi thứ thành "yellow".
+Dễ đọc hơn `IF` lồng nhau rất nhiều. **Thứ tự cực kỳ quan trọng**: `>= 95` phải đứng trước `>= 80`, vì `98.92` thoả **cả hai** — cái đứng trước thắng. Đảo thứ tự → mọi thứ thành "yellow".
 
 **Ba tầng theo bất biến #5:**
 
@@ -622,7 +622,7 @@ Chip vàng của tầng giữa.
 
 **Chú ý `[Cost Coverage %] / 100` — vì sao phải chia?**
 
-Đây là chỗ hai thế giới format gặp nhau. `[Cost Coverage %]` ở thang **0–100** (`98.79`). Hàm `FORMAT(<giá trị>, "0.0%")` **nhân 100** rồi thêm `%`. Nếu truyền thẳng `98.79` vào, kết quả là `"9879.0%"`. Chia cho 100 trước → `FORMAT(0.9079, "0.0%")` → `"90.8%"`. Đúng.
+Đây là chỗ hai thế giới format gặp nhau. `[Cost Coverage %]` ở thang **0–100** (`98.92`). Hàm `FORMAT(<giá trị>, "0.0%")` **nhân 100** rồi thêm `%`. Nếu truyền thẳng `98.92` vào, kết quả là `"9892.0%"`. Chia cho 100 trước → `FORMAT(0.9892, "0.0%")` → `"98.9%"`. Đúng.
 
 Nghĩa là: **chuỗi format trong `FORMAT()` cũng theo đúng luật nhân-100 như format string của measure**. Cùng một cái bẫy, xuất hiện ở tầng khác.
 
@@ -725,7 +725,7 @@ Bản bền vững hơn: `DISTINCTCOUNT(fact_refund[order_sk])`.
 Refund Amount = SUM ( fact_refund[refund_amount_usd] )
 ```
 
-**Format:** `\$#,0.00` · **Spec:** §C2 · **Giá trị thực: $1,465.51**
+**Format:** `\$#,0.00` · **Spec:** §C2 · **Giá trị thực: $1,592.02**
 
 Đơn giản — và `SUM` **an toàn với grain nhiều dòng/đơn**, khác hẳn C-1. Một đơn hoàn 2 lần thì tổng tiền hoàn vẫn đúng.
 
@@ -975,7 +975,7 @@ Nhóm này nuôi **trang Data Quality** và cơ chế gating. Đặc điểm: ph
 
 Không định nghĩa lại. Đã có ở B-9 và B-10. Trang Data Quality chỉ **tiêu thụ** chúng.
 
-Giá trị thực: **98.79%** (GREEN) và **98.03%** (≥80% → chip TẮT).
+Giá trị thực: **98.92%** (GREEN) và **98.03%** (≥80% → chip TẮT).
 
 ## H-3. `[COGS Coverage %]`
 
@@ -1021,7 +1021,7 @@ Tỷ lệ dòng có chi phí được gán bằng **khớp chính xác theo line
 | | H-3 `[COGS Coverage %]` | H-4 `[Cost Allocation Coverage %]` |
 |---|---|---|
 | Cách tính | `MAX(recon…[…_pct])` — đọc từ mart | `DIVIDE(...)` — tính live |
-| Giá trị trả về | `98.79` (thang 0–100) | `0.9879` (phân số 0–1) |
+| Giá trị trả về | `98.92` (thang 0–100) | `0.9892` (phân số 0–1) |
 | Format đúng | `0.0"%"` (**không** nhân) | `0.0%` (**có** nhân) |
 
 Hai measure cạnh nhau, cùng tên "Coverage %", **format ngược nhau**. Đây chính xác là lý do §0.6 tồn tại.

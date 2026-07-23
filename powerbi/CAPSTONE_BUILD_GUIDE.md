@@ -7,7 +7,7 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 > ### Nếu bạn đã dựng measure TRƯỚC Approach A (2026-07-21)
 > **Approach A không sửa công thức DAX nào** — commit `b0380a1` chỉ đổi mô tả và text của Profit Caveat Banner. Toàn bộ thay đổi giá trị đến từ mart dbt. Vì vậy:
 > - Measure đọc thẳng từ mart (`Contribution Profit`, `Profit Base Net Revenue`, `COGS`, …) → **tự đúng sau khi Refresh**, không phải sửa tay.
-> - **Phải kiểm 1 chỗ:** mẫu số của `Profit Margin` / `Cost Ratio` / `COGS Ratio` **bắt buộc** là `[Profit Base Net Revenue]`. Nếu bạn lỡ dùng `[Net Revenue]` (product-only) → margin đang **sai lệch rất lớn** (73.8% thay vì 55.1% — profit có shipping trong cơ sở nhưng mẫu số thì không).
+> - **Phải kiểm 1 chỗ:** mẫu số của `Profit Margin` / `Cost Ratio` / `COGS Ratio` **bắt buộc** là `[Profit Base Net Revenue]`. Nếu bạn lỡ dùng `[Net Revenue]` (product-only) → margin đang **sai lệch rất lớn** (73.7% thay vì 55.0% — profit có shipping trong cơ sở nhưng mẫu số thì không).
 > - File `.pbix` của bạn là local, không nằm trong git → không có commit nào chạm vào nó được.
 
 > ### ⚠️ Nếu bạn đã dựng trang Markets / Products trước bản guide này
@@ -67,7 +67,7 @@ Tick các bảng (tên hiển thị có prefix schema — sẽ đổi tên ở 2
 **Load** (không Transform — marts đã sạch).
 
 > **Cố ý KHÔNG import `marts_operations.fact_order_cost`** (và cả `marts_recon.*`). Không phải bỏ sót:
-> 1. **Thừa** — `cogs_usd` của nó ($61,088.36) khớp chính xác `mart_order_profit`; nó là nguồn upstream đã được `mart_order_profit` tổng hợp sẵn ở order grain. `cost_confidence` / `cost_allocation_method` cũng đã có trong `mart_order_profit`.
+> 1. **Thừa** — `cogs_usd` của nó ($61,256.69) khớp chính xác `mart_order_profit`; nó là nguồn upstream đã được `mart_order_profit` tổng hợp sẵn ở order grain. `cost_confidence` / `cost_allocation_method` cũng đã có trong `mart_order_profit`.
 > 2. **Rủi ro** — nó chứa `csv_revenue_observed_usd`, `csv_profit_observed_usd`, `csv_shipping_charged_usd`. Theo `CLAUDE.md` rule #5, các số Revenue/Profit từ CSV **chỉ được dùng để theo dõi drift trong `marts_recon`**, tuyệt đối không làm metric chính thức. Đưa bảng này vào model là để sẵn cái bẫy kéo nhầm cột vào visual.
 > 3. `marts_recon.*` phục vụ tier-gating của `BUILD_GUIDE.md` (bản MVP) — bản capstone không dùng gating.
 >
@@ -96,10 +96,10 @@ Nếu Power BI tự tạo quan hệ **Both** → sửa về **Single**. `mart_cu
 > |---|---|---|
 > | `fact_order_item` | date · site · **product** | **country** · customer · payment method |
 > | `fact_order` | date · site · **country** · customer · payment method | **product** |
-> | `mart_order_profit` | date · site | **product** · **country** · customer |
-> | `mart_product_profit` | date · site · **product** | country · customer |
-> | `mart_country_profit` | date · **country** | product · site · customer |
-> | `mart_customer_summary` | customer | date · product · country |
+> | `mart_order_profit` | date · site | **product** · **country** · customer · payment method |
+> | `mart_product_profit` | date · site · **product** | country · customer · payment method |
+> | `mart_country_profit` | date · **country** | product · site · customer · payment method |
+> | `mart_customer_summary` | customer | date · product · country · payment method |
 >
 > **Ba hệ quả bắt buộc nhớ:**
 > 1. `[Revenue]` (đọc `fact_order_item`) **không** cắt được theo country → mọi visual revenue-theo-nước phải dùng `[Revenue per Country]` (§3.6).
@@ -134,7 +134,7 @@ Nguyên tắc thống nhất dữ liệu của model: **mỗi metric có đúng 
 2. **Tử & mẫu cùng dân số** — mọi ratio chia cho `[Paid Orders]` (3,813, dân số mart) hoặc `[Order Attempts]` (4,757, funnel); margin/cost ratio luôn chia `[Profit Base Net Revenue]`.
 3. **Nhãn đúng bản chất** — `mart_country_profit[revenue_usd]` là NET (gồm shipping), cấm dán nhãn "Revenue".
 
-**Chênh lệch hợp lệ đã định lượng** (đừng hoảng khi thấy): `Paid Orders` 3,813 vs `Orders` 3,776 (mart gồm 37 đơn refunded; ecom lấy on-hold thay refunded) · Payment Fee $7,124.47 (mart) vs $6,986.75 (fact) · Refund $1,592.02 (thô) vs $1,582.49 (capped) · Revenue $119,261.71 (item) = $119,261.71 (mart — sau đợt làm sạch dữ liệu 2026-07-22 mart phủ **100%** đơn revenue, hết chênh coverage). Chi tiết: Phụ lục B.
+**Chênh lệch hợp lệ đã định lượng** (đừng hoảng khi thấy): `Paid Orders` 3,813 vs `Orders` 3,776 (mart gồm 37 đơn refunded; ecom lấy on-hold thay refunded) · Payment Fee $7,131.11 (mart) vs $7,069.77 (fact) · Refund $1,592.02 (thô) vs $1,582.49 (capped) · Revenue $119,261.71 (item) = $119,261.71 (mart — sau đợt làm sạch dữ liệu 2026-07-22 mart phủ **100%** đơn revenue, hết chênh coverage). Chi tiết: Phụ lục B.
 
 Tạo bảng đo lường: **Home → Enter data →** đặt tên `_Measures` → Load → xóa cột dummy sau khi thêm measure đầu tiên. Mỗi measure: **New measure**, dán DAX, đặt **Format** ở ribbon.
 
@@ -190,7 +190,7 @@ Cumulative Revenue % = DIVIDE ( [Cumulative Revenue], CALCULATE ( [Revenue], ALL
 ```
 
 ### 3.5b Profit theo SẢN PHẨM — BẮT BUỘC dùng bộ này
-`[Contribution Profit]` đọc `mart_order_profit`, bảng này **không nối `dim_product`** (§2.3b). Đặt nó lên visual có `dim_product` sẽ ra **grand total cho mọi sản phẩm**. Dùng `mart_product_profit` — mart này có `product_sk` và cộng lại đúng bằng $86,850.01.
+`[Contribution Profit]` đọc `mart_order_profit`, bảng này **không nối `dim_product`** (§2.3b). Đặt nó lên visual có `dim_product` sẽ ra **grand total cho mọi sản phẩm**. Dùng `mart_product_profit` — mart này có `product_sk` và cộng lại đúng bằng $86,670.64.
 
 ```DAX
 Product Profit     = SUM ( mart_product_profit[line_profit_usd] )        -- $#,0
@@ -268,7 +268,7 @@ Refund Rate     = DIVIDE ( [Refunded Orders], [Paid Orders] )                   
 Payment Fee Rate = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_order[order_total_usd] ) )   -- 0.0%
 ```
 
-> Kiểm chứng nhanh (all-time, **Approach A** — shipping là revenue; verify lại trên DB + model 2026-07-22 sau đợt làm sạch dữ liệu): Revenue (gross, product) = **$119,261.71** · Refund Amount = **$1,592.02** · Net Revenue §A2 (product) = **$117,669.69** · Shipping Charged (mọi đơn) = **$50,648.98** · Profit Base Net Revenue (mart, product+shipping−refund) = **$157,614.83** · Contribution Profit = **$86,850.01** · Margin **55.1%** · Paid Orders **3,813** · AOV **$31.28** · Total Cost **$70,764.82** · Cost Ratio **44.9%** · COGS Ratio **38.8%** · Cost per Order **$18.56** · Cost per Unit **$16.42** · Paid Success Rate **80.2%** · Distinct Customers **4,266** · Repeat Rate **9.0%** · Orders per Customer **1.12**.
+> Kiểm chứng nhanh (all-time, **Approach A** — shipping là revenue; verify lại trên DB + model 2026-07-23 sau đợt làm sạch dữ liệu): Revenue (gross, product) = **$119,261.71** · Refund Amount = **$1,592.02** · Net Revenue §A2 (product) = **$117,669.69** · Shipping Charged (mọi đơn) = **$50,648.98** · Profit Base Net Revenue (mart, product+shipping−refund) = **$157,614.83** · Contribution Profit = **$86,670.64** · Margin **55.0%** · Paid Orders **3,813** · AOV **$31.28** · Total Cost **$70,944.19** · Cost Ratio **45.0%** · COGS Ratio **38.9%** · Cost per Order **$18.61** · Cost per Unit **$16.46** · Paid Success Rate **80.2%** · Distinct Customers **4,266** · Repeat Rate **9.0%** · Orders per Customer **1.12**.
 >
 > Chênh giữa Profit Base (**$157,614.83**) và Net Revenue §A2 (**$117,669.69**) = **$39,945.14**, gồm: **phần shipping khách trả** trên các đơn revenue (**+$39,935.60**) và **+$9.53** refund cap (mart trừ `effective_refund_usd` = $1,582.49, thấp hơn refund thô `[Refund Amount]` = $1,592.02 vì cap tại gross của từng đơn). Chênh coverage đã về **$0** — mart phủ 100% đơn revenue từ 2026-07-22. Approach A đưa shipping vào doanh thu — xem `docs/METRIC_CHANGES.md` 2026-07-21. Trước Approach A profit chỉ ≈ $47,536 (thiếu shipping).
 >
@@ -311,7 +311,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 > **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Profit Base Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
 >
-> ⚠️ Bước khởi đầu **bắt buộc** là `[Profit Base Net Revenue]` (product + shipping − refund, $157,614.83) — đúng cơ sở mà `[Contribution Profit]` trừ chi phí. Dùng `[Net Revenue]` (product-only, $117,669.69) sẽ làm waterfall **không cân**: 117,670 − 70,765 = $46,905 ≠ $86,850 (lệch ~$39,945 = phần shipping, tàn dư pre-Approach-A). Kiểm chứng: 157,614.83 − 61,088.36 − 2,551.99 − 7,124.47 = **86,850.01** ✓.
+> ⚠️ Bước khởi đầu **bắt buộc** là `[Profit Base Net Revenue]` (product + shipping − refund, $157,614.83) — đúng cơ sở mà `[Contribution Profit]` trừ chi phí. Dùng `[Net Revenue]` (product-only, $117,669.69) sẽ làm waterfall **không cân**: 117,670 − 70,944 = $46,726 ≠ $86,671 (lệch ~$39,945 = phần shipping, tàn dư pre-Approach-A). Kiểm chứng: 157,614.83 − 61,256.69 − 2,556.39 − 7,131.11 = **86,670.64** ✓.
 
 ### PAGE 2 — Cost & Margin
 **KPI (5 card):** Total Cost · Cost Ratio · COGS Ratio · Cost per Order (+ Cost per Unit ở label) · Profit Margin.
@@ -439,7 +439,7 @@ Capstone **cố ý giữ tên riêng**. Bảng này để khi bạn đọc doc e
 | `Distinct Customers` = 4,266 | `Distinct Customers` ≈ 4,263 (số lịch sử) | ⚠️ ecom lọc `is_unknown_email = FALSE()`. Capstone lấy toàn bộ `mart_customer_summary`. |
 | `Repeat Rate` | `Repeat Customer Share` | Cùng công thức, khác tên. |
 | `Orders per Customer` = 1.12 | `Orders per Customer` = 0.89 | ⚠️ Capstone = `SUM(total_orders)/customers` (lifetime, đúng cho trang Customers). ecom = `[Orders]/[Distinct Customers]` (theo filter context). |
-| `Payment Fee` (mart_order_profit) = $7,124.47 | `Payment Fee` (fact_order) = $6,986.75 | ⚠️ **Capstone đúng hơn cho P&L:** `[Contribution Profit]` trừ đúng cột của `mart_order_profit` (đã COALESCE CSV fallback cho fee Woo thiếu), nên bản ecom không reconcile được (lệch $137.72 trên cùng tập đơn). |
+| `Payment Fee` (mart_order_profit) = $7,131.11 | `Payment Fee` (fact_order) = $7,069.77 | ⚠️ **Capstone đúng hơn cho P&L:** `[Contribution Profit]` trừ đúng cột của `mart_order_profit` (đã COALESCE CSV fallback cho fee Woo thiếu), nên bản ecom không reconcile được (lệch $61.34 trên cùng tập đơn, số 2026-07-23). |
 | `Product Profit` / `Product Margin` | — | Capstone-only, bắt buộc vì `mart_order_profit` không nối `dim_product`. |
 | `Revenue per Country` | `Revenue per Country` | **Giống nhau** — cùng dùng `TREATAS`, cùng lý do (§2.3b). |
 | `Country Margin` | — | Capstone-only; ecom chưa có measure margin theo nước. |

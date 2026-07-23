@@ -8,7 +8,7 @@ model Model
 
 annotation __PBI_TimeIntelligenceEnabled = 0
 
-annotation PBI_QueryOrder = ["dim_country","dim_customer_anonymized","dim_date","dim_payment_method","dim_product","dim_site","fact_order","fact_order_item","fact_refund","mart_country_profit","mart_customer_summary","mart_order_profit","mart_product_profit","fact_order_cost","recon_cost_coverage","recon_csv_vs_dbt_profit","recon_csv_vs_dbt_revenue","recon_payment_fee_coverage","recon_woo_vs_csv_shipping_charged","_Measures"]
+annotation PBI_QueryOrder = ["dim_country","dim_customer_anonymized","dim_date","dim_payment_method","dim_product","dim_site","fact_order","fact_order_item","fact_refund","mart_country_profit","mart_customer_summary","mart_order_profit","mart_product_profit","_Measures"]
 
 annotation PBI_ProTooling = ["DevMode","MCP-PBIModeling","DaxQueryView_Desktop"]
 
@@ -25,12 +25,6 @@ ref table mart_country_profit
 ref table mart_customer_summary
 ref table mart_order_profit
 ref table mart_product_profit
-ref table fact_order_cost
-ref table recon_cost_coverage
-ref table recon_csv_vs_dbt_profit
-ref table recon_csv_vs_dbt_revenue
-ref table recon_payment_fee_coverage
-ref table recon_woo_vs_csv_shipping_charged
 ref table _Measures
 
 ref cultureInfo en-US

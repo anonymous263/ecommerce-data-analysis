@@ -118,7 +118,7 @@ line_<term>_usd = order.<term>_usd * (line.line_revenue_usd / order.revenue_usd)
 line_net_revenue_usd = line.line_revenue_usd + line_shipping_usd − line_refund_usd
 line_profit_usd       = line_net_revenue_usd − line_cogs_usd − line_design_fee_usd − line_payment_fee_usd
 ```
-`line_revenue_usd` itself stays product-only (never mutated); the allocated shipping is a separate `line_shipping_usd` column. `SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent; verified $87,138.04 = $87,138.04 on real FOS data).
+`line_revenue_usd` itself stays product-only (never mutated); the allocated shipping is a separate `line_shipping_usd` column. `SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent; verified $86,670.64 = $86,670.64 on real FOS data, post-cleanup 2026-07-23).
 
 Every product-profit row carries `cost_allocation_method` and `cost_confidence`. Dashboards displaying product-level profit show a caveat tag whenever `cost_allocation_method != 'line_exact'`.
 

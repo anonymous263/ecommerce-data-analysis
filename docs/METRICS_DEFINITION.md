@@ -29,7 +29,7 @@
 - **Formula:** `SUM(fact_order_item.quantity)`
 
 ### A5. AOV
-- **Formula:** `Revenue / Paid Orders` — where *Paid Orders* = `DISTINCTCOUNT(mart_order_profit[order_sk])` = 3,812 (completed + processing + refunded). **Rebased 2026-07-22** from `Revenue / Orders` (§A3, `fact_order` revenue statuses = 3,789), so AOV shares the denominator every cost and profit ratio uses. $31.32 on FOS; the old basis gave $31.51.
+- **Formula:** `Revenue / Paid Orders` — where *Paid Orders* = `DISTINCTCOUNT(mart_order_profit[order_sk])` = 3,813 (completed + processing + refunded). **Rebased 2026-07-22** from `Revenue / Orders` (§A3, `fact_order` revenue statuses), so AOV shares the denominator every cost and profit ratio uses. $31.28 on FOS (post-cleanup 2026-07-23); the old basis gave $31.51.
 - §A3 `Orders` is retained and still valid — it is simply no longer the AOV denominator.
 
 ### A6. AIV
@@ -65,7 +65,7 @@
 - **CSV fallback:** when Woo carries no fee at all (`payment_fee_usd IS NULL`, ~20% of orders per the payload audit), `mart_order_profit` falls back to the CSV `Fee` column (`fact_order_cost.payment_fee_fallback_usd`, FX'd):
   `payment_fee_usd = coalesce(fact_order.payment_fee_usd, fact_order_cost.payment_fee_fallback_usd, 0)`.
   `payment_fee_source` keeps reporting **Woo's own** classification (`'missing'` when the fallback was used), so the source mix and the value come from different places by design.
-- **Formula:** `SUM(mart_order_profit.payment_fee_usd)` — **not** `SUM(fact_order.payment_fee_usd)`. The mart column is the one `contribution_profit_usd` subtracts, so it is the only version that reconciles: `fact_order` is missing the CSV fallbacks *and* spans non-revenue orders, giving $7,069.77 against the mart's $7,128.11 for FOS. Reading `fact_order` leaves the cost breakdown $137.72 short of the profit it is supposed to explain. Matches siblings §B1 `COGS` and §B3 `Design Fee`, which already read the mart.
+- **Formula:** `SUM(mart_order_profit.payment_fee_usd)` — **not** `SUM(fact_order.payment_fee_usd)`. The mart column is the one `contribution_profit_usd` subtracts, so it is the only version that reconciles: `fact_order` is missing the CSV fallbacks *and* spans non-revenue orders, giving $7,069.77 against the mart's $7,131.11 for FOS. Reading `fact_order` leaves the cost breakdown $61.34 short of the profit it is supposed to explain. Matches siblings §B1 `COGS` and §B3 `Design Fee`, which already read the mart.
 - **Dashboard rule:** if `seed_estimate` + `missing` exceeds 20% of orders in the view, profit cards display an "estimated payment fee" warning chip.
 
 ### B3. Design Fee
@@ -110,12 +110,12 @@
 `SUM(refund_amount_usd)`
 
 ### C3. Refund Rate (order-level)
-- **Formula:** `COUNT(DISTINCT refunded orders) / Paid Orders` = 34 / 3,812 = **0.9%**. **Rebased 2026-07-22**: refunds only. Cancellations are no longer folded in — they are reported by §C4, which keeps the two failure modes separately actionable (a refund is a fulfilment/quality signal; a cancellation is a checkout signal).
+- **Formula:** `COUNT(DISTINCT refunded orders) / Paid Orders` = 37 / 3,813 = **1.0%**. **Rebased 2026-07-22**: refunds only. Cancellations are no longer folded in — they are reported by §C4, which keeps the two failure modes separately actionable (a refund is a fulfilment/quality signal; a cancellation is a checkout signal).
 - Previous formula was `COUNT(refunded_or_cancelled_orders) / COUNT(eligible_orders)`, where "eligible" = orders not in `failed` / `pending`. The measure `[Refunded or Cancelled Orders]` and `[Eligible Orders]` are both retained in the model if you want that combined rate back.
 - **Does not slice by country** — `fact_refund` has no `dim_country` relationship. On a country visual it returns the all-store rate.
 
 ### C4. Cancellation Rate
-- **Formula:** `COUNT(status='cancelled') / Order Attempts` = 497 / 4,757 = **10.4%**. **Rebased 2026-07-22** from `COUNT(eligible_orders)` to all order rows, so the three funnel rates are additive against one denominator: Paid 80.1% + Failed 9.2% + Cancelled 10.4% ≈ 100% (remainder = refunded/pending statuses).
+- **Formula:** `COUNT(status='cancelled') / Order Attempts` = 499 / 4,757 = **10.5%**. **Rebased 2026-07-22** from `COUNT(eligible_orders)` to all order rows, so the three funnel rates are additive against one denominator: Paid 80.2% + Failed 9.2% + Cancelled 10.5% ≈ 100% (remainder = pending; refunded orders count as Paid).
 
 ### C5. Refund Revenue Share
 - **Formula:** `Refund Amount / Revenue`

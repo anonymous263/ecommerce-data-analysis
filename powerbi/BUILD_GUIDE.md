@@ -1,5 +1,11 @@
 # Power BI Build Guide — Phase 4 MVP
 
+> ⚠️ **SUPERSEDED (2026-07-22) — kept for Phase-4 history.** The shipped model is the
+> **capstone** rebuild: see `CAPSTONE_BUILD_GUIDE.md` + `ecommerce_analytics.SemanticModel`
+> (`_Measures.tmdl`). Live values quoted below (e.g. cost coverage 98.79%, profit $87,138.04)
+> are **frozen pre-cleanup**; current canonical numbers live in `CAPSTONE_BUILD_GUIDE.md`
+> §Kiểm chứng and `docs/METRIC_CHANGES.md` (2026-07-23 entry).
+
 A click-by-click guide for a solo analyst to assemble the Phase 4 Power BI Desktop dashboard from the pre-authored DAX measure library (`powerbi/measures/dax_measures.txt`) and theme (`powerbi/themes/ecommerce_theme.json`).
 
 This guide assumes:

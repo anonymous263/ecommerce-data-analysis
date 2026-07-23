@@ -264,10 +264,10 @@ biết", không phải "đã ghi nhận chi phí"; nếu đếm nhầm sẽ th�
 Chạy trên dữ liệu thật của site FOS:
 
 - **4,757 đơn hàng** (toàn bộ Woo orders đã ingest)
-- **Cost coverage: 98.79%** (đơn revenue-generating có `cogs_usd > 0`) →
+- **Cost coverage: 98.92%** (đơn revenue-generating có `cogs_usd > 0`) →
   tier **GREEN** (≥ 95%, "fully trusted", theo bảng gating ở
   `docs/DASHBOARD_SPEC.md §K` — xem chương 08)
-- **Tổng contribution profit: $87,138.04** (Approach A — đã cộng ship vào
+- **Tổng contribution profit: $86,670.64** (Approach A — đã cộng ship vào
   doanh thu, đã net-of-refund, đã cap refund netting; trước Approach A là
   $47,535.65 do bỏ quên phần ship khách trả)
 

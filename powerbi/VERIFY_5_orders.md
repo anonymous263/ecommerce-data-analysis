@@ -1,5 +1,11 @@
 # Phase 4 Verification — Hand-Calc Ground Truth
 
+> ⚠️ **Aggregate cards below are FROZEN pre-cleanup (2026-07-21)** — superseded by the
+> capstone model. Current canonical aggregates: `CAPSTONE_BUILD_GUIDE.md` §Kiểm chứng /
+> `docs/METRIC_CHANGES.md` (2026-07-23). The **5 sample orders remain exactly valid**
+> (re-verified byte-identical against the warehouse on 2026-07-23) — keep using them
+> for hand-calc checks.
+>
 > Pulled live from the warehouse (FOS, whole dataset). Revenue/profit basis updated
 > **2026-07-21 for Approach A** — the customer shipping charge is now revenue in the
 > profit base (see `docs/METRIC_CHANGES.md`). Use this to satisfy TASKS.md L225

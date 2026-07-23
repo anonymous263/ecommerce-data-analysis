@@ -162,7 +162,7 @@ khi flag = 0, nên card tự ẩn theo hai lớp độc lập.
 
 Tương tự, `[Payment Fee Chip]` đọc `[Payment Fee Coverage %]` (dòng `__ALL__`
 của `recon_payment_fee_coverage`) và chỉ hiện text cảnh báo khi < 80%. Trạng
-thái sống trên FOS: Cost Coverage 98.79% (GREEN) và Payment Fee Coverage
+thái sống trên FOS: Cost Coverage 98.92% (GREEN) và Payment Fee Coverage
 98.03% — cả hai banner/chip đều **BLANK** (ẩn), chỉ **Profit Caveat Banner**
 (giải thích COGS đã gồm shipping, doanh thu là net-of-refund) luôn hiện cạnh
 mọi visual lợi nhuận, vì đó là caveat cố định chứ không phải cảnh báo có điều
@@ -189,7 +189,7 @@ Quality strip** nhỏ (2 card: `[Cost Coverage %]`, `[Payment Fee Coverage %]`) 
 phải chuyển sang trang riêng mới biết.
 
 **Trạng thái sống hiện tại (kiểm tra trước khi lưu `.pbix`):** Cost Coverage
-98.79% (GREEN, ≥ 95%) → mọi card/chart lợi nhuận **hiện, không chip**. Payment
+98.92% (GREEN, ≥ 95%) → mọi card/chart lợi nhuận **hiện, không chip**. Payment
 Fee Coverage 98.03% (≥ 80%) → Payment Fee Chip **tắt**. Nghĩa là bản MVP hiện
 tại hiển thị lợi nhuận đầy đủ và "sạch" — không banner, không chip cảnh báo nào
 — nhưng cơ chế gating vẫn nằm sẵn trong measure, sẽ tự kích hoạt nếu coverage

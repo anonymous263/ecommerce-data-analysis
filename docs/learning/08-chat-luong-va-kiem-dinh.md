@@ -6,7 +6,7 @@ Một kho dữ liệu có thể chạy `dbt build` xanh (không lỗi) nhưng v�
 vì "không lỗi cú pháp" khác với "số liệu đáng tin". Trong dự án này, **profit
 (lợi nhuận)** phụ thuộc vào một file CSV nhập tay (`Order Management.csv`), không
 phải API chính thức như Woo. Nếu file CSV thiếu dữ liệu cho 30% đơn hàng, thì hiển
-thị "Contribution Profit = $87,138" lên dashboard là **lừa dối chính mình** — con số
+thị "Contribution Profit = $86,671" lên dashboard là **lừa dối chính mình** — con số
 đó chỉ tính trên 70% đơn hàng, phần còn lại coi như chi phí bằng 0 (sai).
 
 Vì vậy dự án này tách rời hai câu hỏi:
@@ -40,7 +40,7 @@ Hai điểm tinh tế, dễ làm sai:
   chi phí", không phải "chi phí đã ghi nhận". Model `recon_cost_coverage.sql` lọc
   rõ: `covered_revenue_orders_with_cogs` chỉ đếm khi `cogs_usd > 0`.
 
-Giá trị thật trên dữ liệu FOS: **98.79%** → tầng **GREEN** (≥ 95%, xem §3).
+Giá trị thật trên dữ liệu FOS: **98.92%** → tầng **GREEN** (≥ 95%, xem §3).
 
 ### H4 — Payment Fee Coverage % (độ phủ phí thanh toán)
 
@@ -104,7 +104,7 @@ UI. Từ `docs/METRICS_DEFINITION.md` §J / `docs/DASHBOARD_SPEC.md` §K:
 
 Thêm một lớp gate thứ hai: nếu **Payment Fee Coverage < 80%**, mọi biểu đồ lợi
 nhuận có thêm chip "Estimated payment fee — XX%". Trạng thái sống trên FOS: cost
-coverage 98.79% (GREEN, không banner/chip) và payment-fee coverage 98.03% (chip
+coverage 98.92% (GREEN, không banner/chip) và payment-fee coverage 98.03% (chip
 tắt) — nghĩa là dashboard MVP hiện lợi nhuận **đầy đủ, không cảnh báo nào**.
 
 Nguyên tắc thiết kế ở đây: **gating không phải để làm khó người dùng, mà để

@@ -4,7 +4,7 @@
     {
       "ordinal": 0,
       "scrollPosition": {
-        "x": 0,
+        "x": 293.76330749206238,
         "y": 0
       },
       "nodes": [
@@ -176,82 +176,10 @@
             "width": 234
           },
           "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 978.81074992750359,
-            "y": 106.6468077842726
-          },
-          "nodeIndex": "fact_order_cost",
-          "size": {
-            "height": 300,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 1114.9171301031918,
-            "y": 835.88774787214857
-          },
-          "nodeIndex": "recon_cost_coverage",
-          "size": {
-            "height": 300,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 0,
-            "y": 0
-          },
-          "nodeIndex": "recon_csv_vs_dbt_profit",
-          "size": {
-            "height": 200,
-            "width": 341.446878101543
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 0,
-            "y": 255.08383049841171
-          },
-          "nodeIndex": "recon_csv_vs_dbt_revenue",
-          "size": {
-            "height": 272,
-            "width": 270.34232641669837
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 0,
-            "y": 858.48597734112468
-          },
-          "nodeIndex": "recon_payment_fee_coverage",
-          "size": {
-            "height": 248,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 0,
-            "y": 1213.6404501589598
-          },
-          "nodeIndex": "recon_woo_vs_csv_shipping_charged",
-          "size": {
-            "height": 277.72343905077173,
-            "width": 234
-          },
-          "zIndex": 0
         }
       ],
       "name": "All tables",
-      "zoomValue": 42.516710771498751,
+      "zoomValue": 53.444387367623236,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
@@ -261,7 +189,7 @@
       "ordinal": 1,
       "scrollPosition": {
         "x": 0,
-        "y": 239.42356321530929
+        "y": 198.58072007858007
       },
       "nodes": [
         {
@@ -384,7 +312,7 @@
       "ordinal": 2,
       "scrollPosition": {
         "x": 0,
-        "y": 325.50083660173374
+        "y": 0
       },
       "nodes": [
         {
@@ -495,22 +423,10 @@
             "width": 305.87599050918379
           },
           "zIndex": 8
-        },
-        {
-          "location": {
-            "x": 303.68841896308527,
-            "y": 558.59964289573838
-          },
-          "nodeIndex": "fact_order_cost",
-          "size": {
-            "height": 300,
-            "width": 321.37865512881149
-          },
-          "zIndex": 9
         }
       ],
       "name": "Profit",
-      "zoomValue": 63.287087723234059,
+      "zoomValue": 50.346892102823162,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
@@ -535,66 +451,6 @@
             "width": 234
           },
           "zIndex": 6
-        },
-        {
-          "location": {
-            "x": 1150,
-            "y": 0
-          },
-          "nodeIndex": "recon_cost_coverage",
-          "size": {
-            "height": 393,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 841,
-            "y": 0
-          },
-          "nodeIndex": "recon_csv_vs_dbt_profit",
-          "size": {
-            "height": 341,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 567,
-            "y": 0
-          },
-          "nodeIndex": "recon_csv_vs_dbt_revenue",
-          "size": {
-            "height": 330,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 287,
-            "y": 0
-          },
-          "nodeIndex": "recon_payment_fee_coverage",
-          "size": {
-            "height": 336,
-            "width": 234
-          },
-          "zIndex": 0
-        },
-        {
-          "location": {
-            "x": 0,
-            "y": 0
-          },
-          "nodeIndex": "recon_woo_vs_csv_shipping_charged",
-          "size": {
-            "height": 328,
-            "width": 234
-          },
-          "zIndex": 0
         }
       ],
       "name": "Data Quality",
@@ -605,6 +461,6 @@
       "tablesLocked": false
     }
   ],
-  "selectedDiagram": "Data Quality",
+  "selectedDiagram": "All tables",
   "defaultDiagram": "All tables"
 }

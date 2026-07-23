@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-07-23 — Data cleanup (no formula changes): reference values re-baselined
+
+- **Metric:** none redefined — every formula is unchanged. This entry re-baselines the **live FOS reference values** quoted across docs/measure descriptions after the 2026-07-22→23 Woo↔CSV reconciliation (sheet + Woo status/total/currency/shipping fixes; 50 flagged orders re-fetched; 37 hard-deleted Woo orders excluded by design; off-platform `_n`-suffixed sheet codes now skipped by the CSV loader).
+- **New canonical (all-time FOS):** Paid Orders **3,813** (completed 3,698 + processing 78 + refunded 37) · Contribution Profit **$86,670.64** · Profit Base Net Revenue **$157,614.83** · Product Revenue **$119,261.71** · COGS **$61,256.69** · Design Fee **$2,556.39** · Payment Fee **$7,131.11** (fact_order-side reads $7,069.77, delta $61.34) · Total Cost **$70,944.19** · AOV **$31.28** · Margin **55.0%** · Refunded Orders **37** (raw refunds $1,592.02, capped $1,582.49) · Cancelled **499** · Failed **437** · Cost Coverage **98.92% GREEN** · Fee Coverage **98.03%**.
+- **Superseded figures** you may still see in older entries below (correct as of their dates): $87,138.04 profit, 3,812/3,815 paid orders, $157,882.62 base, 98.79% coverage, 34 refunds, 497 cancelled. The 2026-07-22 country cross-check figures (US $53,140.81 / UK $27,750.51 / DE $7,496.61) do not match any current partition — current billing-country split is US $36,476.43 / GB $21,060.08 / DE $5,765.55 (mart_country_profit, sums exactly to $86,670.64).
+- **Files touched:** `docs/METRICS_DEFINITION.md`, `docs/DATA_MODEL.md`, `powerbi/CAPSTONE_BUILD_GUIDE.md`, `powerbi/ecommerce_analytics.SemanticModel/.../_Measures.tmdl` (descriptions only — no DAX expression changed), legacy `powerbi/BUILD_GUIDE.md` / `VERIFY_5_orders.md` / `measures/dax_measures.txt` marked as frozen pre-cleanup.
+- **Verification:** dbt PASS=201 WARN=0; mart↔item population 3,813 = 3,813; SUM(line_profit_usd) = $86,670.64 = SUM(contribution_profit_usd); the 5 hand-calc orders in VERIFY_5_orders.md are byte-identical pre/post cleanup.
+
 ## 2026-07-22 — Capstone measure set merged into the shared model; five metrics rebased
 
 - **Context:** the capstone operational dashboard and the ecom MVP now share one semantic model (`ecommerce_analytics`). 40 capstone measures and 3 calculated columns were added under `Capstone\*` display folders. Five measures existed in both sets under the **same name with different formulas**; per owner decision the capstone definition wins.
