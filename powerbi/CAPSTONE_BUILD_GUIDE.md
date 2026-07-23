@@ -13,6 +13,14 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 > ### ⚠️ Nếu bạn đã dựng trang Markets / Products trước bản guide này
 > Các measure profit theo **country** và **product** trong bản guide cũ trả về **grand total giống hệt nhau cho mọi dòng** (Power BI không báo lỗi). Xem §2.3b, §3.5b, §3.6 và dựng lại các visual ở Page 2/3/4 theo bộ measure mới.
 
+> ### 🔄 Đồng bộ artifact 2026-07-23 (buildability pass)
+> Guide này khớp với **bản artifact 2026-07-23** — đã qua rà soát buildability, mọi visual đều dựng được bằng Power BI native. Khác biệt lớn so với bản guide trước:
+> - **KPI delta dùng T12M** (trailing 12 tháng vs 12 tháng liền trước), không phải YoY → UDF mới ở §3.9.
+> - **Field parameter thay bookmark-toggle** cho trend Overview và chiều phân tích Products (§8).
+> - **Top markets = Matrix** (data bars + margin heat + sparkline), không còn clustered bar.
+> - Trang Cost & Margin thêm **Unit cost trend**; Products thêm **scatter Revenue × margin**; Markets thêm cột **Repeat %**; Customers thay CLV distribution bằng **Segment value panel**; Operations dựng payment/refund dạng **composite** (nhiều visual group lại).
+> - Nhãn sửa sau audit: KPI Overview = **"Product revenue"**, line trend = **"Net revenue"** (2 cơ sở doanh thu — không dán chung nhãn "Revenue"); KPI Markets = **"Best-margin major market"** (sàn ≥ $2k revenue); Orders/customer ghi rõ basis **all order attempts**.
+
 **Deliverables đi kèm:**
 - Theme: `powerbi/themes/fos_dashboard_theme.json`
 - Background canvas: `powerbi/backgrounds/background.png` (1920×1080)
@@ -276,6 +284,91 @@ Payment Fee Rate = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_orde
 >
 > **Quy tắc:** `[Net Revenue]` (= Revenue product − Refund thô) chỉ dùng cho **thẻ KPI hiển thị sales**; mọi **margin & cost ratio** dùng `[Profit Base Net Revenue]` (mart = product + shipping − refund) để khớp `Contribution Profit`. Page 1 KPI "Net Revenue" và "Revenue by year" → `[Net Revenue]`; Page 2 các ratio → `[Profit Base Net Revenue]`.
 
+### 3.9 Measures bổ sung — artifact 2026-07-23 (buildability pass)
+
+**(a) KPI delta T12M.** KPI row Overview hiển thị "▼ 11.3% T12M" — so **12 tháng gần nhất** với **12 tháng liền trước đó**. Toolkit UDF (`powerbi/measures/udf_period_delta.txt`) chưa có hàm này — thêm 2 function (cùng style `Last_Data_Date`, DAX query view → Update model):
+
+```DAX
+FUNCTION T12M_Perc = ( _measure : expr ) =>
+    VAR MaxD = Last_Data_Date ( _measure )
+    VAR C1 = EDATE ( MaxD, -12 ) + 1
+    VAR P1 = EDATE ( MaxD, -24 ) + 1
+    VAR P2 = EDATE ( MaxD, -12 )
+    VAR Cur = CALCULATE ( _measure, FILTER ( ALL ( dim_date[date_day] ), dim_date[date_day] >= C1 && dim_date[date_day] <= MaxD ) )
+    VAR Prv = CALCULATE ( _measure, FILTER ( ALL ( dim_date[date_day] ), dim_date[date_day] >= P1 && dim_date[date_day] <= P2 ) )
+    RETURN DIVIDE ( Cur - Prv, Prv, BLANK () )
+
+FUNCTION T12M_Icon = ( _measure : expr ) =>
+    VAR d = T12M_Perc ( _measure )
+    RETURN IF ( ISBLANK ( d ), "–", IF ( d >= 0, UNICHAR ( 9650 ), UNICHAR ( 9660 ) ) & " " & FORMAT ( ABS ( d ), "0.0%" ) & " T12M" )
+```
+Measures KPI: `Revenue T12M Icon = T12M_Icon ( [Revenue] )` · tương tự cho `[Contribution Profit]`, `[Paid Orders]`. Màu chữ delta dùng `Delta_Color` sẵn có trong toolkit. (Bộ MoM/YoY Icon cũ giữ nguyên cho tooltip.)
+
+**(b) Cost & Margin:**
+```DAX
+COGS per Unit = DIVIDE ( [COGS], [Quantity Sold] )   -- $#,0.00  (line đỏ Unit cost trend; KHÁC [Cost per Unit] = all-in cost/unit)
+Median Margin = MEDIANX ( FILTER ( VALUES ( dim_product[product_name] ), [Product Net Revenue] > 100 ), [Product Margin] )   -- 0.0%  (median động ~56%, chỉ tính design >$100 revenue)
+Margin vs Median =
+VAR g = [Product Margin] - [Median Margin]
+RETURN IF ( ISBLANK ( [Product Margin] ), BLANK (),
+    IF ( g < 0, "▼ ", "▲ " ) & FORMAT ( ABS ( g ) * 100, "0.0" ) & "pp" )   -- text; màu đỏ/xanh qua conditional formatting với measure màu:
+Margin vs Median Color = IF ( [Product Margin] - [Median Margin] < 0, "#E5484D", "#2E8B4F" )
+```
+
+**(c) Products:**
+```DAX
+Loss-making Designs = COUNTROWS ( FILTER ( VALUES ( dim_product[product_name] ), [Product Profit] < 0 ) )   -- #,0
+Scatter Color = IF ( [Product Margin] < 0.52, "#E5484D", "#0891B2" )   -- marker color cho scatter (fx conditional formatting)
+```
+
+**(d) Markets:**
+```DAX
+Top Market Name = MAXX ( TOPN ( 1, VALUES ( dim_country[country_name] ), [Revenue per Country] ), dim_country[country_name] )
+Best Margin Major Market =
+VAR majors = FILTER ( VALUES ( dim_country[country_name] ), [Revenue per Country] >= 2000 )
+RETURN MAXX ( TOPN ( 1, majors, [Country Margin] ), dim_country[country_name] )
+-- Sàn $2k là BẮT BUỘC: bỏ sàn thì Spain ($1.4k revenue, margin 58.1%) chiếm KPI thay Germany (58.0%) — thị trường quá nhỏ để gọi là "best".
+International Share =
+1 - DIVIDE ( CALCULATE ( [Revenue per Country], dim_country[country_name] = "United States" ),
+             CALCULATE ( [Revenue per Country], ALL ( dim_country ) ) )   -- 0.0%
+Markets Served = DISTINCTCOUNT ( fact_order[country_sk] )   -- #,0
+Country Repeat % =
+VAR paidCustomers = CALCULATETABLE ( VALUES ( fact_order[customer_sk] ),
+                        fact_order[status] IN { "completed", "processing", "refunded" } )
+VAR t = ADDCOLUMNS ( paidCustomers, "@orders",
+            CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] IN { "completed", "processing", "refunded" } ) )
+RETURN DIVIDE ( COUNTROWS ( FILTER ( t, [@orders] >= 2 ) ), COUNTROWS ( t ) )   -- 0.0%
+-- Tính trên fact_order (nối cả dim_country lẫn dim_customer) vì mart_country_profit KHÔNG có cột repeat.
+-- Basis: khách có ≥2 đơn PAID trong nước đang xét.
+```
+
+**(e) Customers — segment panel + màu acquisition:**
+```DAX
+-- Calculated column trên mart_customer_summary:
+Segment = IF ( mart_customer_summary[is_repeat], "Repeat", "One-time" )
+-- Measures:
+Seg Lifetime Revenue = SUM ( mart_customer_summary[total_revenue_usd] )                              -- $#,0
+Seg LTV = DIVIDE ( [Seg Lifetime Revenue], [Distinct Customers] )                                    -- $#,0.00
+Seg Revenue per Order = DIVIDE ( [Seg Lifetime Revenue], SUM ( mart_customer_summary[total_orders] ) )   -- $#,0.00
+Acq Bar Color = IF ( YEAR ( MAX ( mart_customer_summary[first_order_date] ) ) = 2026, "#E5484D", "#0891B2" )
+```
+
+**(f) Operations — payment composite:**
+```DAX
+Method Paid Orders = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] IN { "completed", "processing", "refunded" } )   -- #,0
+Method Approval Rate = DIVIDE ( [Method Paid Orders], [Order Attempts] )   -- 0.0%
+Method Lost = [Order Attempts] - [Method Paid Orders]                      -- #,0
+Method Payment Fee =
+CALCULATE ( SUM ( mart_order_profit[payment_fee_usd] ),
+    TREATAS ( VALUES ( fact_order[order_sk] ), mart_order_profit[order_sk] ) )   -- $#,0
+-- mart_order_profit KHÔNG nối dim_payment_method (§2.3b) → chuyển filter method qua order_sk bằng TREATAS,
+-- giống hệt pattern [Revenue per Country]. Tổng 2 method = $7,131.11 khớp [Payment Fee]. ✓
+Method Fee Rate =
+DIVIDE ( [Method Payment Fee],
+    CALCULATE ( SUM ( fact_order[order_total_usd] ), fact_order[status] IN { "completed", "processing", "refunded" } ) )   -- 0.00%
+```
+> Kiểm chứng nhanh (theo artifact): Card 2,577 attempts → 1,866 paid (**72.4%**, mất 711) · PayPal 2,180 → 1,947 (**89.3%**) · fee Card **3.80%** vs PayPal **5.22%**.
+
 ---
 
 ## 4. Khung chung mọi trang (đặt lên background)
@@ -300,14 +393,21 @@ Payment Fee Rate = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_orde
 Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field wells. KPI dùng card, mỗi card 1 measure; delta YoY để ở supporting/label hoặc card phụ.
 
 ### PAGE 1 — Overview
-**KPI (6 card, hàng trên):** Revenue (+ Revenue YoY %) · Contribution Profit (+ Profit YoY %) · Profit Margin · Paid Orders (+ Orders YoY %) · AOV · Repeat Rate.
+**KPI (6 card, hàng trên):** **Product revenue** = `[Revenue]` (+ `[Revenue T12M Icon]` §3.9a, màu `Delta_Color`) · Contribution Profit (+ T12M icon) · Profit Margin · Paid Orders (+ T12M icon) · AOV · Repeat Rate.
+
+> **Nhãn card đầu BẮT BUỘC là "Product revenue"** (không phải "Revenue") — trend bên dưới vẽ *Net revenue* (cơ sở mart, gồm shipping). Hai cơ sở khác nhau xuất hiện trên cùng trang; nhãn phải nói rõ cái nào là cái nào (sửa sau buildability audit).
 
 | Visual | Loại | Field |
 |---|---|---|
-| Revenue & Profit theo tháng | **Line chart** | Axis `dim_date[Month]` (hierarchy, cấp Month) · Values `[Revenue]`, `[Contribution Profit]` |
-| Revenue theo năm | **Clustered column** | Axis `dim_date[Year]` · Values `[Net Revenue]`, `[Contribution Profit]` |
-| Top markets | **Clustered bar** | Axis `dim_country[country_name]` · Values **`[Revenue per Country]`** (§3.6 — `[Revenue]` sẽ ra grand total cho mọi nước) · Filter Top N = 10 by `[Revenue per Country]` |
-| Revenue → Profit bridge | **Waterfall** | Category = 1 field trục "breakdown"; đơn giản nhất: dùng **Waterfall** với Category `dim_date` **hoặc** tạo bảng phụ. *Cách dễ:* dùng 1 **Stacked/Clustered** thể hiện Net Rev, −COGS, −Design, −Pmt fee, Profit qua bảng disconnected (xem ghi chú dưới). |
+| Monthly trend + ◈ FP1 | **Line chart** + **Button slicer** | Axis `dim_date[Month]` · Y-axis = **field parameter FP1** (§8.1: Net revenue = `[Profit Base Net Revenue]` đổi display name, Contribution Profit, Paid Orders, AOV). Multi-select Net revenue + Profit = chế độ "Rev + Profit" mặc định |
+| Revenue by year | **Clustered column** | Axis `dim_date[Year]` · Values `[Profit Base Net Revenue]` (nhãn "Net revenue"), `[Contribution Profit]` · Subtitle/hint: "2026 = partial (7 mo)" |
+| Top markets | **Matrix** | Rows `dim_country[country_name]` · Values **`[Revenue per Country]`**, `[Revenue Share]`, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (§3.6) · Filter **Top 6** by `[Revenue per Country]` |
+| Revenue → Profit bridge | **Waterfall** | Bảng disconnected `Bridge` (ghi chú dưới) |
+
+**Format matrix Top markets (3 bước, đúng demo):**
+1. **Data bars** cho `[Revenue per Country]`: chọn value → Conditional formatting → Data bars → màu `#0891B2`.
+2. **Margin heat** cho `[Country Margin]`: Conditional formatting → **Background color → Rules** — ≥57% nền `#DCF2E4` chữ `#1E6B3C` · 55–57% nền `#EAF6EE` chữ `#1E6B3C` · 53–55% nền `#FBF1D6` chữ `#7A5B00` · <53% nền `#FBE1E2` chữ `#B02A30` (đúng 4 bucket demo — Rules, không dùng Gradient).
+3. **Sparkline 12-mo**: chọn ô `[Revenue per Country]` trong Values → **Insert → Sparkline** → Y = `[Revenue per Country]`, X = `dim_date[Month]` → Filter sparkline 12 tháng gần nhất (relative date).
 
 > **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Profit Base Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
 >
@@ -318,29 +418,49 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| Cost structure | **Clustered bar** | Axis = bảng phụ `CostType` (Enter data: COGS/Payment fee/Design) hoặc 3 card; Values measure tương ứng. Đơn giản: bar ngang với 3 measure `[COGS]`,`[Payment Fee]`,`[Design Fee]` qua "values" của multi-row/bar. |
-| Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[Month]` · Values `[Profit Margin]`, `[COGS Ratio]` |
-| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b — `[Contribution Profit]`/`[Profit Margin]` sẽ ra grand total cho mọi sản phẩm) · Sort tăng theo `[Product Margin]`, filter `[Revenue] > 300`, Top 8 |
+| Cost structure | **Matrix** (không phải bar) | Rows = bảng disconnected `CostType` (Enter data: 3 dòng COGS / Payment fee / Design fee + cột `Order` 1-3 để sort) · Values = `[Cost Structure Value]` (data bars) + `[Cost Structure %]` (ghi chú dưới) |
+| Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[Month]` · Values `[Profit Margin]` (green), `[COGS Ratio]` (red) |
+| Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[Month]` · Values **`[COGS per Unit]`** (đỏ, §3.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
+| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Product Net Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b), **`[Margin vs Median]`** (§3.9b — font color = `[Margin vs Median Color]`) · Sort tăng theo `[Product Margin]`, filter `[Product Net Revenue] > 300`, Top 8 |
+
+> **Matrix Cost structure** — tái tạo "text % of net revenue" của demo bằng cột thay vì data label:
+> ```DAX
+> Cost Structure Value = SWITCH ( SELECTEDVALUE ( CostType[CostType] ),
+>     "COGS", [COGS], "Payment fee", [Payment Fee], "Design fee", [Design Fee] )                 -- $#,0
+> Cost Structure % = SWITCH ( SELECTEDVALUE ( CostType[CostType] ),
+>     "COGS", [COGS Ratio], "Payment fee", DIVIDE ( [Payment Fee], [Profit Base Net Revenue] ),
+>     "Design fee", DIVIDE ( [Design Fee], [Profit Base Net Revenue] ) )                          -- 0.0%
+> ```
+> Data bars cho `[Cost Structure Value]` (Conditional formatting). Tiêu đề cột: "Amount" / "% of net rev". Chart title: **"Cost structure — matrix · data bars · % of net revenue"**.
+>
+> **Vì sao tên "Unit cost trend"** (đổi từ "Unit economics — COGS/unit vs AOV"): title nói *kết luận* — chi phí đơn vị đang rẻ đi — thay vì liệt kê cấu tạo chart; 3 series ghi ở subtitle. Insight: COGS/unit giảm ~28% trong khi AOV đi ngang → margin được bảo vệ bởi supplier cost, không phải pricing power.
 
 ### PAGE 3 — Products
-**KPI (4 card):** Distinct Products Sold · (top-11%→50% là insight, ghi text) · Front-print share · Men's fit share.
+**KPI (4 card):** Distinct Products Sold (1,636) · "Top 11% of products = 50% of revenue" (**text box** — insight tĩnh từ Pareto, không cần measure) · **`[Median Margin]`** (§3.9b, label "designs with >$100 revenue") · **`[Loss-making Designs]`** (§3.9c, delta label "total loss only −$63 — catalog is safe").
 
 | Visual | Loại | Field |
 |---|---|---|
-| Pareto concentration | **Line + column** hoặc Line | Axis `dim_product[product_name]` sort desc theo `[Revenue]` · Line `[Cumulative Revenue %]` (Top ~100 hoặc all). Thêm 2 constant line ở 50% & 80%. |
-| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b) · Top 8 by `[Product Profit]` |
-| Revenue by print location | **Bar** | Axis `fact_order_item[print_location]` · Values `[Revenue]` |
-| Revenue by size | **Column** | Axis `fact_order_item[size]` · Values `[Revenue]` (sort S→5XL bằng sort column) |
-| Revenue by fit type | **Donut** | Legend `fact_order_item[fit_type]` · Values `[Revenue]` |
+| Revenue concentration (Pareto) | **Line chart** | Axis `dim_product[product_name]` **sort desc theo `[Revenue]`** · Values `[Cumulative Revenue %]` (§3.5) · **Analytics pane → 2 constant lines Y = 50% & 80%** (màu `#E0A82E`, dashed) · 2 **text box** callout "Top 11% → 50%" / "Top 43% → 80%" group với chart |
+| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`** (font green + bold qua conditional formatting), **`[Product Margin]`** (§3.5b) · Top 8 by `[Product Profit]` |
+| Revenue by ◈ FP2 | **Bar/Column chart** + **Button slicer** | Axis = **field parameter FP2** (§8.2: `print_location` / `size` / `fit_type`) · Values `[Revenue]` · Slicer Tile/Button ngang trên đầu chart |
+| Revenue vs margin — per design | **Scatter chart** | Values `dim_product[product_name]` · X = `[Product Net Revenue]` · Y = `[Product Margin]` · Filter **Top 60** by `[Product Net Revenue]` · Markers → fx color = `[Scatter Color]` (§3.9c: <52% đỏ) · **Analytics → Y constant line 0.56** (sand, dashed, label "median 56%") |
+
+> **Trục Pareto — khác demo một cách có chủ đích:** demo vẽ trục X = "% of products (by rank)"; Power BI line chart cần trục là cột thật nên dùng `product_name` sorted desc — **câu chuyện giữ nguyên** (đường cong tích lũy + 2 mốc 50/80%), chỉ nhãn trục khác. Đừng cố tạo calculated column rank % trên `dim_product` — 58k dòng variant (1,636 design bán được) làm rank nhiễu mà không thêm insight.
+>
+> **Sparkline "8-wk" đã bỏ khỏi bảng Top products** (demo cũ vẽ số giả). *Tùy chọn:* trong Power BI có thể thêm lại **sparkline thật** — chọn ô `[Revenue]` → Insert → Sparkline → X = `dim_date[date_day]`, filter 8 tuần gần nhất. Chỉ thêm nếu bạn muốn; demo hiện hành không có.
+>
+> **Scatter đọc thế nào:** mỗi chấm = 1 design; chấm **to bên phải + dưới đường median** (đỏ, <52%) = bán chạy nhưng định giá thấp → **danh sách tăng giá ưu tiên**. Hover tooltip hiện tên design + revenue + margin.
 
 ### PAGE 4 — Markets
-**KPI (4 card):** Top market (text/card lớn) · Best-margin market · International share · Markets served (`DISTINCTCOUNT(dim_country[country_name])`).
+**KPI (4 card):** `[Top Market Name]` (§3.9d, delta = "$53.1k · 44.5% of revenue") · **`[Best Margin Major Market]`** (§3.9d — label **"Best-margin major market"**, delta "58.0% · markets ≥ $2k rev") · `[International Share]` (§3.9d) · `[Markets Served]` (§3.9d).
 
 | Visual | Loại | Field |
 |---|---|---|
-| Revenue map | **Filled/Bubble map** | Location `dim_country[country_name]` · Bubble size **`[Revenue per Country]`** · Color saturation **`[Country Margin]`** |
-| Revenue vs margin | **Line and clustered column** | Shared axis `dim_country[country_name]` (Top 8) · Column **`[Revenue per Country]`** · Line **`[Country Margin]`** |
-| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values **`[Country Orders]`**, **`[Revenue per Country]`**, **`[AOV per Country]`**, **`[Country Margin]`**, `[Revenue Share]` |
+| Revenue map | **Bubble map** | Location `dim_country[country_name]` · Bubble size **`[Revenue per Country]`** · Legend/color qua fx = measure màu margin (≥56% green `#2E8B4F` · 53–56% sand `#E0A82E` · <53% red `#E5484D`) |
+| Revenue vs margin | **Line and clustered column** | Shared axis `dim_country[country_name]` (Top 8 by `[Revenue per Country]`) · Column **`[Revenue per Country]`** · Line **`[Country Margin]`** (secondary axis 0–60%) |
+| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values **`[Country Orders]`**, **`[Revenue per Country]`**, **`[AOV per Country]`**, **`[Country Margin]`**, **`[Country Repeat %]`** (§3.9d), `[Revenue Share]` · Top 10 by revenue |
+
+> **Format cột Repeat %** (table Market detail): Conditional formatting → Font color → **Rules** — ≥3% chữ `#1E6B3C` bold · 2–3% chữ `#7A5B00` bold · <2% chữ `#9AA3AF`. Insight cột này: **EU repeat 2–4%** (ES 4.3, NL 3.2) vs **US 1.6%** → chọn thị trường cho email win-back. Subtitle bảng ghi hint "Click a row → drill through" (§7).
 
 > ⚠️ **Cả trang này KHÔNG được dùng `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` trực tiếp** — không bảng nào trong số đó cắt được theo country (§2.3b), Power BI sẽ im lặng trả grand total giống nhau cho mọi nước. Dùng bộ `*per Country* / Country *` ở §3.6.
 >
@@ -350,24 +470,38 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 > ```
 
 ### PAGE 5 — Customers
-**KPI (4 card):** Distinct Customers · One-time Share · Orders per Customer · Lapsed Share.
+**KPI (4 card):** Distinct Customers · One-time Share (91%, val đỏ) · Orders per Customer (**delta label: "lifetime · all order attempts"** — `total_orders` của mart đếm MỌI đơn kể cả failed/cancelled, khác dân số Paid Orders; phải ghi rõ basis) · Lapsed Share (val đỏ).
 
 | Visual | Loại | Field |
 |---|---|---|
-| New customers / tháng | **Column** | Axis `mart_customer_summary[first_order_date]` (cấp Month) · Values `[New Customers]` |
-| Customer recency | **Bar** | Axis `mart_customer_summary[Recency Segment]` · Values `[Distinct Customers]` (màu semantic: Active green → Lapsed red) |
-| Orders per customer | **Column** | Axis `mart_customer_summary[total_orders]` · Values `Count of customer_sk` |
-| Customer value distribution | **Column** | Axis `mart_customer_summary[CLV Bucket]` · Values `Count of customer_sk` |
+| New customers acquired — monthly | **Column** | Axis `mart_customer_summary[first_order_date]` (cấp Month) · Values `[New Customers]` · **Columns → fx → `[Acq Bar Color]`** (§3.9e: 2026 đỏ, còn lại cyan — làm nổi cú rơi 2026) |
+| Customer recency | **Bar** | Axis `mart_customer_summary[Recency Segment]` · Values `[Distinct Customers]` · Data colors per point: Active `#2E8B4F` · 3-6mo `#E0A82E` · 6-12mo `#64748B` · Lapsed `#E5484D` |
+| Orders per customer | **Column** | Axis `mart_customer_summary[total_orders]` · Values `Count of customer_sk` · Subtitle "repeat depth · basis: all order attempts" |
+| Are repeat customers worth more? | **Matrix + 3 Text box** (composite, group lại) | Matrix: **Columns** = cột `Segment` (§3.9e) · **Values** = `[Distinct Customers]`, `[Seg Lifetime Revenue]`, `[Seg LTV]`, `[Seg Revenue per Order]` · Format → Values → **Switch values to rows = On** (metric thành dòng, One-time/Repeat thành 2 cột — đúng layout demo) |
+
+> **3 text box kết luận** dưới matrix (đây là editorial content, không phải measure): ① "LTV repeat chỉ +12% — nhưng đơn repeat nhỏ hơn 51%." ② chữ đỏ `#B02A30`: "93% khách mua lần 2 trong 30 ngày đầu (đa số cùng ngày)" ③ "→ win-back sau tháng đầu gần như vô nghĩa; tăng trưởng = khách mới + AOV." — Con số 93% lấy từ phân tích SQL offline (khoảng cách first→second order trong `fact_order`), không có measure nào tính nó trên model; nếu muốn động hóa thì cần cột `days_to_second_order` trong mart (chưa có — chấp nhận text tĩnh).
+>
+> **CLV distribution đã bỏ** (phân bố dồn hết $20–40, không actionable) — panel segment thay thế. Cột `CLV Bucket` vẫn còn trong model, không cần xóa.
 
 ### PAGE 6 — Operations
-**KPI (5 card):** Paid Success Rate · Failed Rate · Cancellation Rate · Open Backlog · Refund Rate.
+**KPI (5 card):** Paid Success Rate (green) · Failed Rate (red, delta "437 orders lost") · Cancellation Rate · Open Backlog · Refund Rate (green).
 
 | Visual | Loại | Field |
 |---|---|---|
-| Order status breakdown | **Bar** | Axis `fact_order[status]` · Values `[Order Attempts]` (Count) · màu theo status (completed green, failed red, cancelled sand…) qua "colors" từng data point |
-| Status theo tháng | **Stacked column** | Axis `dim_date[Month]` · Values Completed/Failed/Cancelled — dùng `fact_order[status]` làm Legend + `[Order Attempts]` |
-| Payment method & fee | **Table/Bar** | Rows `dim_payment_method[method_name]` · Values Count orders, `[Payment Fee Rate]`, `[Payment Fee]` |
-| Refund health | **Card + table** | Cards `[Refund Rate]`,`[Refunded Orders]`,`[Refund Amount]`; table `fact_refund[refund_reason]` × count |
+| Order status breakdown | **Bar** | Axis `fact_order[status]` · Values `[Order Attempts]` · Data colors per point: completed `#2E8B4F` · cancelled `#E0A82E` · failed `#E5484D` · processing `#0891B2` · refunded `#64748B` · pending `#7C6BC4` |
+| Status theo tháng | **Stacked column** | Axis `dim_date[Month]` · Legend `fact_order[status]` (filter 3 status: completed/cancelled/failed) · Values `[Order Attempts]` |
+| Payment method — approval & fee | **Composite: 100% stacked bar + Matrix + Text box** (group 3 visual) | Chi tiết dưới |
+| Refund health | **Composite: Gauge + 2 Card + Text box** (group) | Chi tiết dưới |
+
+> **Payment composite (3 visual group lại — demo cũng vẽ đúng dạng này):**
+> 1. **100% stacked bar**: Axis `dim_payment_method[method_name]` · Values `[Method Paid Orders]` (màu method: Card `#0891B2`, PayPal `#E0A82E`) + `[Method Lost]` (màu `#F6E3E4`) · Data labels = % (hiện "72.4%" / "89.3%").
+> 2. **Matrix**: Rows `dim_payment_method[method_name]` · Values `[Order Attempts]`, `[Method Paid Orders]`, `[Method Lost]` (font đỏ), `[Method Fee Rate]` (Rules: Card green / PayPal red), `[Method Payment Fee]` (§3.9f).
+> 3. **Text box** đỏ `#B02A30`: *"Card mất 711 attempts (27.6%) — sửa checkout card = cơ hội lớn nhất trang này"*.
+>
+> **Refund composite (4 visual group lại):**
+> 1. **Gauge** (hoặc donut 2 slice + center label): value `[Refund Rate]`, max 10%, màu `#2E8B4F`.
+> 2. **2 Card**: `[Refunded Orders]` (37) · `[Refund Amount]` ($1,592).
+> 3. **Text box**: Top reason `"Order fully refunded"` (từ `fact_refund[refund_reason]` — nếu muốn động: table 1 dòng Top 1 by count) + dòng green *"Very low — quality is a strength."*
 
 ---
 
@@ -391,16 +525,30 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 ---
 
-## 8. Bookmarks
+## 8. Field parameters & Bookmarks
 
-**View → Bookmarks + Selection.**
+> Bản artifact 2026-07-23 dùng **field parameter** thay cho trò 2-chart-chồng-nhau + bookmark của guide cũ — ít visual hơn, không lệch pixel, multi-select được.
 
-- **Measure toggle (Rev+Profit ↔ Orders)** trên line Page 1:
-  1. Tạo 2 line chart chồng lên nhau cùng vị trí: chart A (`[Revenue]`,`[Contribution Profit]`), chart B (`[Paid Orders]`).
-  2. Selection pane: bookmark **"Rev+Profit"** = hiện A / ẩn B; bookmark **"Orders"** = ẩn A / hiện B (mỗi bookmark chỉ tick *Data* + *Display*, bỏ *Current page*).
-  3. Insert 2 **Buttons** "Rev+Profit" / "Orders" → **Action = Bookmark**.
-- **Reset filters:** clear mọi slicer về mặc định → **Add bookmark "Reset"** → nút Action = Bookmark đó.
+### 8.1 FP1 — Overview: đổi measure của trend
+1. **Modeling → New parameter → Fields** → tên `Trend Metric`.
+2. Add theo thứ tự: `[Profit Base Net Revenue]` → **đổi display name trong list thành "Net revenue"** · `[Contribution Profit]` · `[Paid Orders]` · `[AOV]` → tick *Add slicer to this page*.
+3. Kéo parameter vào **Y-axis** line chart Page 1 (thay measure cố định).
+4. Slicer → đổi sang **Button slicer**: Orientation ngang · bo góc 6px · Selected state nền trắng chữ `#0E7490` · Unselected nền `#F1F4F8`. Đặt góc phải phía trên chart → **Group** với chart.
+5. **Ctrl+click** chọn cả "Net revenue" + "Contribution Profit" = chế độ mặc định "Rev + Profit" (2 line cùng lúc).
+
+> **Vì sao Y = `[Profit Base Net Revenue]` chứ không phải `[Net Revenue]`:** đường profit vẽ cạnh nó và margin 55% tính trên cơ sở mart — trend phải cùng cơ sở ($157.6k tổng, đúng series demo vẽ). Nhãn hiển thị "Net revenue" đặt ngay trong parameter.
+>
+> **Giới hạn đã biết:** không nhúng được slicer vào title bar của visual như demo HTML — đặt sát góc phải trên chart là gần nhất (~90% look).
+
+### 8.2 FP2 — Products: đổi chiều phân tích
+1. **Modeling → New parameter → Fields** → tên `Product Dimension` → add `fact_order_item[print_location]`, `fact_order_item[size]`, `fact_order_item[fit_type]`.
+2. Kéo parameter vào **Axis** của bar chart, Values = `[Revenue]`.
+3. Slicer style **Tile/Button** ngang trên đầu chart. (Size cần sort S→3XL: sort column trên `fact_order_item[size]` như guide cũ.)
+
+### 8.3 Bookmarks còn dùng
+- **Reset filters:** clear mọi slicer về mặc định → **Add bookmark "Reset"** → nút Action = Bookmark.
 - (Tùy chọn) **Insight panel** trượt ra: 1 shape/panel + Selection pane show/hide qua 2 bookmark.
+- ~~Measure toggle bằng bookmark~~ — đã thay bằng FP1.
 
 ---
 
@@ -415,12 +563,12 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 ## Phụ lục A — Index measure nhanh
 Sales: Revenue · Quantity Sold · Net Revenue · Profit Base Net Revenue · Paid Orders · AOV · Shipping Charged
-Profit: Contribution Profit · Profit Margin · (YoY: Revenue/Profit/Orders YoY %)
-Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit
-Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin**
-Markets: **Revenue per Country · Country Profit · Country Net Revenue · Country Margin · Country Orders · AOV per Country** · Revenue Share
-Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share (+ cột Recency Segment, CLV Bucket, Days Since Last Order)
-Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate
+Profit: Contribution Profit · Profit Margin · (Delta: **T12M Icon** cho KPI §3.9a · MoM/YoY Icon+Color cho tooltip)
+Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit · **COGS per Unit · Median Margin · Margin vs Median (+Color)** (§3.9b)
+Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§3.9c)
+Markets: **Revenue per Country · Country Profit · Country Net Revenue · Country Margin · Country Orders · AOV per Country** · Revenue Share · **Top Market Name · Best Margin Major Market · International Share · Markets Served · Country Repeat %** (§3.9d)
+Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share · **Seg Lifetime Revenue · Seg LTV · Seg Revenue per Order · Acq Bar Color** (§3.9e) (+ cột Recency Segment, CLV Bucket, Days Since Last Order, **Segment**)
+Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Payment Fee · Method Fee Rate** (§3.9f)
 
 ---
 
