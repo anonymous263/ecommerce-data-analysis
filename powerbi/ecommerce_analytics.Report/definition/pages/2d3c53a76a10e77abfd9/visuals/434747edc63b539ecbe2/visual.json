@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "434747edc63b539ecbe2",
+  "position": {
+    "x": 596,
+    "y": 228.66666666666669,
+    "z": 4,
+    "height": 300,
+    "width": 300
+  },
+  "visual": {
+    "visualType": "card",
+    "autoSelectVisualType": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Paid Orders"
+                }
+              },
+              "queryRef": "_Measures.Paid Orders",
+              "nativeQueryRef": "Paid Orders"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
