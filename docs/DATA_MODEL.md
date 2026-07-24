@@ -9,6 +9,7 @@
 - **Dim tables** = nouns (products, customers, dates, countries).
 - **Fact tables** = verbs (one order item, one refund, one GA4 event).
 - All relationships are single-direction (dim → fact) on surrogate keys.
+- **Conformed dimensions + FK inheritance to grain (locked 2026-07-24).** A shared dimension (`dim_country`, `dim_customer`, `dim_payment_method`, `dim_date`) connects **directly** to *every* fact whose measures you want to slice by it — each fact carries that FK **at its own grain**, inherited from the order at build time (`LEFT JOIN fact_order USING (order_sk)`). One conformed dim → many `1:*` single-direction relationships. This lets a single slicer propagate across all pages **without** fact-to-fact relationships, bidirectional filters, TREATAS virtual relationships, or per-dimension measure clones. **Two things stay grain-bound:** (a) `product_sk` exists only at line grain — an order-grain fact can never slice by product (use `mart_product_profit`); (b) lifetime snapshots (`mart_customer_summary`) are non-additive over date by nature. See `docs/DATA_MODEL_REDESIGN_SPEC.md`.
 
 ---
 
@@ -23,7 +24,6 @@
 | `fact_fulfillment` | **Manual CSV** (Phase 5); later Printify/carrier APIs | one shipment per Woo order |
 | `mart_order_profit` | dbt-computed | one Woo order |
 | `mart_product_profit` | dbt-computed | one order × line item (with allocated cost) |
-| `mart_country_profit` | dbt-computed | one country × period |
 | `mart_customer_summary` | dbt-computed | one `customer_hash` |
 | `fact_ga4_event` | **GA4** | one event |
 | `fact_ga4_session` | **GA4** (derived) | one session |
@@ -83,6 +83,10 @@ Refund netting is CAPPED at gross revenue. Woo refunds are full-order (product +
 
 ```
 mart_order_profit per Woo order:
+  -- conformed dimension keys (inherited from fact_order; enable direct slicing) --
+  date_sk / site_sk / country_sk / customer_sk / payment_method_sk  -- FK to dims
+  order_status                                                       -- degenerate (completed/refunded/…)
+  -- measures --
   gross_product_revenue_usd = SUM(fact_order_item.line_revenue_usd) filtered by is_revenue_status
   shipping_charged_usd       = fact_order.shipping_charged_usd   -- customer shipping charge (revenue)
   gross_revenue_usd          = gross_product_revenue_usd + shipping_charged_usd  -- order-total basis
@@ -120,7 +124,7 @@ line_profit_usd       = line_net_revenue_usd − line_cogs_usd − line_design_f
 ```
 `line_revenue_usd` itself stays product-only (never mutated); the allocated shipping is a separate `line_shipping_usd` column. `SUM(line_profit_usd)` across all lines of an order equals `mart_order_profit.contribution_profit_usd` exactly (to the cent; verified $86,670.64 = $86,670.64 on real FOS data, post-cleanup 2026-07-23).
 
-Every product-profit row carries `cost_allocation_method` and `cost_confidence`. Dashboards displaying product-level profit show a caveat tag whenever `cost_allocation_method != 'line_exact'`.
+Every product-profit row carries `cost_allocation_method` and `cost_confidence`. Dashboards displaying product-level profit show a caveat tag whenever `cost_allocation_method != 'line_exact'`. Being at **line grain**, `mart_product_profit` also carries the full conformed-key set — `date_sk`, `site_sk`, `product_sk`, `country_sk`, `customer_sk`, `payment_method_sk`, and the degenerate `order_status` — so product-level profit slices by country/customer/payment as well (unlike order-grain `mart_order_profit`, which cannot slice by product).
 
 ### 4.4 What is *not* used for profit
 - CSV's `Revenue`, `Profit`, `ROI`, `Profit Margin` — drift-monitored in `marts_recon.recon_csv_vs_dbt_*`, never official.
@@ -273,6 +277,10 @@ order_sk             INT FK
 site_sk              INT FK
 date_sk              INT FK
 product_sk           INT FK
+country_sk           INT FK              -- inherited from fact_order (conformed dim)
+customer_sk          INT FK              -- inherited from fact_order
+payment_method_sk    INT FK              -- inherited from fact_order
+order_status         TEXT                -- degenerate, inherited from fact_order
 woo_line_item_id     INT
 quantity             INT
 unit_price_src       NUMERIC
@@ -288,7 +296,11 @@ line_revenue_usd     NUMERIC                -- official revenue
 refund_sk            BIGINT PK
 order_sk             INT FK
 order_item_sk        BIGINT FK NULL        -- nullable; only set if audit confirms item-level refund detail
-date_sk              INT FK
+date_sk              INT FK                -- refund date
+site_sk              INT FK                -- inherited from fact_order (conformed dim)
+country_sk           INT FK                -- inherited from fact_order; lets refund metrics slice by market
+customer_sk          INT FK                -- inherited from fact_order
+payment_method_sk    INT FK                -- inherited from fact_order
 refund_amount_usd    NUMERIC
 refund_reason        TEXT
 event_type           TEXT                  -- 'refund' | 'cancellation'
@@ -303,6 +315,9 @@ order_cost_sk            INT PK
 order_sk                 INT FK           -- joined by (site_code, woo_order_id)
 site_sk                  INT FK
 date_sk                  INT FK
+country_sk               INT FK           -- inherited from fact_order (conformed dim)
+customer_sk              INT FK           -- inherited from fact_order
+payment_method_sk        INT FK           -- inherited from fact_order
 cogs_usd                 NUMERIC NULL     -- includes supplier fulfillment/shipping fee where applicable
 design_fee_usd           NUMERIC NULL
 payment_fee_fallback_usd NUMERIC NULL     -- only populated if Woo cannot provide an exact value
@@ -324,6 +339,9 @@ csv_shipping_charged_usd NUMERIC NULL     -- for recon only; the CSV 'Shipping' 
 fulfillment_sk        INT PK
 order_sk              INT FK
 supplier_sk           INT FK
+site_sk               INT FK              -- inherited from fact_order (conformed dim)
+country_sk            INT FK              -- inherited from fact_order
+customer_sk           INT FK              -- inherited from fact_order
 ship_date_sk          INT FK NULL
 deliver_date_sk       INT FK NULL
 shipping_company      TEXT
@@ -353,10 +371,9 @@ See §4.2.
 ### 7.2 `mart_product_profit`
 See §4.3. Carries `cost_allocation_method` and `cost_confidence`.
 
-### 7.3 `mart_country_profit`
-Roll-up of `mart_order_profit` to country × period.
+> **`mart_country_profit` removed (2026-07-24).** Country analysis now reads `mart_order_profit` directly (it carries `country_sk`) — see §1 and `DATA_MODEL_REDESIGN_SPEC.md`. A country × period pre-aggregation may be reintroduced later purely for performance if needed; it is no longer required for correctness.
 
-### 7.4 `mart_customer_summary`
+### 7.3 `mart_customer_summary`
 ```
 customer_sk        INT PK
 customer_hash      TEXT
@@ -373,6 +390,20 @@ preferred_country_sk INT
 ---
 
 ## 8. Relationships (star)
+
+**Authoritative conformed-dimension map (locked 2026-07-24).** Each dim connects **directly** to every fact at that fact's grain — all `1:*`, single-direction, active. No fact-to-fact filter bridges, no bidirectional, no TREATAS.
+
+| Dim (one) | Facts (many) |
+|---|---|
+| `dim_date` | fact_order, fact_order_item, fact_refund, fact_order_cost, mart_order_profit, mart_product_profit *(role-playing: refund/ship/deliver dates via inactive relationships + `USERELATIONSHIP`)* |
+| `dim_country` | fact_order, fact_order_item, fact_order_cost, fact_refund, fact_fulfillment, mart_order_profit, mart_product_profit |
+| `dim_customer_anonymized` | fact_order, fact_order_item, fact_order_cost, fact_refund, fact_fulfillment, mart_order_profit, mart_product_profit, mart_customer_summary *(`preferred_*_sk` inactive)* |
+| `dim_payment_method` | fact_order, fact_order_item, fact_order_cost, fact_refund, mart_order_profit, mart_product_profit |
+| `dim_product` | fact_order_item, mart_product_profit *(product exists only at line grain)* |
+| `dim_site` | fact_order, fact_order_item, fact_order_cost, fact_refund, fact_fulfillment, mart_order_profit, mart_product_profit |
+| `dim_supplier` | fact_fulfillment |
+
+The ASCII below is schematic (build/data-flow lineage), not the filter-relationship map above:
 
 ```
                        ┌──────────────┐
@@ -399,7 +430,6 @@ preferred_country_sk INT
    │ fact_fulfillment    (Phase 5, supplier)  │      │
    └──────────────────────────────────────────┘      ▼
                                                 mart_product_profit
-                                                mart_country_profit
                                                 mart_customer_summary
 
    ┌──────────────┐    ┌──────────────┐

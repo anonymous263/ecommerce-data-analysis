@@ -202,7 +202,7 @@ note_present
 ### 5.4 Marts
 - `marts_operations.fact_order_cost` (Phase 3) — order-level; carries `cost_source`, `cost_allocation_method`, `cost_confidence`. No `actual_shipping_cost_usd`.
 - `marts_operations.fact_fulfillment` (Phase 5)
-- `marts_core.mart_order_profit`, `mart_product_profit`, `mart_country_profit` (Phase 3+)
+- `marts_core.mart_order_profit`, `mart_product_profit` (Phase 3+). Each carries conformed FKs (`country_sk`, `customer_sk`, `payment_method_sk` + degenerate `order_status`) inherited from `fact_order` so any dim slices them directly (see [DATA_MODEL.md §1/§8](DATA_MODEL.md) and `DATA_MODEL_REDESIGN_SPEC.md`, 2026-07-24). *(`mart_country_profit` removed — country reads `mart_order_profit` directly.)*
 
 Contribution profit formula (locked in [DATA_MODEL.md §4.1](DATA_MODEL.md)):
 ```
@@ -300,7 +300,6 @@ dbt/
 │   │   │   ├── fact_refund.sql
 │   │   │   ├── mart_order_profit.sql
 │   │   │   ├── mart_product_profit.sql
-│   │   │   ├── mart_country_profit.sql
 │   │   │   └── mart_customer_summary.sql
 │   │   ├── marketing/
 │   │   │   ├── dim_channel.sql

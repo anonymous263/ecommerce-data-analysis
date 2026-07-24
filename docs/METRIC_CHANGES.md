@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-07-24 — Conformed-dimension redesign: measure consolidation & mart_country_profit removal
+
+- **Context:** `docs/DATA_MODEL_REDESIGN_SPEC.md` documents a conformed-dimension redesign — every order/line-grain fact gains the same FK set (`country_sk`, `customer_sk`, `payment_method_sk`, degenerate `order_status`) inherited from `fact_order` via `order_sk`, so one dim relationship (not a TREATAS bridge) propagates a slicer to every fact instead of per-dimension measure clones. Docs-decision only for now; the dbt model change (`fact_order_item`, `mart_order_profit`, `mart_product_profit`, `fact_refund`, `fact_order_cost`, `fact_fulfillment`) is deferred to Phase 2 resume per the spec's own implementation plan.
+- **Measures removed** (collapsed to existing base measures once the FK lands): `Revenue per Country` → `[Revenue]`; `Country Profit` → `[Contribution Profit]`; `Country Net Revenue` → `[Profit Base Net Revenue]`; `Country Margin` → `[Profit Margin]`; `Country Orders` → `[Paid Orders]`; `AOV per Country` → `[AOV]`; `Method Payment Fee` (TREATAS) → `[Payment Fee]`.
+- **Measures rewritten** (drop per-country references, formula logic otherwise unchanged): `Revenue Share`, `Top Market Name`, `Best Margin Major Market`, `International Share`.
+- **Table removed:** `mart_country_profit` — country analysis now reads `mart_order_profit` directly, which carries `country_sk`.
+- **Reason:** one conformed dimension replaces the TREATAS virtual-relationship workaround and the "per-dimension" measure family it required; also fixes `[Refund Rate]`'s missing country slicing (`fact_refund` gains `country_sk`, which it previously lacked entirely).
+- **No numeric impact:** every base metric value is unchanged — the new FKs add dimensional context only; no base-measure formula changes.
+- **Cross-reference:** `docs/DATA_MODEL_REDESIGN_SPEC.md`.
+
+---
+
 ## 2026-07-23 — Data cleanup (no formula changes): reference values re-baselined
 
 - **Metric:** none redefined — every formula is unchanged. This entry re-baselines the **live FOS reference values** quoted across docs/measure descriptions after the 2026-07-22→23 Woo↔CSV reconciliation (sheet + Woo status/total/currency/shipping fixes; 50 flagged orders re-fetched; 37 hard-deleted Woo orders excluded by design; off-platform `_n`-suffixed sheet codes now skipped by the CSV loader).

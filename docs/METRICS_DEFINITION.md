@@ -48,7 +48,7 @@
 
 ## B. Profitability Metrics
 *Source: dbt-computed from Woo revenue + manual CSV cost enrichment.*
-*Tables: `mart_order_profit`, `mart_product_profit`, `mart_country_profit`, `fact_order`, `fact_order_cost`.*
+*Tables: `mart_order_profit`, `mart_product_profit`, `fact_order`, `fact_order_cost`.*
 ***Model-available: Phase 3. Dashboard-visible: Phase 4, gated by cost coverage (see §J).***
 
 ### B1. COGS
@@ -170,6 +170,8 @@ F2 Conversion Rate by Channel — same.
 
 ## G. Site & Geography Metrics
 *Source: WooCommerce. **Model-available: Phase 2. Dashboard-visible: Phase 4.***
+
+> **Not separate measures (2026-07-24 conformed-dim redesign).** "Per site" / "per country" below are the base sales/profit measures (§A, §B) sliced by `dim_site` / `dim_country` on the visual axis — enabled by the conformed `site_sk` / `country_sk` FKs now carried on every fact grain (`fact_order_item`, `mart_order_profit`, …). There is **no** standalone `Revenue per Country` DAX measure and **no** `mart_country_profit` rollup any more; see `docs/DATA_MODEL_REDESIGN_SPEC.md` and `docs/METRIC_CHANGES.md` (2026-07-24).
 
 ### G1. Revenue per Site
 `SUM(line_revenue_usd) WHERE is_revenue_status GROUP BY site_sk` (= A1 Revenue, grouped)
