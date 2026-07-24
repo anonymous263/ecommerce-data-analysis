@@ -11,9 +11,9 @@
       "type": "SharedResources"
     },
     "customTheme": {
-      "name": "FOS_Ops___Cyan___Sand6321525325039176.json",
+      "name": "FOS_Ops___Cyan___Sand5437338342513501.json",
       "reportVersionAtImport": {
-        "visual": "2.10.0",
+        "visual": "2.11.0",
         "report": "3.4.0",
         "page": "2.3.1"
       },
@@ -48,6 +48,9 @@
       }
     ]
   },
+  "publicCustomVisuals": [
+    "dateSel4A1A0033E6F54D1B809B6E51058D54E3"
+  ],
   "resourcePackages": [
     {
       "name": "SharedResources",
@@ -70,9 +73,55 @@
           "type": "Image"
         },
         {
-          "name": "FOS_Ops___Cyan___Sand6321525325039176.json",
-          "path": "FOS_Ops___Cyan___Sand6321525325039176.json",
+          "name": "cost_213146657564812436.png",
+          "path": "cost_213146657564812436.png",
+          "type": "Image"
+        },
+        {
+          "name": "cost_28215677093795449.png",
+          "path": "cost_28215677093795449.png",
+          "type": "Image"
+        },
+        {
+          "name": "customer_26138870389707115.png",
+          "path": "customer_26138870389707115.png",
+          "type": "Image"
+        },
+        {
+          "name": "FOS_Ops___Cyan___Sand5437338342513501.json",
+          "path": "FOS_Ops___Cyan___Sand5437338342513501.json",
           "type": "CustomTheme"
+        },
+        {
+          "name": "market_246416941390472977.png",
+          "path": "market_246416941390472977.png",
+          "type": "Image"
+        },
+        {
+          "name": "operation_27007965674975591.png",
+          "path": "operation_27007965674975591.png",
+          "type": "Image"
+        },
+        {
+          "name": "product_220847011385439862.png",
+          "path": "product_220847011385439862.png",
+          "type": "Image"
+        },
+        {
+          "name": "svgviewer-png-output49674922598645155.png",
+          "path": "svgviewer-png-output49674922598645155.png",
+          "type": "Image"
+        }
+      ]
+    },
+    {
+      "name": "SuperDatePicker_BIsuperheroCZ",
+      "type": "CustomVisual",
+      "items": [
+        {
+          "name": "SuperDatePicker_BIsuperheroCZ.pbiviz.json",
+          "path": "SuperDatePicker_BIsuperheroCZ.pbiviz.json",
+          "type": "CustomVisualMetadata"
         }
       ]
     }

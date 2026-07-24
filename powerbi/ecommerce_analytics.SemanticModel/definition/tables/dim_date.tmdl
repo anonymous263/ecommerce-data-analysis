@@ -59,8 +59,8 @@ table dim_date
 		dataType: string
 		lineageTag: d191dc52-a714-47a8-9437-196fadd563bf
 		summarizeBy: none
-		sortByColumn: month
 		sourceColumn: month_name
+		sortByColumn: month
 
 		annotation SummarizationSetBy = Automatic
 
@@ -86,8 +86,8 @@ table dim_date
 		dataType: string
 		lineageTag: da386490-9402-498e-a6a6-7266553944a2
 		summarizeBy: none
-		sortByColumn: iso_day_of_week
 		sourceColumn: day_name
+		sortByColumn: iso_day_of_week
 
 		annotation SummarizationSetBy = Automatic
 

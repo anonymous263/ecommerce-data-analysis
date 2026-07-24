@@ -1,0 +1,29 @@
+{
+  "version": "0.10.0.84",
+  "author": {
+    "name": "Robert Junek",
+    "email": "robert@bisuperhero.cz"
+  },
+  "resources": [
+    {
+      "resourceId": "rId0",
+      "sourceType": 5,
+      "file": "resources/SuperDatePicker_BIsuperheroCZ.pbiviz.json"
+    }
+  ],
+  "visual": {
+    "guid": "SuperDatePicker_BIsuperheroCZ",
+    "name": "SuperDatePicker",
+    "displayName": "SuperDatePicker",
+    "version": "0.10.0.84",
+    "description": "Simple and free date picker visual for Power BI created by BISuperhero.cz",
+    "supportUrl": "https://www.superdatepicker.com",
+    "gitHubUrl": "https://github.com/robertjunek/super-date-picker-code",
+    "visualClassName": "Visual"
+  },
+  "metadata": {
+    "pbivizjson": {
+      "resourceId": "rId0"
+    }
+  }
+}
