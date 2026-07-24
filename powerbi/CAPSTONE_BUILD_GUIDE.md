@@ -64,6 +64,140 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 
 ---
 
+## 1.4 Bộ styling chi tiết (artifact CSS → Power BI Format pane)
+
+> Theme JSON (§1.2) đã set **global**: dataColors, card radius 12 + shadow + viền `#E9EEF5`, font Segoe UI, page bg `#F5F7FA`. Phần này là **spec pixel-level** của artifact để chỉnh tay từng loại visual cho khớp — dùng khi Format pane cần đặt riêng (font size, padding, màu semantic của con số…). Nguồn: CSS của `powerbi/…/fos_dashboard.html`.
+
+**Quy đổi đơn vị (đọc trước):** CSS đo bằng **px** trên khung 1920×1080; Power BI đặt font bằng **pt**. Dùng **pt ≈ px × 0.75**. Các bảng dưới ghi sẵn cả hai — nhập cột "PBI pt". (Kích thước/khoảng cách của visual thì nhập thẳng px vào ô Position/Size vì canvas cũng là 1920×1080.)
+
+### 1.4.1 Design tokens (biến gốc — mọi thứ khác dẫn xuất từ đây)
+| Token | Hex / value | Dùng cho |
+|---|---|---|
+| `bg` (page) | `#F5F7FA` | Nền canvas mọi trang |
+| `card` | `#FFFFFF` | Nền mọi card/visual container |
+| `bd` (border) | `#E9EEF5` | Viền card, topbar, dinput, seg control |
+| `bd-soft` | `#F1F4F8` | Viền dòng bảng, nền track data-bar, nền seg control |
+| `ink` | `#1A2230` | Chữ chính (title, số KPI) |
+| `ink2` | `#6B7280` | Chữ phụ (label, subtitle, cell bảng) |
+| `ink3` | `#9AA3AF` | Chữ mờ (hint, delta trung tính) |
+| `cyan` / `cyan-d` / `cyan-l` | `#0891B2` / `#0E7490` / `#E1F5FB` | Series chính · chữ trạng thái selected · nền chip nhạt |
+| `sand` / `sand-l` | `#E0A82E` / `#FBF1D6` | Series so sánh · nền heat vàng |
+| `green` / `red` / `slate` / `violet` | `#2E8B4F` / `#E5484D` / `#64748B` / `#7C6BC4` | Tốt · xấu · phụ · danh mục 4 |
+| **Shadow card** (`sh-card`) | `0 1px 2px rgba(16,24,40,.04)`, `0 4px 14px rgba(16,24,40,.05)` | → PBI: Effects → Shadow → **Custom**, Color `#101828`, Transparency **90%**, Blur **14**, Distance **4**, Position **Bottom** |
+| **Radius card** | `12px` | → Visual border → **Rounded corners = 12** |
+
+### 1.4.2 Typography scale (font size từng loại chữ)
+| Phần tử (artifact) | CSS | **PBI pt** | Weight | Màu | Ghi chú format |
+|---|---|---|---|---|---|
+| Topbar title ("Executive Overview") | 22px | **16pt** | 700 (Semibold) | `ink` | Text box header trái |
+| Topbar subtitle | 13px | **10pt** | 400 | `ink2` | Dòng nhỏ dưới title |
+| KPI value (số lớn) | 28px | **21pt** | 700 | semantic (§1.4.3) | Callout value của New Card |
+| KPI value `.sm` (tên dài, vd "United States") | 18px | **13pt** | 700 | semantic | Khi value là text |
+| KPI label (UPPERCASE) | 11.5px | **9pt** | 600 | `ink2` | Uppercase, **letter-spacing .05em** |
+| KPI delta | 12px | **9pt** | 600 (khi up/down) | `red`/`green`/`ink3` | Nhãn phụ / card phụ |
+| Card / chart title (`.viz h4`) | 14px | **11pt** | 600 | `ink` | Title của visual |
+| Card title hint (`.hint`) | 11px | **8pt** | 400 | `ink3` | Subtitle/hint cạnh title |
+| Table header (`th`) | 11px | **8pt** | 600 | `ink2` | Uppercase, letter-spacing .03em |
+| Table cell (`td`) | 13px | **10pt** | 400 | `ink` (số) / `ink2` | **Tabular nums** cho cột số |
+| Seg-control label (`◈ Field parameter`) | 10.5px | **8pt** | 600 | `ink3` | Trên button slicer |
+| Seg-control button | 11.5px | **9pt** | 600 | `ink2` → `cyan-d` khi on | |
+| Doc/annotation body (text box vận hành) | 12.5–13.5px | **10pt** | 400 | `ink2` | Annotation đỏ dùng `#B02A30` |
+
+> **Tabular numbers:** artifact dùng `font-variant-numeric:tabular-nums` cho mọi số. Trong Power BI, chọn font **"Segoe UI"** (mặc định đã là tabular với chữ số cùng bề rộng) — không cần chỉnh thêm; tránh font tỉ lệ cho cột số để số thẳng cột.
+
+### 1.4.3 Màu semantic của con số KPI (`.kpi .val` variants)
+Con số KPI **không** đồng loạt màu `ink`; đổi màu theo ý nghĩa. Đặt ở **Callout value → Color** của từng New Card:
+| Loại KPI | Màu value | Ví dụ trong artifact |
+|---|---|---|
+| KPI "chủ đạo" (card `.hl`) | `cyan` `#0891B2` | Product revenue, Total cost, Top market, Distinct customers |
+| Cost / tỉ lệ xấu | `red` `#E5484D` | Cost ÷ revenue 45.0%, One-time 91%, Failed 9.2%, Lapsed 66% |
+| Kết quả tốt / margin | `green` `#2E8B4F` | Contribution margin 55.0%, Paid success 80.2%, Refund 1.0%, Loss-making 11 |
+| Sand (biến thể vàng đậm cho chữ) | `#B9841A` | (khi cần số vàng đọc rõ trên nền trắng — **không** dùng `#E0A82E` cho chữ, quá nhạt) |
+| Trung tính | `ink` `#1A2230` | Còn lại (Paid orders, AOV, Orders/customer…) |
+
+**Card "chủ đạo" (`.kpi.hl`)** — card đầu mỗi hàng KPI được nhấn nhẹ: nền gradient `#F4FCFE → #FFFFFF`, viền `#CDEBF3` (thay `#E9EEF5`). PBI: New Card → Background color `#F4FCFE` (gradient không hỗ trợ → dùng màu đặc nhạt), Visual border color `#CDEBF3`.
+
+### 1.4.4 Spacing & layout (khoảng cách)
+| Chỗ | Giá trị | Áp vào PBI |
+|---|---|---|
+| Khe giữa các visual (`grid gap`) | **14px** | Chừa 14px giữa 2 card khi đặt Position |
+| Padding trong card (`.card`) | **15px** | Visual → General → Padding (nếu có) hoặc chừa lề khi đặt title/chart |
+| Padding vùng content (`.main`) | **20px** | Lề ngoài cùng vùng chart tới mép canvas/sidebar |
+| KPI card padding | 14px trên-dưới / 16px trái-phải | |
+| Topbar cao | **80px** | Vùng header trên background PNG |
+| Sidebar rộng | **248px** | Cột trái background PNG |
+| Row KPI Overview | 6 card đều nhau | 6 cột × ~ (1920−248−40)/6, gap 14 |
+
+### 1.4.5 Bảng & Matrix (table.t / matrix)
+- **Header:** nền trong suốt, chữ `ink2` 8pt **UPPERCASE** letter-spacing .03em, **border-bottom 1px `#E9EEF5`**. PBI: Column headers → Font color `#6B7280`, Text size 8, **Header** → Bottom border on màu `#E9EEF5`.
+- **Cell:** padding 7×9px, **border-bottom 1px `#F1F4F8`** (dòng cuối bỏ viền). PBI: Values → Grid → Horizontal gridlines `#F1F4F8`, Row padding ~4–6.
+- **Hover dòng drill:** nền `#F0FAFD`. PBI không có hover-row-color; dùng **Values → conditional formatting** hoặc bỏ qua (chỉ là affordance).
+- **Data bar trong cell** (`.dbar`): track `#F1F4F8`, thanh `#0891B2`, cao 15px radius 4. PBI: Cell elements → **Data bars** → Positive `#0891B2`, Axis color/track ngầm.
+- **Heat margin (4 bucket, Rules — KHÔNG gradient):** ≥57% nền `#DCF2E4`/chữ `#1E6B3C` · 55–57% `#EAF6EE`/`#1E6B3C` · 53–55% `#FBF1D6`/`#7A5B00` · <53% `#FBE1E2`/`#B02A30` (đã dùng ở §5 Page 1/4).
+- **Drill hint chip** (`.drillhint`): chữ `#0E7490` 8pt 600, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 2×8. → text box nhỏ góc phải title bảng.
+
+### 1.4.6 Button slicer (thay seg-control `◈`)
+Khớp §8.1 — gom lại thông số chính xác:
+- Container seg: nền `#F1F4F8`, viền `#E9EEF5`, radius 8, padding 2.
+- **Unselected:** nền trong suốt/`#F1F4F8`, chữ `#6B7280` 9pt 600.
+- **Selected (`.on`):** nền `#FFFFFF`, chữ `#0E7490` (cyan-d), shadow nhẹ (`0 1px 3px rgba(16,24,40,.12)`), radius 6.
+- PBI Button slicer: Orientation Horizontal · Rounded corners 6 · Selected: Fill `#FFFFFF`, Text `#0E7490` · Unselected: Fill `#F1F4F8`, Text `#6B7280` · viền ngoài `#E9EEF5`.
+
+### 1.4.7 Tooltip page (trang tooltip §6)
+Artifact tooltip nền **tối** để nổi trên chart:
+- Nền `#111826`, chữ trắng, radius 10, padding 10×13, shadow đậm.
+- Tiêu đề tooltip (`.tt-h`): **`#7FD3E6`** (cyan sáng) 10pt 700.
+- Nhãn dòng (`span`): `#AEB6C4`; giá trị (`b`): trắng, tabular.
+- PBI: trang Tooltip → Canvas background `#111826` (Transparency 0). Card/label trên đó: Font color trắng, tiêu đề `#7FD3E6`. (Đây là **khác biệt có chủ đích** so với card sáng của trang chính.)
+
+### 1.4.8 Drill-through page — nút Back & tag (§7)
+- **Back button** (`.backbtn`): nền `#FFFFFF`, viền `#E9EEF5`, radius 9, padding 8×14, chữ `#0E7490` 10pt 600, shadow card.
+- **Drill tag** (`.drilltag`): chữ `#0E7490` 8pt 700, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 3×10.
+
+### 1.4.9 Sidebar — màu chi tiết mọi element
+Sidebar nền cyan gradient nên **mọi chữ/khối bên trong là màu TRẮNG ở các mức opacity khác nhau**, không phải hex đặc. Có 2 lớp:
+- **Nền + trang trí tĩnh** (gradient, logo, brand text, nav label, side-foot) → nằm trong `background.png` (§1.3).
+- **6 nút nav + 2 slicer Filters (Market, Fit type)** → **visual Power BI thật đè lên PNG** (§4.1, §4.3) → **phải style trong Format pane cho khớp bảng dưới**.
+
+> **⚠️ Power BI CHỈ nhận hex 6 số (RGB) trong ô chọn màu — KHÔNG nhập được RGBA / hex 8 số.** Độ trong suốt (alpha) là **thanh Transparency riêng**, và **chỉ có ở một số property** (Background, Border, Shapes fill, Data colors…) — **màu Font/chữ hầu như KHÔNG có** thanh này. Vì vậy chuyển `rgba(255,255,255,.X)` như sau:
+> - **Nền/viền** (property CÓ thanh Transparency): màu **White** + **Transparency = (1 − X)×100%** → giữ được hiệu ứng gradient PNG lộ qua (khớp artifact nhất). VD `rgba(255,255,255,.11)` → White, Transparency **89%**.
+> - **Chữ — hoặc BẤT KỲ ô màu nào KHÔNG có thanh Transparency** (font, nhiều ô conditional formatting): **bắt buộc dùng hex đặc** ở cột "Hex chữ (đặc)" — đã blend sẵn white-mờ trên nền `#0E7490`, là hex 6 số nhập thẳng được.
+> - **Lười / muốn chắc ăn:** cứ dùng **hex đặc cho tất cả** (cả nền lẫn chữ) — nhập được mọi nơi, chỉ đánh đổi là các khối nền thành màu đặc phẳng, mất hiệu ứng gradient cyan lộ qua (chấp nhận được, gần như không thấy khác).
+
+**Gradient nền:** dọc `180deg, #0AA6C6 (0%, đỉnh) → #0E7490 (100%, đáy)` · rộng **248px** · padding 24×18.
+
+| Element (artifact) | Màu CSS | Nền/viền → PBI | Hex chữ (đặc) | Size / weight |
+|---|---|---|---|---|
+| Logo box | nền `rgba(255,255,255,.16)` · viền trong `.25` | White+**84%** / viền White+**75%** | chữ "F" `#FFFFFF` | 40×40, radius 11 |
+| Brand title `.bt` ("FOS Analytics") | `#FFFFFF` | — | `#FFFFFF` | 13pt / 700 |
+| Brand subtitle `.bs` ("POD · WooCommerce") | white **.72** | — | **`#BCD8E0`** | 9pt / 400 |
+| Nav label ("NAVIGATION" / "FILTERS") | white **.62** | — | **`#A3CAD5`** | 8pt UPPERCASE, letter-spacing .13em |
+| **Nav button — idle** | nền white **.09** · chữ **.92** | nền White+**91%** | **`#ECF4F6`** | 11pt / 500, radius 12, padding 12×15 |
+| **Nav button — active** (`.on`) | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 11pt / 600 + shadow |
+| **Filter slicer khung** (`.sl`) | nền white **.11** · viền **.18** | nền White+**89%** / viền White+**82%** | — | radius 10, padding 8×11 |
+| Filter section header (`.sh` "Market"/"Fit type") | white **.68** | — | **`#B2D3DB`** | 8pt UPPERCASE, letter-spacing .07em |
+| Dropdown value (`.dd` "All markets") | `#FFFFFF` · chevron opacity .8 | — | `#FFFFFF` | 10pt / 600 |
+| **Chip — idle** (`.chips span` "Men"…) | nền white **.12** · chữ **.85** | nền White+**88%** | **`#DBEAEE`** | 9pt / 400, radius 7, padding 4×9 |
+| **Chip — active** (`.on` "All") | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 9pt / **700** |
+| Synced note (`.synced` "↻ Synced…") | white **.60** | — | **`#9FC7D3`** | 8pt / 400 |
+| Side-foot — border-top | white **.16** | đường White+**84%** | — | 1px |
+| Side-foot row label (`.cvrow span`) | white **.82** | — | **`#D4E6EB`** | 9pt / 400 |
+| Side-foot value (`b` "2023 – 2026") | `#FFFFFF` | — | `#FFFFFF` | 9pt tabular |
+
+**Style 2 slicer live (đè lên vùng Filters của PNG):**
+- **Market** — *Dropdown slicer* `dim_country[country_name]`: Slicer settings → **Background = White, Transparency 89%**; **Border = White, Transparency 82%**, Rounded corners 10 · Header "Market" màu `#B2D3DB` 8pt uppercase · Values (chữ trong dropdown) `#FFFFFF` 10pt. (Hoặc để Background **transparent** cho cyan PNG lộ qua, rồi chỉ style chữ.)
+- **Fit type** — *Tile/Button slicer* `fact_order_item[fit_type]`: Header "Fit type" `#B2D3DB` · **Item idle:** Fill White+88%, Text `#DBEAEE` · **Item selected:** Fill `#FFFFFF` (0%), Text `#0E7490` **700** · Rounded corners 7, khoảng cách item 5px.
+
+> **6 nút nav** (Buttons/Page navigator đè PNG, §4.1): idle Fill White+91% Text `#ECF4F6`; **Selected** (trang hiện tại) Fill `#FFFFFF` Text `#0E7490` + shadow. Dùng **Page navigator** để tự highlight trang hiện tại là khớp nhất.
+
+### 1.4.10 Topbar — màu chi tiết
+Topbar là **lớp tĩnh trong `background.png`**; date-picker cũng tĩnh (slicer Date thật đặt đè lên, §4.2).
+- **Nền** `#FFFFFF` · **border-bottom 1px `#E9EEF5`** · cao **80px** · padding 0×28.
+- Date input (`.dinput`): nền `#FFFFFF`, viền `#E9EEF5`, radius 11, padding 8×14 · icon lịch màu `cyan` `#0891B2` · label 8pt uppercase `ink3` `#9AA3AF` · value 10pt 600 `ink` `#1A2230` · chevron `ink3`.
+- **Slicer Date live** (Between, §4.2) đè lên: style tối giản, chữ `#1A2230`, để nền transparent cho ô trắng PNG lộ qua.
+
+---
+
 ## 2. Kết nối dữ liệu & Data model
 
 ### 2.1 Get data (Import)
