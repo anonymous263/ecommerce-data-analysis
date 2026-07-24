@@ -32,33 +32,34 @@ table dim_date
 		dataType: int64
 		formatString: 0
 		lineageTag: 58087a48-3835-4473-a370-e9e50d9f048b
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: year
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	column quarter
 		dataType: int64
 		formatString: 0
 		lineageTag: 8007336e-e060-492d-8a84-1b7c3e1bcf85
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: quarter
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	column month
 		dataType: int64
 		formatString: 0
 		lineageTag: 4a25cbba-fc1a-4131-8c31-b925d619006b
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: month
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	column month_name
 		dataType: string
 		lineageTag: d191dc52-a714-47a8-9437-196fadd563bf
 		summarizeBy: none
+		sortByColumn: month
 		sourceColumn: month_name
 
 		annotation SummarizationSetBy = Automatic
@@ -67,24 +68,25 @@ table dim_date
 		dataType: int64
 		formatString: 0
 		lineageTag: 3b958c13-5253-4415-8b32-6180a631de83
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: day_of_month
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	column iso_day_of_week
 		dataType: int64
 		formatString: 0
 		lineageTag: d61988f7-4ded-48a2-b147-b73fc7e17ad5
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: iso_day_of_week
 
-		annotation SummarizationSetBy = Automatic
+		annotation SummarizationSetBy = User
 
 	column day_name
 		dataType: string
 		lineageTag: da386490-9402-498e-a6a6-7266553944a2
 		summarizeBy: none
+		sortByColumn: iso_day_of_week
 		sourceColumn: day_name
 
 		annotation SummarizationSetBy = Automatic
@@ -97,6 +99,35 @@ table dim_date
 		sourceColumn: is_weekend
 
 		annotation SummarizationSetBy = Automatic
+
+	column month_start_date = DATE([year], [month], 1)
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: ec10ec05-2600-43b5-adf1-dd0191baa103
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	hierarchy Calendar
+		lineageTag: cd15e9b1-b196-4e29-a9ce-7d950db3945f
+
+		level Year
+			lineageTag: 6bedd38a-6e60-47f0-ad1a-451723e50904
+			column: year
+
+		level Quarter
+			lineageTag: cfe4fea6-d9e1-436e-8fcf-e924df41d937
+			column: quarter
+
+		level Month
+			lineageTag: cab31822-d523-4cfb-b11b-a449f941238d
+			column: month_name
+
+		level Day
+			lineageTag: 2e8eaa84-1b89-4da6-b397-9ff2127e4528
+			column: day_of_month
 
 	partition dim_date = m
 		mode: import
