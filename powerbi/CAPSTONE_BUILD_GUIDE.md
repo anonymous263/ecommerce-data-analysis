@@ -11,11 +11,11 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 > - File `.pbix` của bạn là local, không nằm trong git → không có commit nào chạm vào nó được.
 
 > ### ⚠️ Nếu bạn đã dựng trang Markets / Products trước bản guide này
-> Các measure profit theo **country** và **product** trong bản guide cũ trả về **grand total giống hệt nhau cho mọi dòng** (Power BI không báo lỗi). Xem §2.3b, §3.5b, §3.6 và dựng lại các visual ở Page 2/3/4 theo bộ measure mới.
+> Các measure profit theo **country** và **product** trong bản guide cũ trả về **grand total giống hệt nhau cho mọi dòng** (Power BI không báo lỗi). Xem §1.3b, §2.5b, §2.6 và dựng lại các visual ở Page 2/3/4 theo bộ measure mới.
 
 > ### 🔄 Đồng bộ artifact 2026-07-23 (buildability pass)
 > Guide này khớp với **bản artifact 2026-07-23** — đã qua rà soát buildability, mọi visual đều dựng được bằng Power BI native. Khác biệt lớn so với bản guide trước:
-> - **KPI delta dùng T12M** (trailing 12 tháng vs 12 tháng liền trước), không phải YoY → UDF mới ở §3.9.
+> - **KPI delta dùng T12M** (trailing 12 tháng vs 12 tháng liền trước), không phải YoY → UDF mới ở §2.9.
 > - **Field parameter thay bookmark-toggle** cho trend Overview và chiều phân tích Products (§8).
 > - **Top markets = Matrix** (data bars + margin heat + sparkline), không còn clustered bar.
 > - Trang Cost & Margin thêm **Unit cost trend**; Products thêm **scatter Revenue × margin**; Markets thêm cột **Repeat %**; Customers thay CLV distribution bằng **Segment value panel**; Operations dựng payment/refund dạng **composite** (nhiều visual group lại).
@@ -37,170 +37,9 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 
 ---
 
-## 1. Canvas · Theme · Background
+## 1. Kết nối dữ liệu & Data model
 
-### 1.1 Kích thước trang
-**View → Page view → Actual size.** Với mỗi trang: **Format page → Canvas settings → Type = Custom → Width 1920, Height 1080.**
-
-### 1.2 Áp theme
-**View → Themes → Browse for themes →** chọn `fos_dashboard_theme.json`. Theme này đã set: dataColors (cyan/sand/green/violet/slate…), card bo góc 12px + shadow nhẹ + viền `#E9EEF5`, font Segoe UI, page background `#F5F7FA`.
-
-### 1.3 Background image (mỗi trang)
-**Format page → Canvas background → Browse →** chọn `powerbi/backgrounds/background.png` → **Image fit = Fit**, **Transparency = 0%**.
-Ảnh chỉ là **lớp nền tĩnh** (header trắng + sidebar cyan + nền content). Mọi thứ tương tác (KPI, chart, nav, slicer, title) đặt **đè lên trên**.
-
-> Copy background sang cả các trang: chuột phải tab trang → **Duplicate page** sau khi set nền để khỏi làm lại; hoặc lặp lại 1.1–1.3 cho từng trang.
-
-### Bảng màu (để format tay khi cần)
-| Vai trò | Hex |
-|---|---|
-| Primary (Revenue, bar chính) | `#0891B2` |
-| Secondary (Profit, so sánh) | `#E0A82E` |
-| Positive (completed/tốt) | `#2E8B4F` |
-| Alert (failed/giảm/cost) | `#E5484D` |
-| Neutral / slate | `#64748B` · Violet `#7C6BC4` |
-| Text | `#1A2230` (chính) · `#6B7280` (phụ) · `#9AA3AF` (mờ) |
-| Card / viền | `#FFFFFF` / `#E9EEF5` (radius 12) · Page `#F5F7FA` |
-
----
-
-## 1.4 Bộ styling chi tiết (artifact CSS → Power BI Format pane)
-
-> Theme JSON (§1.2) đã set **global**: dataColors, card radius 12 + shadow + viền `#E9EEF5`, font Segoe UI, page bg `#F5F7FA`. Phần này là **spec pixel-level** của artifact để chỉnh tay từng loại visual cho khớp — dùng khi Format pane cần đặt riêng (font size, padding, màu semantic của con số…). Nguồn: CSS của `powerbi/…/fos_dashboard.html`.
-
-**Quy đổi đơn vị (đọc trước):** CSS đo bằng **px** trên khung 1920×1080; Power BI đặt font bằng **pt**. Dùng **pt ≈ px × 0.75**. Các bảng dưới ghi sẵn cả hai — nhập cột "PBI pt". (Kích thước/khoảng cách của visual thì nhập thẳng px vào ô Position/Size vì canvas cũng là 1920×1080.)
-
-### 1.4.1 Design tokens (biến gốc — mọi thứ khác dẫn xuất từ đây)
-| Token | Hex / value | Dùng cho |
-|---|---|---|
-| `bg` (page) | `#F5F7FA` | Nền canvas mọi trang |
-| `card` | `#FFFFFF` | Nền mọi card/visual container |
-| `bd` (border) | `#E9EEF5` | Viền card, topbar, dinput, seg control |
-| `bd-soft` | `#F1F4F8` | Viền dòng bảng, nền track data-bar, nền seg control |
-| `ink` | `#1A2230` | Chữ chính (title, số KPI) |
-| `ink2` | `#6B7280` | Chữ phụ (label, subtitle, cell bảng) |
-| `ink3` | `#9AA3AF` | Chữ mờ (hint, delta trung tính) |
-| `cyan` / `cyan-d` / `cyan-l` | `#0891B2` / `#0E7490` / `#E1F5FB` | Series chính · chữ trạng thái selected · nền chip nhạt |
-| `sand` / `sand-l` | `#E0A82E` / `#FBF1D6` | Series so sánh · nền heat vàng |
-| `green` / `red` / `slate` / `violet` | `#2E8B4F` / `#E5484D` / `#64748B` / `#7C6BC4` | Tốt · xấu · phụ · danh mục 4 |
-| **Shadow card** (`sh-card`) | `0 1px 2px rgba(16,24,40,.04)`, `0 4px 14px rgba(16,24,40,.05)` | → PBI: Effects → Shadow → **Custom**, Color `#101828`, Transparency **90%**, Blur **14**, Distance **4**, Position **Bottom** |
-| **Radius card** | `12px` | → Visual border → **Rounded corners = 12** |
-
-### 1.4.2 Typography scale (font size từng loại chữ)
-| Phần tử (artifact) | CSS | **PBI pt** | Weight | Màu | Ghi chú format |
-|---|---|---|---|---|---|
-| Topbar title ("Executive Overview") | 22px | **16pt** | 700 (Semibold) | `ink` | Text box header trái |
-| Topbar subtitle | 13px | **10pt** | 400 | `ink2` | Dòng nhỏ dưới title |
-| KPI value (số lớn) | 28px | **21pt** | 700 | semantic (§1.4.3) | Callout value của New Card |
-| KPI value `.sm` (tên dài, vd "United States") | 18px | **13pt** | 700 | semantic | Khi value là text |
-| KPI label (UPPERCASE) | 11.5px | **9pt** | 600 | `ink2` | Uppercase, **letter-spacing .05em** |
-| KPI delta | 12px | **9pt** | 600 (khi up/down) | `red`/`green`/`ink3` | Nhãn phụ / card phụ |
-| Card / chart title (`.viz h4`) | 14px | **11pt** | 600 | `ink` | Title của visual |
-| Card title hint (`.hint`) | 11px | **8pt** | 400 | `ink3` | Subtitle/hint cạnh title |
-| Table header (`th`) | 11px | **8pt** | 600 | `ink2` | Uppercase, letter-spacing .03em |
-| Table cell (`td`) | 13px | **10pt** | 400 | `ink` (số) / `ink2` | **Tabular nums** cho cột số |
-| Seg-control label (`◈ Field parameter`) | 10.5px | **8pt** | 600 | `ink3` | Trên button slicer |
-| Seg-control button | 11.5px | **9pt** | 600 | `ink2` → `cyan-d` khi on | |
-| Doc/annotation body (text box vận hành) | 12.5–13.5px | **10pt** | 400 | `ink2` | Annotation đỏ dùng `#B02A30` |
-
-> **Tabular numbers:** artifact dùng `font-variant-numeric:tabular-nums` cho mọi số. Trong Power BI, chọn font **"Segoe UI"** (mặc định đã là tabular với chữ số cùng bề rộng) — không cần chỉnh thêm; tránh font tỉ lệ cho cột số để số thẳng cột.
-
-### 1.4.3 Màu semantic của con số KPI (`.kpi .val` variants)
-Con số KPI **không** đồng loạt màu `ink`; đổi màu theo ý nghĩa. Đặt ở **Callout value → Color** của từng New Card:
-| Loại KPI | Màu value | Ví dụ trong artifact |
-|---|---|---|
-| KPI "chủ đạo" (card `.hl`) | `cyan` `#0891B2` | Product revenue, Total cost, Top market, Distinct customers |
-| Cost / tỉ lệ xấu | `red` `#E5484D` | Cost ÷ revenue 45.0%, One-time 91%, Failed 9.2%, Lapsed 66% |
-| Kết quả tốt / margin | `green` `#2E8B4F` | Contribution margin 55.0%, Paid success 80.2%, Refund 1.0%, Loss-making 11 |
-| Sand (biến thể vàng đậm cho chữ) | `#B9841A` | (khi cần số vàng đọc rõ trên nền trắng — **không** dùng `#E0A82E` cho chữ, quá nhạt) |
-| Trung tính | `ink` `#1A2230` | Còn lại (Paid orders, AOV, Orders/customer…) |
-
-**Card "chủ đạo" (`.kpi.hl`)** — card đầu mỗi hàng KPI được nhấn nhẹ: nền gradient `#F4FCFE → #FFFFFF`, viền `#CDEBF3` (thay `#E9EEF5`). PBI: New Card → Background color `#F4FCFE` (gradient không hỗ trợ → dùng màu đặc nhạt), Visual border color `#CDEBF3`.
-
-### 1.4.4 Spacing & layout (khoảng cách)
-| Chỗ | Giá trị | Áp vào PBI |
-|---|---|---|
-| Khe giữa các visual (`grid gap`) | **14px** | Chừa 14px giữa 2 card khi đặt Position |
-| Padding trong card (`.card`) | **15px** | Visual → General → Padding (nếu có) hoặc chừa lề khi đặt title/chart |
-| Padding vùng content (`.main`) | **20px** | Lề ngoài cùng vùng chart tới mép canvas/sidebar |
-| KPI card padding | 14px trên-dưới / 16px trái-phải | |
-| Topbar cao | **80px** | Vùng header trên background PNG |
-| Sidebar rộng | **248px** | Cột trái background PNG |
-| Row KPI Overview | 6 card đều nhau | 6 cột × ~ (1920−248−40)/6, gap 14 |
-
-### 1.4.5 Bảng & Matrix (table.t / matrix)
-- **Header:** nền trong suốt, chữ `ink2` 8pt **UPPERCASE** letter-spacing .03em, **border-bottom 1px `#E9EEF5`**. PBI: Column headers → Font color `#6B7280`, Text size 8, **Header** → Bottom border on màu `#E9EEF5`.
-- **Cell:** padding 7×9px, **border-bottom 1px `#F1F4F8`** (dòng cuối bỏ viền). PBI: Values → Grid → Horizontal gridlines `#F1F4F8`, Row padding ~4–6.
-- **Hover dòng drill:** nền `#F0FAFD`. PBI không có hover-row-color; dùng **Values → conditional formatting** hoặc bỏ qua (chỉ là affordance).
-- **Data bar trong cell** (`.dbar`): track `#F1F4F8`, thanh `#0891B2`, cao 15px radius 4. PBI: Cell elements → **Data bars** → Positive `#0891B2`, Axis color/track ngầm.
-- **Heat margin (4 bucket, Rules — KHÔNG gradient):** ≥57% nền `#DCF2E4`/chữ `#1E6B3C` · 55–57% `#EAF6EE`/`#1E6B3C` · 53–55% `#FBF1D6`/`#7A5B00` · <53% `#FBE1E2`/`#B02A30` (đã dùng ở §5 Page 1/4).
-- **Drill hint chip** (`.drillhint`): chữ `#0E7490` 8pt 600, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 2×8. → text box nhỏ góc phải title bảng.
-
-### 1.4.6 Button slicer (thay seg-control `◈`)
-Khớp §8.1 — gom lại thông số chính xác:
-- Container seg: nền `#F1F4F8`, viền `#E9EEF5`, radius 8, padding 2.
-- **Unselected:** nền trong suốt/`#F1F4F8`, chữ `#6B7280` 9pt 600.
-- **Selected (`.on`):** nền `#FFFFFF`, chữ `#0E7490` (cyan-d), shadow nhẹ (`0 1px 3px rgba(16,24,40,.12)`), radius 6.
-- PBI Button slicer: Orientation Horizontal · Rounded corners 6 · Selected: Fill `#FFFFFF`, Text `#0E7490` · Unselected: Fill `#F1F4F8`, Text `#6B7280` · viền ngoài `#E9EEF5`.
-
-### 1.4.7 Tooltip page (trang tooltip §6)
-Artifact tooltip nền **tối** để nổi trên chart:
-- Nền `#111826`, chữ trắng, radius 10, padding 10×13, shadow đậm.
-- Tiêu đề tooltip (`.tt-h`): **`#7FD3E6`** (cyan sáng) 10pt 700.
-- Nhãn dòng (`span`): `#AEB6C4`; giá trị (`b`): trắng, tabular.
-- PBI: trang Tooltip → Canvas background `#111826` (Transparency 0). Card/label trên đó: Font color trắng, tiêu đề `#7FD3E6`. (Đây là **khác biệt có chủ đích** so với card sáng của trang chính.)
-
-### 1.4.8 Drill-through page — nút Back & tag (§7)
-- **Back button** (`.backbtn`): nền `#FFFFFF`, viền `#E9EEF5`, radius 9, padding 8×14, chữ `#0E7490` 10pt 600, shadow card.
-- **Drill tag** (`.drilltag`): chữ `#0E7490` 8pt 700, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 3×10.
-
-### 1.4.9 Sidebar — màu chi tiết mọi element
-Sidebar nền cyan gradient nên **mọi chữ/khối bên trong là màu TRẮNG ở các mức opacity khác nhau**, không phải hex đặc. Có 2 lớp:
-- **Nền + trang trí tĩnh** (gradient, logo, brand text, nav label, side-foot) → nằm trong `background.png` (§1.3).
-- **6 nút nav + 2 slicer Filters (Market, Fit type)** → **visual Power BI thật đè lên PNG** (§4.1, §4.3) → **phải style trong Format pane cho khớp bảng dưới**.
-
-> **⚠️ Power BI CHỈ nhận hex 6 số (RGB) trong ô chọn màu — KHÔNG nhập được RGBA / hex 8 số.** Độ trong suốt (alpha) là **thanh Transparency riêng**, và **chỉ có ở một số property** (Background, Border, Shapes fill, Data colors…) — **màu Font/chữ hầu như KHÔNG có** thanh này. Vì vậy chuyển `rgba(255,255,255,.X)` như sau:
-> - **Nền/viền** (property CÓ thanh Transparency): màu **White** + **Transparency = (1 − X)×100%** → giữ được hiệu ứng gradient PNG lộ qua (khớp artifact nhất). VD `rgba(255,255,255,.11)` → White, Transparency **89%**.
-> - **Chữ — hoặc BẤT KỲ ô màu nào KHÔNG có thanh Transparency** (font, nhiều ô conditional formatting): **bắt buộc dùng hex đặc** ở cột "Hex chữ (đặc)" — đã blend sẵn white-mờ trên nền `#0E7490`, là hex 6 số nhập thẳng được.
-> - **Lười / muốn chắc ăn:** cứ dùng **hex đặc cho tất cả** (cả nền lẫn chữ) — nhập được mọi nơi, chỉ đánh đổi là các khối nền thành màu đặc phẳng, mất hiệu ứng gradient cyan lộ qua (chấp nhận được, gần như không thấy khác).
-
-**Gradient nền:** dọc `180deg, #0AA6C6 (0%, đỉnh) → #0E7490 (100%, đáy)` · rộng **248px** · padding 24×18.
-
-| Element (artifact) | Màu CSS | Nền/viền → PBI | Hex chữ (đặc) | Size / weight |
-|---|---|---|---|---|
-| Logo box | nền `rgba(255,255,255,.16)` · viền trong `.25` | White+**84%** / viền White+**75%** | chữ "F" `#FFFFFF` | 40×40, radius 11 |
-| Brand title `.bt` ("FOS Analytics") | `#FFFFFF` | — | `#FFFFFF` | 13pt / 700 |
-| Brand subtitle `.bs` ("POD · WooCommerce") | white **.72** | — | **`#BCD8E0`** | 9pt / 400 |
-| Nav label ("NAVIGATION" / "FILTERS") | white **.62** | — | **`#A3CAD5`** | 8pt UPPERCASE, letter-spacing .13em |
-| **Nav button — idle** | nền white **.09** · chữ **.92** | nền White+**91%** | **`#ECF4F6`** | 11pt / 500, radius 12, padding 12×15 |
-| **Nav button — active** (`.on`) | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 11pt / 600 + shadow |
-| **Filter slicer khung** (`.sl`) | nền white **.11** · viền **.18** | nền White+**89%** / viền White+**82%** | — | radius 10, padding 8×11 |
-| Filter section header (`.sh` "Market"/"Fit type") | white **.68** | — | **`#B2D3DB`** | 8pt UPPERCASE, letter-spacing .07em |
-| Dropdown value (`.dd` "All markets") | `#FFFFFF` · chevron opacity .8 | — | `#FFFFFF` | 10pt / 600 |
-| **Chip — idle** (`.chips span` "Men"…) | nền white **.12** · chữ **.85** | nền White+**88%** | **`#DBEAEE`** | 9pt / 400, radius 7, padding 4×9 |
-| **Chip — active** (`.on` "All") | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 9pt / **700** |
-| Synced note (`.synced` "↻ Synced…") | white **.60** | — | **`#9FC7D3`** | 8pt / 400 |
-| Side-foot — border-top | white **.16** | đường White+**84%** | — | 1px |
-| Side-foot row label (`.cvrow span`) | white **.82** | — | **`#D4E6EB`** | 9pt / 400 |
-| Side-foot value (`b` "2023 – 2026") | `#FFFFFF` | — | `#FFFFFF` | 9pt tabular |
-
-**Style 2 slicer live (đè lên vùng Filters của PNG):**
-- **Market** — *Dropdown slicer* `dim_country[country_name]`: Slicer settings → **Background = White, Transparency 89%**; **Border = White, Transparency 82%**, Rounded corners 10 · Header "Market" màu `#B2D3DB` 8pt uppercase · Values (chữ trong dropdown) `#FFFFFF` 10pt. (Hoặc để Background **transparent** cho cyan PNG lộ qua, rồi chỉ style chữ.)
-- **Fit type** — *Tile/Button slicer* `fact_order_item[fit_type]`: Header "Fit type" `#B2D3DB` · **Item idle:** Fill White+88%, Text `#DBEAEE` · **Item selected:** Fill `#FFFFFF` (0%), Text `#0E7490` **700** · Rounded corners 7, khoảng cách item 5px.
-
-> **6 nút nav** (Buttons/Page navigator đè PNG, §4.1): idle Fill White+91% Text `#ECF4F6`; **Selected** (trang hiện tại) Fill `#FFFFFF` Text `#0E7490` + shadow. Dùng **Page navigator** để tự highlight trang hiện tại là khớp nhất.
-
-### 1.4.10 Topbar — màu chi tiết
-Topbar là **lớp tĩnh trong `background.png`**; date-picker cũng tĩnh (slicer Date thật đặt đè lên, §4.2).
-- **Nền** `#FFFFFF` · **border-bottom 1px `#E9EEF5`** · cao **80px** · padding 0×28.
-- Date input (`.dinput`): nền `#FFFFFF`, viền `#E9EEF5`, radius 11, padding 8×14 · icon lịch màu `cyan` `#0891B2` · label 8pt uppercase `ink3` `#9AA3AF` · value 10pt 600 `ink` `#1A2230` · chevron `ink3`.
-- **Slicer Date live** (Between, §4.2) đè lên: style tối giản, chữ `#1A2230`, để nền transparent cho ô trắng PNG lộ qua.
-
----
-
-## 2. Kết nối dữ liệu & Data model
-
-### 2.1 Get data (Import)
+### 1.1 Get data (Import)
 **Home → Get data → PostgreSQL** · Server `localhost:5432` · Database `ecommerce` · **Import**. Auth Database (user/pass trong `.env`).
 
 Tick các bảng (tên hiển thị có prefix schema — sẽ đổi tên ở 2.2):
@@ -215,10 +54,10 @@ Tick các bảng (tên hiển thị có prefix schema — sẽ đổi tên ở 2
 >
 > Nếu sau này cần trang data-quality, hãy import `marts_recon.recon_cost_coverage` **riêng** và chỉ dùng cột coverage, đừng import `fact_order_cost`.
 
-### 2.2 Đổi tên bảng
+### 1.2 Đổi tên bảng
 Data pane → chuột phải mỗi bảng → **Rename** → bỏ prefix schema, còn `fact_order_item`, `dim_country`… (chữ thường, gạch dưới — DAX phân biệt hoa/thường).
 
-### 2.3 Relationships (Model view) — tất cả **1:* , single direction, active**
+### 1.3 Relationships (Model view) — tất cả **1:* , single direction, active**
 | From (dim, one) | To (fact, many) | Key |
 |---|---|---|
 | dim_date | fact_order · fact_order_item · fact_refund · mart_order_profit · mart_product_profit · mart_country_profit | date_sk |
@@ -230,7 +69,7 @@ Data pane → chuột phải mỗi bảng → **Rename** → bỏ prefix schema,
 
 Nếu Power BI tự tạo quan hệ **Both** → sửa về **Single**. `mart_customer_summary[preferred_*_sk]` để **inactive**.
 
-> ### ⚠️ 2.3b — Bảng nào cắt được theo chiều nào (ĐỌC KỸ, đây là nguồn lỗi số 1)
+> ### ⚠️ 1.3b — Bảng nào cắt được theo chiều nào (ĐỌC KỸ, đây là nguồn lỗi số 1)
 >
 > Bảng chỉ cắt được theo dim mà nó **có quan hệ**. Nếu đặt measure lên một dim không có quan hệ, Power BI **không báo lỗi** — nó trả về **grand total giống hệt nhau cho mọi dòng**. Rất dễ tưởng là đúng.
 >
@@ -244,21 +83,21 @@ Nếu Power BI tự tạo quan hệ **Both** → sửa về **Single**. `mart_cu
 > | `mart_customer_summary` | customer | date · product · country · payment method |
 >
 > **Ba hệ quả bắt buộc nhớ:**
-> 1. `[Revenue]` (đọc `fact_order_item`) **không** cắt được theo country → mọi visual revenue-theo-nước phải dùng `[Revenue per Country]` (§3.6).
-> 2. `[Contribution Profit]` / `[Profit Margin]` (đọc `mart_order_profit`) **không** cắt được theo product hay country → phải dùng bộ đo product (§3.5b) và country (§3.6).
+> 1. `[Revenue]` (đọc `fact_order_item`) **không** cắt được theo country → mọi visual revenue-theo-nước phải dùng `[Revenue per Country]` (§2.6).
+> 2. `[Contribution Profit]` / `[Profit Margin]` (đọc `mart_order_profit`) **không** cắt được theo product hay country → phải dùng bộ đo product (§2.5b) và country (§2.6).
 > 3. Ngược lại, `[Revenue]` **cắt tốt** theo product (có quan hệ `fact_order_item → dim_product`), nên trang Products dùng `[Revenue]` bình thường.
 
-### 2.4 Mark as date table
+### 1.4 Mark as date table
 Chọn `dim_date` → **Table tools → Mark as date table** → cột `date_day` → OK. (Bật time-intelligence cho YoY.)
 
-### 2.5 Ẩn cột kỹ thuật
+### 1.5 Ẩn cột kỹ thuật
 Ẩn mọi cột `*_sk` (chuột phải → **Hide in report view**) cho gọn field list.
 
 ---
 
-## 3. Measures & Calculated columns
+## 2. Measures & Calculated columns
 
-### 3.0 Bảng nguồn chuẩn — metric nào đọc bảng nào (TRA TRƯỚC KHI DỰNG VISUAL)
+### 2.0 Bảng nguồn chuẩn — metric nào đọc bảng nào (TRA TRƯỚC KHI DỰNG VISUAL)
 
 Nguyên tắc thống nhất dữ liệu của model: **mỗi metric có đúng MỘT nguồn chuẩn; mọi visual đều đọc từ nguồn đó**. Các bảng fact/mart *cố ý* cho số khác nhau vì trả lời câu hỏi khác nhau (mart đã áp refund capping, payment-fee coalesce, và gồm đơn refunded trong P&L) — đừng "sửa" chênh lệch bằng cách đổi nguồn.
 
@@ -280,24 +119,24 @@ Nguyên tắc thống nhất dữ liệu của model: **mỗi metric có đúng 
 
 Tạo bảng đo lường: **Home → Enter data →** đặt tên `_Measures` → Load → xóa cột dummy sau khi thêm measure đầu tiên. Mỗi measure: **New measure**, dán DAX, đặt **Format** ở ribbon.
 
-### 3.1 Sales / Revenue
+### 2.1 Sales / Revenue
 ```DAX
 Revenue = CALCULATE ( SUM ( fact_order_item[line_revenue_usd] ), fact_order_item[is_revenue_status] = TRUE() )      -- $#,0
 Quantity Sold = CALCULATE ( SUM ( fact_order_item[quantity] ), fact_order_item[is_revenue_status] = TRUE() )         -- #,0
-Net Revenue = [Revenue] - [Refund Amount]                                                                            -- $#,0  (net BÁO CÁO = gross − refund thực; [Refund Amount] định nghĩa ở §3.8)
+Net Revenue = [Revenue] - [Refund Amount]                                                                            -- $#,0  (net BÁO CÁO = gross − refund thực; [Refund Amount] định nghĩa ở §2.8)
 Profit Base Net Revenue = SUM ( mart_order_profit[net_revenue_usd] )                                                 -- $#,0  (mẫu số MARGIN/COST = product + SHIPPING − refund, Approach A; khớp mart; KHÔNG dùng cho KPI hiển thị)
 Paid Orders = DISTINCTCOUNT ( mart_order_profit[order_sk] )                                                          -- #,0
 AOV = DIVIDE ( [Revenue], [Paid Orders] )                                                                            -- $#,0.00
 Shipping Charged = SUM ( fact_order[shipping_charged_usd] )                                                          -- $#,0
 ```
 
-### 3.2 Profit
+### 2.2 Profit
 ```DAX
 Contribution Profit = SUM ( mart_order_profit[contribution_profit_usd] )     -- $#,0
 Profit Margin = DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )  -- 0.0%  (mẫu số = Profit Base, để khớp mart)
 ```
 
-### 3.3 YoY (time-intelligence)
+### 2.3 YoY (time-intelligence)
 ```DAX
 Revenue PY = CALCULATE ( [Revenue], SAMEPERIODLASTYEAR ( dim_date[date_day] ) )
 Revenue YoY % = DIVIDE ( [Revenue] - [Revenue PY], [Revenue PY] )                        -- 0.0%
@@ -307,7 +146,7 @@ Orders PY = CALCULATE ( [Paid Orders], SAMEPERIODLASTYEAR ( dim_date[date_day] )
 Orders YoY % = DIVIDE ( [Paid Orders] - [Orders PY], [Orders PY] )                        -- 0.0%
 ```
 
-### 3.4 Cost
+### 2.4 Cost
 ```DAX
 COGS = SUM ( mart_order_profit[cogs_usd] )                          -- $#,0
 Design Fee = SUM ( mart_order_profit[design_fee_usd] )              -- $#,0
@@ -319,7 +158,7 @@ Cost per Order = DIVIDE ( [Total Cost], [Paid Orders] )            -- $#,0.00
 Cost per Unit = DIVIDE ( [Total Cost], [Quantity Sold] )           -- $#,0.00
 ```
 
-### 3.5 Products
+### 2.5 Products
 ```DAX
 Distinct Products Sold = CALCULATE ( DISTINCTCOUNT ( fact_order_item[product_sk] ), fact_order_item[is_revenue_status] = TRUE() )   -- #,0
 Avg Units per Order = DIVIDE ( [Quantity Sold], [Paid Orders] )     -- #,0.00
@@ -331,8 +170,8 @@ RETURN CALCULATE ( [Revenue], FILTER ( ALLSELECTED ( dim_product[product_name] )
 Cumulative Revenue % = DIVIDE ( [Cumulative Revenue], CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) ) )   -- 0.0%
 ```
 
-### 3.5b Profit theo SẢN PHẨM — BẮT BUỘC dùng bộ này
-`[Contribution Profit]` đọc `mart_order_profit`, bảng này **không nối `dim_product`** (§2.3b). Đặt nó lên visual có `dim_product` sẽ ra **grand total cho mọi sản phẩm**. Dùng `mart_product_profit` — mart này có `product_sk` và cộng lại đúng bằng $86,670.64.
+### 2.5b Profit theo SẢN PHẨM — BẮT BUỘC dùng bộ này
+`[Contribution Profit]` đọc `mart_order_profit`, bảng này **không nối `dim_product`** (§1.3b). Đặt nó lên visual có `dim_product` sẽ ra **grand total cho mọi sản phẩm**. Dùng `mart_product_profit` — mart này có `product_sk` và cộng lại đúng bằng $86,670.64.
 
 ```DAX
 Product Profit     = SUM ( mart_product_profit[line_profit_usd] )        -- $#,0
@@ -342,8 +181,8 @@ Product Margin     = DIVIDE ( [Product Profit], [Product Net Revenue] )  -- 0.0%
 > `[Revenue]` **vẫn dùng được** trên trang Products (có quan hệ `fact_order_item → dim_product`). Chỉ *profit* mới phải đổi sang bộ trên.
 > Lưu ý cơ sở số: `SUM(mart_product_profit[line_revenue_usd])` = **$119,261.71** = `[Revenue]` **chính xác** — sau đợt làm sạch dữ liệu 2026-07-22, `mart_order_profit` phủ 100% đơn revenue nên hai cơ sở đã trùng nhau. Vẫn đừng trộn hai bộ measure trong cùng một bảng (khác grain, khác nguồn).
 
-### 3.6 Markets — BẮT BUỘC dùng bộ này
-Cả `[Revenue]` (đọc `fact_order_item`) lẫn `[Contribution Profit]` (đọc `mart_order_profit`) **đều không cắt được theo country** (§2.3b). Có 2 cách, dùng đúng cách cho đúng mục đích:
+### 2.6 Markets — BẮT BUỘC dùng bộ này
+Cả `[Revenue]` (đọc `fact_order_item`) lẫn `[Contribution Profit]` (đọc `mart_order_profit`) **đều không cắt được theo country** (§1.3b). Có 2 cách, dùng đúng cách cho đúng mục đích:
 
 ```DAX
 -- (a) Gross product revenue theo nước — chuyển filter nước từ fact_order sang fact_order_item qua order_sk
@@ -360,7 +199,7 @@ Revenue Share = DIVIDE ( [Revenue per Country], CALCULATE ( [Revenue per Country
 ```
 > ⚠️ **Bẫy đặt tên:** `mart_country_profit[revenue_usd]` **KHÔNG phải gross revenue** — nó là **net revenue đã gồm shipping** (tổng = $157,614.83, đúng bằng `[Profit Base Net Revenue]`). Đừng bao giờ gắn nhãn "Revenue" cho nó trên visual; muốn hiện doanh thu gross theo nước thì dùng `[Revenue per Country]`.
 
-### 3.7 Customers
+### 2.7 Customers
 ```DAX
 Distinct Customers = DISTINCTCOUNT ( mart_customer_summary[customer_sk] )     -- #,0
 Repeat Customers = CALCULATE ( COUNTROWS ( mart_customer_summary ), mart_customer_summary[is_repeat] = TRUE() )
@@ -394,7 +233,7 @@ SWITCH ( TRUE(),
     "5. $150+" )
 ```
 
-### 3.8 Operations
+### 2.8 Operations
 ```DAX
 Order Attempts = COUNTROWS ( fact_order )                                                       -- #,0
 Completed Orders = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] = "completed" )
@@ -418,7 +257,7 @@ Payment Fee Rate = DIVIDE ( SUM ( fact_order[payment_fee_usd] ), SUM ( fact_orde
 >
 > **Quy tắc:** `[Net Revenue]` (= Revenue product − Refund thô) chỉ dùng cho **thẻ KPI hiển thị sales**; mọi **margin & cost ratio** dùng `[Profit Base Net Revenue]` (mart = product + shipping − refund) để khớp `Contribution Profit`. Page 1 KPI "Net Revenue" và "Revenue by year" → `[Net Revenue]`; Page 2 các ratio → `[Profit Base Net Revenue]`.
 
-### 3.9 Measures bổ sung — artifact 2026-07-23 (buildability pass)
+### 2.9 Measures bổ sung — artifact 2026-07-23 (buildability pass)
 
 **(a) KPI delta T12M.** KPI row Overview hiển thị "▼ 11.3% T12M" — so **12 tháng gần nhất** với **12 tháng liền trước đó**. Toolkit UDF (`powerbi/measures/udf_period_delta.txt`) chưa có hàm này — thêm 2 function (cùng style `Last_Data_Date`, DAX query view → Update model):
 
@@ -495,13 +334,174 @@ Method Lost = [Order Attempts] - [Method Paid Orders]                      -- #,
 Method Payment Fee =
 CALCULATE ( SUM ( mart_order_profit[payment_fee_usd] ),
     TREATAS ( VALUES ( fact_order[order_sk] ), mart_order_profit[order_sk] ) )   -- $#,0
--- mart_order_profit KHÔNG nối dim_payment_method (§2.3b) → chuyển filter method qua order_sk bằng TREATAS,
+-- mart_order_profit KHÔNG nối dim_payment_method (§1.3b) → chuyển filter method qua order_sk bằng TREATAS,
 -- giống hệt pattern [Revenue per Country]. Tổng 2 method = $7,131.11 khớp [Payment Fee]. ✓
 Method Fee Rate =
 DIVIDE ( [Method Payment Fee],
     CALCULATE ( SUM ( fact_order[order_total_usd] ), fact_order[status] IN { "completed", "processing", "refunded" } ) )   -- 0.00%
 ```
 > Kiểm chứng nhanh (theo artifact): Card 2,577 attempts → 1,866 paid (**72.4%**, mất 711) · PayPal 2,180 → 1,947 (**89.3%**) · fee Card **3.80%** vs PayPal **5.22%**.
+
+---
+
+## 3. Canvas · Theme · Background
+
+### 3.1 Kích thước trang
+**View → Page view → Actual size.** Với mỗi trang: **Format page → Canvas settings → Type = Custom → Width 1920, Height 1080.**
+
+### 3.2 Áp theme
+**View → Themes → Browse for themes →** chọn `fos_dashboard_theme.json`. Theme này đã set: dataColors (cyan/sand/green/violet/slate…), card bo góc 12px + shadow nhẹ + viền `#E9EEF5`, font Segoe UI, page background `#F5F7FA`.
+
+### 3.3 Background image (mỗi trang)
+**Format page → Canvas background → Browse →** chọn `powerbi/backgrounds/background.png` → **Image fit = Fit**, **Transparency = 0%**.
+Ảnh chỉ là **lớp nền tĩnh** (header trắng + sidebar cyan + nền content). Mọi thứ tương tác (KPI, chart, nav, slicer, title) đặt **đè lên trên**.
+
+> Copy background sang cả các trang: chuột phải tab trang → **Duplicate page** sau khi set nền để khỏi làm lại; hoặc lặp lại 1.1–1.3 cho từng trang.
+
+### Bảng màu (để format tay khi cần)
+| Vai trò | Hex |
+|---|---|
+| Primary (Revenue, bar chính) | `#0891B2` |
+| Secondary (Profit, so sánh) | `#E0A82E` |
+| Positive (completed/tốt) | `#2E8B4F` |
+| Alert (failed/giảm/cost) | `#E5484D` |
+| Neutral / slate | `#64748B` · Violet `#7C6BC4` |
+| Text | `#1A2230` (chính) · `#6B7280` (phụ) · `#9AA3AF` (mờ) |
+| Card / viền | `#FFFFFF` / `#E9EEF5` (radius 12) · Page `#F5F7FA` |
+
+---
+
+## 3.4 Bộ styling chi tiết (artifact CSS → Power BI Format pane)
+
+> Theme JSON (§3.2) đã set **global**: dataColors, card radius 12 + shadow + viền `#E9EEF5`, font Segoe UI, page bg `#F5F7FA`. Phần này là **spec pixel-level** của artifact để chỉnh tay từng loại visual cho khớp — dùng khi Format pane cần đặt riêng (font size, padding, màu semantic của con số…). Nguồn: CSS của `powerbi/…/fos_dashboard.html`.
+
+**Quy đổi đơn vị (đọc trước):** CSS đo bằng **px** trên khung 1920×1080; Power BI đặt font bằng **pt**. Dùng **pt ≈ px × 0.75**. Các bảng dưới ghi sẵn cả hai — nhập cột "PBI pt". (Kích thước/khoảng cách của visual thì nhập thẳng px vào ô Position/Size vì canvas cũng là 1920×1080.)
+
+### 3.4.1 Design tokens (biến gốc — mọi thứ khác dẫn xuất từ đây)
+| Token | Hex / value | Dùng cho |
+|---|---|---|
+| `bg` (page) | `#F5F7FA` | Nền canvas mọi trang |
+| `card` | `#FFFFFF` | Nền mọi card/visual container |
+| `bd` (border) | `#E9EEF5` | Viền card, topbar, dinput, seg control |
+| `bd-soft` | `#F1F4F8` | Viền dòng bảng, nền track data-bar, nền seg control |
+| `ink` | `#1A2230` | Chữ chính (title, số KPI) |
+| `ink2` | `#6B7280` | Chữ phụ (label, subtitle, cell bảng) |
+| `ink3` | `#9AA3AF` | Chữ mờ (hint, delta trung tính) |
+| `cyan` / `cyan-d` / `cyan-l` | `#0891B2` / `#0E7490` / `#E1F5FB` | Series chính · chữ trạng thái selected · nền chip nhạt |
+| `sand` / `sand-l` | `#E0A82E` / `#FBF1D6` | Series so sánh · nền heat vàng |
+| `green` / `red` / `slate` / `violet` | `#2E8B4F` / `#E5484D` / `#64748B` / `#7C6BC4` | Tốt · xấu · phụ · danh mục 4 |
+| **Shadow card** (`sh-card`) | `0 1px 2px rgba(16,24,40,.04)`, `0 4px 14px rgba(16,24,40,.05)` | → PBI: Effects → Shadow → **Custom**, Color `#101828`, Transparency **90%**, Blur **14**, Distance **4**, Position **Bottom** |
+| **Radius card** | `12px` | → Visual border → **Rounded corners = 12** |
+
+### 3.4.2 Typography scale (font size từng loại chữ)
+| Phần tử (artifact) | CSS | **PBI pt** | Weight | Màu | Ghi chú format |
+|---|---|---|---|---|---|
+| Topbar title ("Executive Overview") | 22px | **16pt** | 700 (Semibold) | `ink` | Text box header trái |
+| Topbar subtitle | 13px | **10pt** | 400 | `ink2` | Dòng nhỏ dưới title |
+| KPI value (số lớn) | 28px | **21pt** | 700 | semantic (§3.4.3) | Callout value của New Card |
+| KPI value `.sm` (tên dài, vd "United States") | 18px | **13pt** | 700 | semantic | Khi value là text |
+| KPI label (UPPERCASE) | 11.5px | **9pt** | 600 | `ink2` | Uppercase, **letter-spacing .05em** |
+| KPI delta | 12px | **9pt** | 600 (khi up/down) | `red`/`green`/`ink3` | Nhãn phụ / card phụ |
+| Card / chart title (`.viz h4`) | 14px | **11pt** | 600 | `ink` | Title của visual |
+| Card title hint (`.hint`) | 11px | **8pt** | 400 | `ink3` | Subtitle/hint cạnh title |
+| Table header (`th`) | 11px | **8pt** | 600 | `ink2` | Uppercase, letter-spacing .03em |
+| Table cell (`td`) | 13px | **10pt** | 400 | `ink` (số) / `ink2` | **Tabular nums** cho cột số |
+| Seg-control label (`◈ Field parameter`) | 10.5px | **8pt** | 600 | `ink3` | Trên button slicer |
+| Seg-control button | 11.5px | **9pt** | 600 | `ink2` → `cyan-d` khi on | |
+| Doc/annotation body (text box vận hành) | 12.5–13.5px | **10pt** | 400 | `ink2` | Annotation đỏ dùng `#B02A30` |
+
+> **Tabular numbers:** artifact dùng `font-variant-numeric:tabular-nums` cho mọi số. Trong Power BI, chọn font **"Segoe UI"** (mặc định đã là tabular với chữ số cùng bề rộng) — không cần chỉnh thêm; tránh font tỉ lệ cho cột số để số thẳng cột.
+
+### 3.4.3 Màu semantic của con số KPI (`.kpi .val` variants)
+Con số KPI **không** đồng loạt màu `ink`; đổi màu theo ý nghĩa. Đặt ở **Callout value → Color** của từng New Card:
+| Loại KPI | Màu value | Ví dụ trong artifact |
+|---|---|---|
+| KPI "chủ đạo" (card `.hl`) | `cyan` `#0891B2` | Product revenue, Total cost, Top market, Distinct customers |
+| Cost / tỉ lệ xấu | `red` `#E5484D` | Cost ÷ revenue 45.0%, One-time 91%, Failed 9.2%, Lapsed 66% |
+| Kết quả tốt / margin | `green` `#2E8B4F` | Contribution margin 55.0%, Paid success 80.2%, Refund 1.0%, Loss-making 11 |
+| Sand (biến thể vàng đậm cho chữ) | `#B9841A` | (khi cần số vàng đọc rõ trên nền trắng — **không** dùng `#E0A82E` cho chữ, quá nhạt) |
+| Trung tính | `ink` `#1A2230` | Còn lại (Paid orders, AOV, Orders/customer…) |
+
+**Card "chủ đạo" (`.kpi.hl`)** — card đầu mỗi hàng KPI được nhấn nhẹ: nền gradient `#F4FCFE → #FFFFFF`, viền `#CDEBF3` (thay `#E9EEF5`). PBI: New Card → Background color `#F4FCFE` (gradient không hỗ trợ → dùng màu đặc nhạt), Visual border color `#CDEBF3`.
+
+### 3.4.4 Spacing & layout (khoảng cách)
+| Chỗ | Giá trị | Áp vào PBI |
+|---|---|---|
+| Khe giữa các visual (`grid gap`) | **14px** | Chừa 14px giữa 2 card khi đặt Position |
+| Padding trong card (`.card`) | **15px** | Visual → General → Padding (nếu có) hoặc chừa lề khi đặt title/chart |
+| Padding vùng content (`.main`) | **20px** | Lề ngoài cùng vùng chart tới mép canvas/sidebar |
+| KPI card padding | 14px trên-dưới / 16px trái-phải | |
+| Topbar cao | **80px** | Vùng header trên background PNG |
+| Sidebar rộng | **248px** | Cột trái background PNG |
+| Row KPI Overview | 6 card đều nhau | 6 cột × ~ (1920−248−40)/6, gap 14 |
+
+### 3.4.5 Bảng & Matrix (table.t / matrix)
+- **Header:** nền trong suốt, chữ `ink2` 8pt **UPPERCASE** letter-spacing .03em, **border-bottom 1px `#E9EEF5`**. PBI: Column headers → Font color `#6B7280`, Text size 8, **Header** → Bottom border on màu `#E9EEF5`.
+- **Cell:** padding 7×9px, **border-bottom 1px `#F1F4F8`** (dòng cuối bỏ viền). PBI: Values → Grid → Horizontal gridlines `#F1F4F8`, Row padding ~4–6.
+- **Hover dòng drill:** nền `#F0FAFD`. PBI không có hover-row-color; dùng **Values → conditional formatting** hoặc bỏ qua (chỉ là affordance).
+- **Data bar trong cell** (`.dbar`): track `#F1F4F8`, thanh `#0891B2`, cao 15px radius 4. PBI: Cell elements → **Data bars** → Positive `#0891B2`, Axis color/track ngầm.
+- **Heat margin (4 bucket, Rules — KHÔNG gradient):** ≥57% nền `#DCF2E4`/chữ `#1E6B3C` · 55–57% `#EAF6EE`/`#1E6B3C` · 53–55% `#FBF1D6`/`#7A5B00` · <53% `#FBE1E2`/`#B02A30` (đã dùng ở §5 Page 1/4).
+- **Drill hint chip** (`.drillhint`): chữ `#0E7490` 8pt 600, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 2×8. → text box nhỏ góc phải title bảng.
+
+### 3.4.6 Button slicer (thay seg-control `◈`)
+Khớp §8.1 — gom lại thông số chính xác:
+- Container seg: nền `#F1F4F8`, viền `#E9EEF5`, radius 8, padding 2.
+- **Unselected:** nền trong suốt/`#F1F4F8`, chữ `#6B7280` 9pt 600.
+- **Selected (`.on`):** nền `#FFFFFF`, chữ `#0E7490` (cyan-d), shadow nhẹ (`0 1px 3px rgba(16,24,40,.12)`), radius 6.
+- PBI Button slicer: Orientation Horizontal · Rounded corners 6 · Selected: Fill `#FFFFFF`, Text `#0E7490` · Unselected: Fill `#F1F4F8`, Text `#6B7280` · viền ngoài `#E9EEF5`.
+
+### 3.4.7 Tooltip page (trang tooltip §6)
+Artifact tooltip nền **tối** để nổi trên chart:
+- Nền `#111826`, chữ trắng, radius 10, padding 10×13, shadow đậm.
+- Tiêu đề tooltip (`.tt-h`): **`#7FD3E6`** (cyan sáng) 10pt 700.
+- Nhãn dòng (`span`): `#AEB6C4`; giá trị (`b`): trắng, tabular.
+- PBI: trang Tooltip → Canvas background `#111826` (Transparency 0). Card/label trên đó: Font color trắng, tiêu đề `#7FD3E6`. (Đây là **khác biệt có chủ đích** so với card sáng của trang chính.)
+
+### 3.4.8 Drill-through page — nút Back & tag (§7)
+- **Back button** (`.backbtn`): nền `#FFFFFF`, viền `#E9EEF5`, radius 9, padding 8×14, chữ `#0E7490` 10pt 600, shadow card.
+- **Drill tag** (`.drilltag`): chữ `#0E7490` 8pt 700, nền `#E1F5FB`, viền `#CFE8F2`, radius 6, padding 3×10.
+
+### 3.4.9 Sidebar — màu chi tiết mọi element
+Sidebar nền cyan gradient nên **mọi chữ/khối bên trong là màu TRẮNG ở các mức opacity khác nhau**, không phải hex đặc. Có 2 lớp:
+- **Nền + trang trí tĩnh** (gradient, logo, brand text, nav label, side-foot) → nằm trong `background.png` (§3.3).
+- **6 nút nav + 2 slicer Filters (Market, Fit type)** → **visual Power BI thật đè lên PNG** (§4.1, §4.3) → **phải style trong Format pane cho khớp bảng dưới**.
+
+> **⚠️ Power BI CHỈ nhận hex 6 số (RGB) trong ô chọn màu — KHÔNG nhập được RGBA / hex 8 số.** Độ trong suốt (alpha) là **thanh Transparency riêng**, và **chỉ có ở một số property** (Background, Border, Shapes fill, Data colors…) — **màu Font/chữ hầu như KHÔNG có** thanh này. Vì vậy chuyển `rgba(255,255,255,.X)` như sau:
+> - **Nền/viền** (property CÓ thanh Transparency): màu **White** + **Transparency = (1 − X)×100%** → giữ được hiệu ứng gradient PNG lộ qua (khớp artifact nhất). VD `rgba(255,255,255,.11)` → White, Transparency **89%**.
+> - **Chữ — hoặc BẤT KỲ ô màu nào KHÔNG có thanh Transparency** (font, nhiều ô conditional formatting): **bắt buộc dùng hex đặc** ở cột "Hex chữ (đặc)" — đã blend sẵn white-mờ trên nền `#0E7490`, là hex 6 số nhập thẳng được.
+> - **Lười / muốn chắc ăn:** cứ dùng **hex đặc cho tất cả** (cả nền lẫn chữ) — nhập được mọi nơi, chỉ đánh đổi là các khối nền thành màu đặc phẳng, mất hiệu ứng gradient cyan lộ qua (chấp nhận được, gần như không thấy khác).
+
+**Gradient nền:** dọc `180deg, #0AA6C6 (0%, đỉnh) → #0E7490 (100%, đáy)` · rộng **248px** · padding 24×18.
+
+| Element (artifact) | Màu CSS | Nền/viền → PBI | Hex chữ (đặc) | Size / weight |
+|---|---|---|---|---|
+| Logo box | nền `rgba(255,255,255,.16)` · viền trong `.25` | White+**84%** / viền White+**75%** | chữ "F" `#FFFFFF` | 40×40, radius 11 |
+| Brand title `.bt` ("FOS Analytics") | `#FFFFFF` | — | `#FFFFFF` | 13pt / 700 |
+| Brand subtitle `.bs` ("POD · WooCommerce") | white **.72** | — | **`#BCD8E0`** | 9pt / 400 |
+| Nav label ("NAVIGATION" / "FILTERS") | white **.62** | — | **`#A3CAD5`** | 8pt UPPERCASE, letter-spacing .13em |
+| **Nav button — idle** | nền white **.09** · chữ **.92** | nền White+**91%** | **`#ECF4F6`** | 11pt / 500, radius 12, padding 12×15 |
+| **Nav button — active** (`.on`) | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 11pt / 600 + shadow |
+| **Filter slicer khung** (`.sl`) | nền white **.11** · viền **.18** | nền White+**89%** / viền White+**82%** | — | radius 10, padding 8×11 |
+| Filter section header (`.sh` "Market"/"Fit type") | white **.68** | — | **`#B2D3DB`** | 8pt UPPERCASE, letter-spacing .07em |
+| Dropdown value (`.dd` "All markets") | `#FFFFFF` · chevron opacity .8 | — | `#FFFFFF` | 10pt / 600 |
+| **Chip — idle** (`.chips span` "Men"…) | nền white **.12** · chữ **.85** | nền White+**88%** | **`#DBEAEE`** | 9pt / 400, radius 7, padding 4×9 |
+| **Chip — active** (`.on` "All") | nền `#FFFFFF` · chữ `#0E7490` | nền **White 0%** (đặc) | `#0E7490` | 9pt / **700** |
+| Synced note (`.synced` "↻ Synced…") | white **.60** | — | **`#9FC7D3`** | 8pt / 400 |
+| Side-foot — border-top | white **.16** | đường White+**84%** | — | 1px |
+| Side-foot row label (`.cvrow span`) | white **.82** | — | **`#D4E6EB`** | 9pt / 400 |
+| Side-foot value (`b` "2023 – 2026") | `#FFFFFF` | — | `#FFFFFF` | 9pt tabular |
+
+**Style 2 slicer live (đè lên vùng Filters của PNG):**
+- **Market** — *Dropdown slicer* `dim_country[country_name]`: Slicer settings → **Background = White, Transparency 89%**; **Border = White, Transparency 82%**, Rounded corners 10 · Header "Market" màu `#B2D3DB` 8pt uppercase · Values (chữ trong dropdown) `#FFFFFF` 10pt. (Hoặc để Background **transparent** cho cyan PNG lộ qua, rồi chỉ style chữ.)
+- **Fit type** — *Tile/Button slicer* `fact_order_item[fit_type]`: Header "Fit type" `#B2D3DB` · **Item idle:** Fill White+88%, Text `#DBEAEE` · **Item selected:** Fill `#FFFFFF` (0%), Text `#0E7490` **700** · Rounded corners 7, khoảng cách item 5px.
+
+> **6 nút nav** (Buttons/Page navigator đè PNG, §4.1): idle Fill White+91% Text `#ECF4F6`; **Selected** (trang hiện tại) Fill `#FFFFFF` Text `#0E7490` + shadow. Dùng **Page navigator** để tự highlight trang hiện tại là khớp nhất.
+
+### 3.4.10 Topbar — màu chi tiết
+Topbar là **lớp tĩnh trong `background.png`**; date-picker cũng tĩnh (slicer Date thật đặt đè lên, §4.2).
+- **Nền** `#FFFFFF` · **border-bottom 1px `#E9EEF5`** · cao **80px** · padding 0×28.
+- Date input (`.dinput`): nền `#FFFFFF`, viền `#E9EEF5`, radius 11, padding 8×14 · icon lịch màu `cyan` `#0891B2` · label 8pt uppercase `ink3` `#9AA3AF` · value 10pt 600 `ink` `#1A2230` · chevron `ink3`.
+- **Slicer Date live** (Between, §4.2) đè lên: style tối giản, chữ `#1A2230`, để nền transparent cho ô trắng PNG lộ qua.
 
 ---
 
@@ -527,7 +527,7 @@ DIVIDE ( [Method Payment Fee],
 Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field wells. KPI dùng card, mỗi card 1 measure; delta YoY để ở supporting/label hoặc card phụ.
 
 ### PAGE 1 — Overview
-**KPI (6 card, hàng trên):** **Product revenue** = `[Revenue]` (+ `[Revenue T12M Icon]` §3.9a, màu `Delta_Color`) · Contribution Profit (+ T12M icon) · Profit Margin · Paid Orders (+ T12M icon) · AOV · Repeat Rate.
+**KPI (6 card, hàng trên):** **Product revenue** = `[Revenue]` (+ `[Revenue T12M Icon]` §2.9a, màu `Delta_Color`) · Contribution Profit (+ T12M icon) · Profit Margin · Paid Orders (+ T12M icon) · AOV · Repeat Rate.
 
 > **Nhãn card đầu BẮT BUỘC là "Product revenue"** (không phải "Revenue") — trend bên dưới vẽ *Net revenue* (cơ sở mart, gồm shipping). Hai cơ sở khác nhau xuất hiện trên cùng trang; nhãn phải nói rõ cái nào là cái nào (sửa sau buildability audit).
 
@@ -535,7 +535,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 |---|---|---|
 | Monthly trend + ◈ FP1 | **Line chart** + **Button slicer** | Axis `dim_date[Month]` · Y-axis = **field parameter FP1** (§8.1: Net revenue = `[Profit Base Net Revenue]` đổi display name, Contribution Profit, Paid Orders, AOV). Multi-select Net revenue + Profit = chế độ "Rev + Profit" mặc định |
 | Revenue by year | **Clustered column** | Axis `dim_date[Year]` · Values `[Profit Base Net Revenue]` (nhãn "Net revenue"), `[Contribution Profit]` · Subtitle/hint: "2026 = partial (7 mo)" |
-| Top markets | **Matrix** | Rows `dim_country[country_name]` · Values **`[Revenue per Country]`**, `[Revenue Share]`, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (§3.6) · Filter **Top 6** by `[Revenue per Country]` |
+| Top markets | **Matrix** | Rows `dim_country[country_name]` · Values **`[Revenue per Country]`**, `[Revenue Share]`, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (§2.6) · Filter **Top 6** by `[Revenue per Country]` |
 | Revenue → Profit bridge | **Waterfall** | Bảng disconnected `Bridge` (ghi chú dưới) |
 
 **Format matrix Top markets (3 bước, đúng demo):**
@@ -554,8 +554,8 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 |---|---|---|
 | Cost structure | **Matrix** (không phải bar) | Rows = bảng disconnected `CostType` (Enter data: 3 dòng COGS / Payment fee / Design fee + cột `Order` 1-3 để sort) · Values = `[Cost Structure Value]` (data bars) + `[Cost Structure %]` (ghi chú dưới) |
 | Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[Month]` · Values `[Profit Margin]` (green), `[COGS Ratio]` (red) |
-| Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[Month]` · Values **`[COGS per Unit]`** (đỏ, §3.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
-| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Product Net Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§3.5b), **`[Margin vs Median]`** (§3.9b — font color = `[Margin vs Median Color]`) · Sort tăng theo `[Product Margin]`, filter `[Product Net Revenue] > 300`, Top 8 |
+| Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[Month]` · Values **`[COGS per Unit]`** (đỏ, §2.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
+| Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Product Net Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§2.5b), **`[Margin vs Median]`** (§2.9b — font color = `[Margin vs Median Color]`) · Sort tăng theo `[Product Margin]`, filter `[Product Net Revenue] > 300`, Top 8 |
 
 > **Matrix Cost structure** — tái tạo "text % of net revenue" của demo bằng cột thay vì data label:
 > ```DAX
@@ -570,14 +570,14 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 > **Vì sao tên "Unit cost trend"** (đổi từ "Unit economics — COGS/unit vs AOV"): title nói *kết luận* — chi phí đơn vị đang rẻ đi — thay vì liệt kê cấu tạo chart; 3 series ghi ở subtitle. Insight: COGS/unit giảm ~28% trong khi AOV đi ngang → margin được bảo vệ bởi supplier cost, không phải pricing power.
 
 ### PAGE 3 — Products
-**KPI (4 card):** Distinct Products Sold (1,636) · "Top 11% of products = 50% of revenue" (**text box** — insight tĩnh từ Pareto, không cần measure) · **`[Median Margin]`** (§3.9b, label "designs with >$100 revenue") · **`[Loss-making Designs]`** (§3.9c, delta label "total loss only −$63 — catalog is safe").
+**KPI (4 card):** Distinct Products Sold (1,636) · "Top 11% of products = 50% of revenue" (**text box** — insight tĩnh từ Pareto, không cần measure) · **`[Median Margin]`** (§2.9b, label "designs with >$100 revenue") · **`[Loss-making Designs]`** (§2.9c, delta label "total loss only −$63 — catalog is safe").
 
 | Visual | Loại | Field |
 |---|---|---|
-| Revenue concentration (Pareto) | **Line chart** | Axis `dim_product[product_name]` **sort desc theo `[Revenue]`** · Values `[Cumulative Revenue %]` (§3.5) · **Analytics pane → 2 constant lines Y = 50% & 80%** (màu `#E0A82E`, dashed) · 2 **text box** callout "Top 11% → 50%" / "Top 43% → 80%" group với chart |
-| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`** (font green + bold qua conditional formatting), **`[Product Margin]`** (§3.5b) · Top 8 by `[Product Profit]` |
+| Revenue concentration (Pareto) | **Line chart** | Axis `dim_product[product_name]` **sort desc theo `[Revenue]`** · Values `[Cumulative Revenue %]` (§2.5) · **Analytics pane → 2 constant lines Y = 50% & 80%** (màu `#E0A82E`, dashed) · 2 **text box** callout "Top 11% → 50%" / "Top 43% → 80%" group với chart |
+| Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`** (font green + bold qua conditional formatting), **`[Product Margin]`** (§2.5b) · Top 8 by `[Product Profit]` |
 | Revenue by ◈ FP2 | **Bar/Column chart** + **Button slicer** | Axis = **field parameter FP2** (§8.2: `print_location` / `size` / `fit_type`) · Values `[Revenue]` · Slicer Tile/Button ngang trên đầu chart |
-| Revenue vs margin — per design | **Scatter chart** | Values `dim_product[product_name]` · X = `[Product Net Revenue]` · Y = `[Product Margin]` · Filter **Top 60** by `[Product Net Revenue]` · Markers → fx color = `[Scatter Color]` (§3.9c: <52% đỏ) · **Analytics → Y constant line 0.56** (sand, dashed, label "median 56%") |
+| Revenue vs margin — per design | **Scatter chart** | Values `dim_product[product_name]` · X = `[Product Net Revenue]` · Y = `[Product Margin]` · Filter **Top 60** by `[Product Net Revenue]` · Markers → fx color = `[Scatter Color]` (§2.9c: <52% đỏ) · **Analytics → Y constant line 0.56** (sand, dashed, label "median 56%") |
 
 > **Trục Pareto — khác demo một cách có chủ đích:** demo vẽ trục X = "% of products (by rank)"; Power BI line chart cần trục là cột thật nên dùng `product_name` sorted desc — **câu chuyện giữ nguyên** (đường cong tích lũy + 2 mốc 50/80%), chỉ nhãn trục khác. Đừng cố tạo calculated column rank % trên `dim_product` — 58k dòng variant (1,636 design bán được) làm rank nhiễu mà không thêm insight.
 >
@@ -586,17 +586,17 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 > **Scatter đọc thế nào:** mỗi chấm = 1 design; chấm **to bên phải + dưới đường median** (đỏ, <52%) = bán chạy nhưng định giá thấp → **danh sách tăng giá ưu tiên**. Hover tooltip hiện tên design + revenue + margin.
 
 ### PAGE 4 — Markets
-**KPI (4 card):** `[Top Market Name]` (§3.9d, delta = "$53.1k · 44.5% of revenue") · **`[Best Margin Major Market]`** (§3.9d — label **"Best-margin major market"**, delta "58.0% · markets ≥ $2k rev") · `[International Share]` (§3.9d) · `[Markets Served]` (§3.9d).
+**KPI (4 card):** `[Top Market Name]` (§2.9d, delta = "$53.1k · 44.5% of revenue") · **`[Best Margin Major Market]`** (§2.9d — label **"Best-margin major market"**, delta "58.0% · markets ≥ $2k rev") · `[International Share]` (§2.9d) · `[Markets Served]` (§2.9d).
 
 | Visual | Loại | Field |
 |---|---|---|
 | Revenue map | **Bubble map** | Location `dim_country[country_name]` · Bubble size **`[Revenue per Country]`** · Legend/color qua fx = measure màu margin (≥56% green `#2E8B4F` · 53–56% sand `#E0A82E` · <53% red `#E5484D`) |
 | Revenue vs margin | **Line and clustered column** | Shared axis `dim_country[country_name]` (Top 8 by `[Revenue per Country]`) · Column **`[Revenue per Country]`** · Line **`[Country Margin]`** (secondary axis 0–60%) |
-| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values **`[Country Orders]`**, **`[Revenue per Country]`**, **`[AOV per Country]`**, **`[Country Margin]`**, **`[Country Repeat %]`** (§3.9d), `[Revenue Share]` · Top 10 by revenue |
+| Market detail (drill source) | **Table** | Rows `dim_country[country_name]` · Values **`[Country Orders]`**, **`[Revenue per Country]`**, **`[AOV per Country]`**, **`[Country Margin]`**, **`[Country Repeat %]`** (§2.9d), `[Revenue Share]` · Top 10 by revenue |
 
 > **Format cột Repeat %** (table Market detail): Conditional formatting → Font color → **Rules** — ≥3% chữ `#1E6B3C` bold · 2–3% chữ `#7A5B00` bold · <2% chữ `#9AA3AF`. Insight cột này: **EU repeat 2–4%** (ES 4.3, NL 3.2) vs **US 1.6%** → chọn thị trường cho email win-back. Subtitle bảng ghi hint "Click a row → drill through" (§7).
 
-> ⚠️ **Cả trang này KHÔNG được dùng `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` trực tiếp** — không bảng nào trong số đó cắt được theo country (§2.3b), Power BI sẽ im lặng trả grand total giống nhau cho mọi nước. Dùng bộ `*per Country* / Country *` ở §3.6.
+> ⚠️ **Cả trang này KHÔNG được dùng `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` trực tiếp** — không bảng nào trong số đó cắt được theo country (§1.3b), Power BI sẽ im lặng trả grand total giống nhau cho mọi nước. Dùng bộ `*per Country* / Country *` ở §2.6.
 >
 > AOV theo nước cần mẫu số cùng dân số với tử số:
 > ```DAX
@@ -608,10 +608,10 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| New customers acquired — monthly | **Column** | Axis `mart_customer_summary[first_order_date]` (cấp Month) · Values `[New Customers]` · **Columns → fx → `[Acq Bar Color]`** (§3.9e: 2026 đỏ, còn lại cyan — làm nổi cú rơi 2026) |
+| New customers acquired — monthly | **Column** | Axis `mart_customer_summary[first_order_date]` (cấp Month) · Values `[New Customers]` · **Columns → fx → `[Acq Bar Color]`** (§2.9e: 2026 đỏ, còn lại cyan — làm nổi cú rơi 2026) |
 | Customer recency | **Bar** | Axis `mart_customer_summary[Recency Segment]` · Values `[Distinct Customers]` · Data colors per point: Active `#2E8B4F` · 3-6mo `#E0A82E` · 6-12mo `#64748B` · Lapsed `#E5484D` |
 | Orders per customer | **Column** | Axis `mart_customer_summary[total_orders]` · Values `Count of customer_sk` · Subtitle "repeat depth · basis: all order attempts" |
-| Are repeat customers worth more? | **Matrix + 3 Text box** (composite, group lại) | Matrix: **Columns** = cột `Segment` (§3.9e) · **Values** = `[Distinct Customers]`, `[Seg Lifetime Revenue]`, `[Seg LTV]`, `[Seg Revenue per Order]` · Format → Values → **Switch values to rows = On** (metric thành dòng, One-time/Repeat thành 2 cột — đúng layout demo) |
+| Are repeat customers worth more? | **Matrix + 3 Text box** (composite, group lại) | Matrix: **Columns** = cột `Segment` (§2.9e) · **Values** = `[Distinct Customers]`, `[Seg Lifetime Revenue]`, `[Seg LTV]`, `[Seg Revenue per Order]` · Format → Values → **Switch values to rows = On** (metric thành dòng, One-time/Repeat thành 2 cột — đúng layout demo) |
 
 > **3 text box kết luận** dưới matrix (đây là editorial content, không phải measure): ① "LTV repeat chỉ +12% — nhưng đơn repeat nhỏ hơn 51%." ② chữ đỏ `#B02A30`: "93% khách mua lần 2 trong 30 ngày đầu (đa số cùng ngày)" ③ "→ win-back sau tháng đầu gần như vô nghĩa; tăng trưởng = khách mới + AOV." — Con số 93% lấy từ phân tích SQL offline (khoảng cách first→second order trong `fact_order`), không có measure nào tính nó trên model; nếu muốn động hóa thì cần cột `days_to_second_order` trong mart (chưa có — chấp nhận text tĩnh).
 >
@@ -629,7 +629,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 > **Payment composite (3 visual group lại — demo cũng vẽ đúng dạng này):**
 > 1. **100% stacked bar**: Axis `dim_payment_method[method_name]` · Values `[Method Paid Orders]` (màu method: Card `#0891B2`, PayPal `#E0A82E`) + `[Method Lost]` (màu `#F6E3E4`) · Data labels = % (hiện "72.4%" / "89.3%").
-> 2. **Matrix**: Rows `dim_payment_method[method_name]` · Values `[Order Attempts]`, `[Method Paid Orders]`, `[Method Lost]` (font đỏ), `[Method Fee Rate]` (Rules: Card green / PayPal red), `[Method Payment Fee]` (§3.9f).
+> 2. **Matrix**: Rows `dim_payment_method[method_name]` · Values `[Order Attempts]`, `[Method Paid Orders]`, `[Method Lost]` (font đỏ), `[Method Fee Rate]` (Rules: Card green / PayPal red), `[Method Payment Fee]` (§2.9f).
 > 3. **Text box** đỏ `#B02A30`: *"Card mất 711 attempts (27.6%) — sửa checkout card = cơ hội lớn nhất trang này"*.
 >
 > **Refund composite (4 visual group lại):**
@@ -646,7 +646,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 2. Đặt vài card nhỏ: `[Revenue]`, `[Contribution Profit]`, `[Profit Margin]`, `[Paid Orders]` (bối cảnh sẽ tự lọc theo tháng đang hover).
 3. Ở **Line chart Page 1** → **Format → Tooltips → Type = Report page → Page = Month.**
 
-**Trang tooltip "Market"** (tương tự): cards **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (bộ country §3.6 — tooltip cũng chịu chung ràng buộc quan hệ) và `[Revenue per Country]`; gán cho map/bar/table ở Page 4. Bỏ `[Refund Rate]` khỏi tooltip này: `fact_refund` không nối `dim_country` nên nó sẽ ra tỉ lệ toàn hệ thống cho mọi nước.
+**Trang tooltip "Market"** (tương tự): cards **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (bộ country §2.6 — tooltip cũng chịu chung ràng buộc quan hệ) và `[Revenue per Country]`; gán cho map/bar/table ở Page 4. Bỏ `[Refund Rate]` khỏi tooltip này: `fact_refund` không nối `dim_country` nên nó sẽ ra tỉ lệ toàn hệ thống cho mọi nước.
 
 ---
 
@@ -654,7 +654,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 1. Tạo trang **Market Detail** (1920×1080, cùng background).
 2. Kéo `dim_country[country_name]` vào **Visualizations → Add drill-through fields here** (mục *Drill through*).
-3. Trên trang này đặt: header tên nước (card/text `SELECTEDVALUE(dim_country[country_name])`), KPI (**`[Revenue per Country]`**, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`**, `[Revenue Share]` — bộ country ở §3.6, KHÔNG dùng `[Revenue]`/`[Profit Margin]`), line **revenue theo tháng** (dùng `[Revenue per Country]`), donut **payment mix** (`dim_payment_method[method_name]` × count).
+3. Trên trang này đặt: header tên nước (card/text `SELECTEDVALUE(dim_country[country_name])`), KPI (**`[Revenue per Country]`**, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`**, `[Revenue Share]` — bộ country ở §2.6, KHÔNG dùng `[Revenue]`/`[Profit Margin]`), line **revenue theo tháng** (dùng `[Revenue per Country]`), donut **payment mix** (`dim_payment_method[method_name]` × count).
 4. Power BI tự thêm nút **Back** (chuột phải nút → giữ). Trên Page 4, **chuột phải** 1 nước (table/map/bar) → **Drill through → Market Detail**.
 
 ---
@@ -688,7 +688,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 ## 9. Hoàn thiện & lưu
 
-- Duyệt lại: mọi visual để **title** rõ, format số đúng (§3), màu khớp bảng màu §1.
+- Duyệt lại: mọi visual để **title** rõ, format số đúng (§2), màu khớp bảng màu §3.
 - Ẩn các trang phụ trợ (Month/Market tooltip, Market Detail) khỏi tab nếu cần: chuột phải tab → **Hide page** (drill-through vẫn hoạt động khi ẩn).
 - **File → Save as →** `powerbi/ecommerce_analytics.pbix` (hoặc bản .pbip).
 - Chụp screenshot mỗi trang → `powerbi/screenshots/`.
@@ -697,12 +697,12 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 ## Phụ lục A — Index measure nhanh
 Sales: Revenue · Quantity Sold · Net Revenue · Profit Base Net Revenue · Paid Orders · AOV · Shipping Charged
-Profit: Contribution Profit · Profit Margin · (Delta: **T12M Icon** cho KPI §3.9a · MoM/YoY Icon+Color cho tooltip)
-Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit · **COGS per Unit · Median Margin · Margin vs Median (+Color)** (§3.9b)
-Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§3.9c)
-Markets: **Revenue per Country · Country Profit · Country Net Revenue · Country Margin · Country Orders · AOV per Country** · Revenue Share · **Top Market Name · Best Margin Major Market · International Share · Markets Served · Country Repeat %** (§3.9d)
-Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share · **Seg Lifetime Revenue · Seg LTV · Seg Revenue per Order · Acq Bar Color** (§3.9e) (+ cột Recency Segment, CLV Bucket, Days Since Last Order, **Segment**)
-Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Payment Fee · Method Fee Rate** (§3.9f)
+Profit: Contribution Profit · Profit Margin · (Delta: **T12M Icon** cho KPI §2.9a · MoM/YoY Icon+Color cho tooltip)
+Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit · **COGS per Unit · Median Margin · Margin vs Median (+Color)** (§2.9b)
+Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§2.9c)
+Markets: **Revenue per Country · Country Profit · Country Net Revenue · Country Margin · Country Orders · AOV per Country** · Revenue Share · **Top Market Name · Best Margin Major Market · International Share · Markets Served · Country Repeat %** (§2.9d)
+Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share · **Seg Lifetime Revenue · Seg LTV · Seg Revenue per Order · Acq Bar Color** (§2.9e) (+ cột Recency Segment, CLV Bucket, Days Since Last Order, **Segment**)
+Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Payment Fee · Method Fee Rate** (§2.9f)
 
 ---
 
@@ -723,7 +723,7 @@ Capstone **cố ý giữ tên riêng**. Bảng này để khi bạn đọc doc e
 | `Orders per Customer` = 1.12 | `Orders per Customer` = 0.89 | ⚠️ Capstone = `SUM(total_orders)/customers` (lifetime, đúng cho trang Customers). ecom = `[Orders]/[Distinct Customers]` (theo filter context). |
 | `Payment Fee` (mart_order_profit) = $7,131.11 | `Payment Fee` (fact_order) = $7,069.77 | ⚠️ **Capstone đúng hơn cho P&L:** `[Contribution Profit]` trừ đúng cột của `mart_order_profit` (đã COALESCE CSV fallback cho fee Woo thiếu), nên bản ecom không reconcile được (lệch $61.34 trên cùng tập đơn, số 2026-07-23). |
 | `Product Profit` / `Product Margin` | — | Capstone-only, bắt buộc vì `mart_order_profit` không nối `dim_product`. |
-| `Revenue per Country` | `Revenue per Country` | **Giống nhau** — cùng dùng `TREATAS`, cùng lý do (§2.3b). |
+| `Revenue per Country` | `Revenue per Country` | **Giống nhau** — cùng dùng `TREATAS`, cùng lý do (§1.3b). |
 | `Country Margin` | — | Capstone-only; ecom chưa có measure margin theo nước. |
 | `Total Cost` / `Cost Ratio` / `Cost per Order` / `Cost per Unit` | — | Capstone-only (trang Cost & Margin). |
 | — | Coverage Tier · Profit Visible Flag · các chip gating | ecom-only: capstone **không dùng tier-gating** (đã nêu ở đầu file). |
