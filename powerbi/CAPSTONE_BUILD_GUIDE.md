@@ -87,8 +87,30 @@ Nếu Power BI tự tạo quan hệ **Both** → sửa về **Single**. `mart_cu
 > 2. `[Contribution Profit]` / `[Profit Margin]` (đọc `mart_order_profit`) **không** cắt được theo product hay country → phải dùng bộ đo product (§2.5b) và country (§2.6).
 > 3. Ngược lại, `[Revenue]` **cắt tốt** theo product (có quan hệ `fact_order_item → dim_product`), nên trang Products dùng `[Revenue]` bình thường.
 
-### 1.4 Mark as date table
-Chọn `dim_date` → **Table tools → Mark as date table** → cột `date_day` → OK. (Bật time-intelligence cho YoY.)
+### 1.4 Date table — mark + cấu hình chuẩn (BẮT BUỘC cho time-intelligence & hierarchy)
+`dim_date` import từ marts **chưa dùng được ngay** — phải cấu hình 4 việc dưới, nếu không: số bị SUM bậy, tháng sort sai, trend nhiều năm gộp nhầm, và không có drill-down.
+
+1. **Mark as date table.** Chọn `dim_date` → **Table tools → Mark as date table** → cột `date_day` → OK. (Bật time-intelligence cho YoY/YTD; `date_day` là dải ngày liên tục 2020–2030.)
+
+2. **Chặn auto-SUM.** Các cột SỐ nhưng phân loại — `year`, `quarter`, `month`, `day_of_month`, `iso_day_of_week` — chọn từng cột → **Column tools → Summarization = Don't summarize**. (Mặc định Power BI để **Sum** → kéo `year` vào visual sẽ cộng 2024+2024+… ra số vô nghĩa.)
+
+3. **Sort tháng/thứ theo thứ tự thời gian**, không theo alphabet:
+   - `month_name` → **Column tools → Sort by column** = `month`.
+   - `day_name` → **Sort by column** = `iso_day_of_week`.
+
+4. **Thêm cột trục tháng liên tục** (calc column) — cho trend nhiều năm không bị gộp các tháng cùng số:
+   ```DAX
+   month_start_date = DATE ( dim_date[year], dim_date[month], 1 )   -- Format: mmm yyyy  → "Mar 2024"
+   ```
+
+5. **Tạo hierarchy để drill-down:** chuột phải `dim_date` → **Create hierarchy** → đặt tên **Calendar** → thêm cấp theo thứ tự **`year` → `quarter` → `month_name` → `day_of_month`**. (Tháng hiển thị đúng Jan→Dec nhờ Sort by column ở bước 3.)
+
+> **Dùng cột nào cho trục?**
+> - **Trend nhiều năm** (Overview trend, Unit cost, Status theo tháng…): trục = **`dim_date[month_start_date]`** — liên tục, tự sort đúng.
+> - **Drill-down** (Year→Quarter→Month→Day): kéo hierarchy **`Calendar`** vào trục.
+> - **YoY/YTD** (§2.3): time-intelligence chạy trên `date_day`, không cần đụng.
+>
+> *(Model `.pbip` đã commit đã có sẵn cả 5 mục này — xem `dim_date.tmdl`. Phần này để rebuild từ đầu vẫn đúng.)*
 
 ### 1.5 Ẩn cột kỹ thuật
 Ẩn mọi cột `*_sk` (chuột phải → **Hide in report view**) cho gọn field list.
@@ -533,7 +555,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| Monthly trend + ◈ FP1 | **Line chart** + **Button slicer** | Axis `dim_date[Month]` · Y-axis = **field parameter FP1** (§8.1: Net revenue = `[Profit Base Net Revenue]` đổi display name, Contribution Profit, Paid Orders, AOV). Multi-select Net revenue + Profit = chế độ "Rev + Profit" mặc định |
+| Monthly trend + ◈ FP1 | **Line chart** + **Button slicer** | Axis `dim_date[month_start_date]` · Y-axis = **field parameter FP1** (§8.1: Net revenue = `[Profit Base Net Revenue]` đổi display name, Contribution Profit, Paid Orders, AOV). Multi-select Net revenue + Profit = chế độ "Rev + Profit" mặc định |
 | Revenue by year | **Clustered column** | Axis `dim_date[Year]` · Values `[Profit Base Net Revenue]` (nhãn "Net revenue"), `[Contribution Profit]` · Subtitle/hint: "2026 = partial (7 mo)" |
 | Top markets | **Matrix** | Rows `dim_country[country_name]` · Values **`[Revenue per Country]`**, `[Revenue Share]`, **`[Country Orders]`**, **`[AOV per Country]`**, **`[Country Margin]`** (§2.6) · Filter **Top 6** by `[Revenue per Country]` |
 | Revenue → Profit bridge | **Waterfall** | Bảng disconnected `Bridge` (ghi chú dưới) |
@@ -541,7 +563,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 **Format matrix Top markets (3 bước, đúng demo):**
 1. **Data bars** cho `[Revenue per Country]`: chọn value → Conditional formatting → Data bars → màu `#0891B2`.
 2. **Margin heat** cho `[Country Margin]`: Conditional formatting → **Background color → Rules** — ≥57% nền `#DCF2E4` chữ `#1E6B3C` · 55–57% nền `#EAF6EE` chữ `#1E6B3C` · 53–55% nền `#FBF1D6` chữ `#7A5B00` · <53% nền `#FBE1E2` chữ `#B02A30` (đúng 4 bucket demo — Rules, không dùng Gradient).
-3. **Sparkline 12-mo**: chọn ô `[Revenue per Country]` trong Values → **Insert → Sparkline** → Y = `[Revenue per Country]`, X = `dim_date[Month]` → Filter sparkline 12 tháng gần nhất (relative date).
+3. **Sparkline 12-mo**: chọn ô `[Revenue per Country]` trong Values → **Insert → Sparkline** → Y = `[Revenue per Country]`, X = `dim_date[month_start_date]` → Filter sparkline 12 tháng gần nhất (relative date).
 
 > **Waterfall gọn:** tạo bảng disconnected `Bridge` (Enter data) với cột `Step` = {Net rev, COGS, Design, Pmt fee, Profit} và `Order` 1..5; measure `Bridge Value = SWITCH(SELECTEDVALUE(Bridge[Step]), "Net rev",[Profit Base Net Revenue], "COGS",-[COGS], "Design",-[Design Fee], "Pmt fee",-[Payment Fee], "Profit",[Contribution Profit])`. Waterfall: Category `Bridge[Step]` (sort theo `Order`), Y `[Bridge Value]`.
 >
@@ -553,8 +575,8 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 | Visual | Loại | Field |
 |---|---|---|
 | Cost structure | **Matrix** (không phải bar) | Rows = bảng disconnected `CostType` (Enter data: 3 dòng COGS / Payment fee / Design fee + cột `Order` 1-3 để sort) · Values = `[Cost Structure Value]` (data bars) + `[Cost Structure %]` (ghi chú dưới) |
-| Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[Month]` · Values `[Profit Margin]` (green), `[COGS Ratio]` (red) |
-| Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[Month]` · Values **`[COGS per Unit]`** (đỏ, §2.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
+| Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[month_start_date]` · Values `[Profit Margin]` (green), `[COGS Ratio]` (red) |
+| Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[month_start_date]` · Values **`[COGS per Unit]`** (đỏ, §2.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
 | Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Product Net Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§2.5b), **`[Margin vs Median]`** (§2.9b — font color = `[Margin vs Median Color]`) · Sort tăng theo `[Product Margin]`, filter `[Product Net Revenue] > 300`, Top 8 |
 
 > **Matrix Cost structure** — tái tạo "text % of net revenue" của demo bằng cột thay vì data label:
@@ -623,7 +645,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 | Visual | Loại | Field |
 |---|---|---|
 | Order status breakdown | **Bar** | Axis `fact_order[status]` · Values `[Order Attempts]` · Data colors per point: completed `#2E8B4F` · cancelled `#E0A82E` · failed `#E5484D` · processing `#0891B2` · refunded `#64748B` · pending `#7C6BC4` |
-| Status theo tháng | **Stacked column** | Axis `dim_date[Month]` · Legend `fact_order[status]` (filter 3 status: completed/cancelled/failed) · Values `[Order Attempts]` |
+| Status theo tháng | **Stacked column** | Axis `dim_date[month_start_date]` · Legend `fact_order[status]` (filter 3 status: completed/cancelled/failed) · Values `[Order Attempts]` |
 | Payment method — approval & fee | **Composite: 100% stacked bar + Matrix + Text box** (group 3 visual) | Chi tiết dưới |
 | Refund health | **Composite: Gauge + 2 Card + Text box** (group) | Chi tiết dưới |
 
