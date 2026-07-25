@@ -51,6 +51,10 @@ db/dumps/
 *.dump
 *.sql.gz
 
+# Local MCP server config — holds machine-specific absolute paths to MCP
+# executables (e.g. the local powerbi-modeling MCP), not portable across machines.
+.mcp.json
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

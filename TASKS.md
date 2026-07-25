@@ -169,7 +169,7 @@
 - [x] `marts/operations/fact_order_cost.sql` — order-level cost with `cost_source`, `cost_allocation_method`, `cost_confidence` (no separate supplier-shipping cost field)
 - [x] `marts/core/mart_order_profit.sql` — contribution profit = `revenue_usd − cogs_usd − design_fee_usd − payment_fee_usd` (no shipping subtraction)
 - [x] `marts/core/mart_product_profit.sql` — revenue-share allocation default
-- [x] `marts/core/mart_country_profit.sql`
+- [x] ~~`marts/core/mart_country_profit.sql`~~ — **dropped in the conformed-dimension redesign (2026-07-25)**; country now reads `mart_order_profit` directly via its new `country_sk` FK
 - [x] `marts/core/mart_customer_summary.sql` — `total_profit_usd` wired from `mart_order_profit` (was NULL pending Phase 3)
 
 ### Reconciliation
@@ -197,6 +197,27 @@
 - [x] Hand-reconcile 5 sample orders end-to-end (revenue from Woo, cost from CSV, profit from mart, customer shipping charge from Woo) — **all 5 reconcile exactly: `contribution_profit_usd == net_rev − cogs − design_fee − payment_fee`**
 - [x] Confirm no `actual_shipping_cost_usd` references remain anywhere in dbt models (guarded by `tests/test_repo_scaffold.py::test_no_forbidden_shipping_cost_field_in_implementation_scaffold`)
 - [x] Commit + push — **pushed; `origin/main` @ `727055c` (631c8c1 feat + 9914ca6 + 727055c), zero unpushed commits**
+
+---
+
+## Data Model Redesign — Conformed Dimensions ✅ COMPLETE (2026-07-25)
+
+> Cross-phase change (core marts + Power BI): pushed conformed FKs down to grain so **one** country/customer/payment slicer propagates to every fact; dropped `mart_country_profit`; removed the TREATAS bridges + per-dimension measure clones. Spec: [`docs/DATA_MODEL_REDESIGN_SPEC.md`](docs/DATA_MODEL_REDESIGN_SPEC.md). **Purely additive — no metric value changed.**
+
+### dbt / Postgres
+- [x] Push `country_sk` / `customer_sk` / `payment_method_sk` (+ degenerate `order_status`) to grain in `fact_order_item`, `mart_order_profit`, `mart_product_profit`, `fact_refund`, `fact_order_cost` — all inherited from `fact_order` via `order_sk` (single source of truth, no formula duplication)
+- [x] Drop `mart_country_profit.sql` (country reads `mart_order_profit` directly via `country_sk`)
+- [x] Add `relationships` tests for every new FK in `schema.yml`
+- [x] `dbt build` green — **PASS=232, WARN=0, ERROR=0**
+- [x] Validate DB: 12 headline metrics unchanged (Revenue $119,261.71, Contribution Profit $86,670.64, Net base $157,614.83, Paid Orders 3,813…); pushed-down FK == order-header FK (**0 mismatch** on all 5 facts); per-order profit conservation max diff **$0.0000**; no fan-out (rows == distinct PK); **0 FK orphans**
+
+### Power BI (live model + capstone)
+- [x] Add 14 FK columns + 12 dim→fact relationships (1:\* single-direction active)
+- [x] Delete `mart_country_profit` table + 6 clone measures (Revenue per Country, Country Profit / Net Revenue / Margin / Orders, AOV per Country); rewrite `Revenue Share` on base `[Revenue]`
+- [x] Re-point 4 Markets-page cards to base measures (Revenue / Profit Base Net Revenue / Contribution Profit)
+- [x] DAX-validated: base measures slice by country + payment method; totals reconcile exactly
+- [x] Sync docs (`DATA_MODEL.md`, `METRICS_DEFINITION.md`, `PIPELINE_DESIGN.md`, `METRIC_CHANGES.md`, `CAPSTONE_BUILD_GUIDE.md`)
+- [x] Commit + push — `af4d81b` (docs), `6fc7d32` (impl), `bdedcd9` (cleanup), `8d247db` (guide)
 
 ---
 
