@@ -181,6 +181,33 @@ table mart_order_profit
 
 		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
+	column country_sk
+		dataType: string
+		isHidden
+		lineageTag: 47bf2ea5-1c68-4993-a6b4-5736cb1d1018
+		summarizeBy: none
+		sourceColumn: country_sk
+
+	column customer_sk
+		dataType: string
+		isHidden
+		lineageTag: 002d6f83-73e0-49e9-9709-b53c21f8ac3a
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+	column payment_method_sk
+		dataType: string
+		isHidden
+		lineageTag: 1fbeec50-dfe2-4a58-9cd7-f23ae705c616
+		summarizeBy: none
+		sourceColumn: payment_method_sk
+
+	column order_status
+		dataType: string
+		lineageTag: fe475cdc-73ed-4cde-bc90-55a50982a934
+		summarizeBy: none
+		sourceColumn: order_status
+
 	partition mart_order_profit = m
 		mode: import
 		source =

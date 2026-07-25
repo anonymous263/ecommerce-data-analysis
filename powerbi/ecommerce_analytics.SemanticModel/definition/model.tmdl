@@ -21,7 +21,6 @@ ref table dim_site
 ref table fact_order
 ref table fact_order_item
 ref table fact_refund
-ref table mart_country_profit
 ref table mart_customer_summary
 ref table mart_order_profit
 ref table mart_product_profit

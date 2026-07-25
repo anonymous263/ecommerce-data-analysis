@@ -57,7 +57,12 @@ with cost as (
 ),
 
 order_hdr as (
-    select order_sk, shipping_charged_usd, payment_fee_usd, payment_fee_source
+    -- conformed FKs (country/customer/payment) + degenerate status inherited from
+    -- the order header so profit slices by them directly (no mart_country_profit,
+    -- no TREATAS); one row per order_sk, so no fan-out.
+    select
+        order_sk, shipping_charged_usd, payment_fee_usd, payment_fee_source,
+        country_sk, customer_sk, payment_method_sk, status as order_status
     from {{ ref('fact_order') }}
 ),
 
@@ -99,7 +104,11 @@ joined as (
         coalesce(h.payment_fee_usd, c.payment_fee_fallback_usd, 0) as payment_fee_usd,
         c.cost_confidence,
         c.cost_allocation_method,
-        h.payment_fee_source
+        h.payment_fee_source,
+        h.country_sk,
+        h.customer_sk,
+        h.payment_method_sk,
+        h.order_status
     from cost c
     inner join order_hdr h on h.order_sk = c.order_sk
     inner join revenue r on r.order_sk = c.order_sk and r.gross_product_revenue_usd > 0
@@ -138,5 +147,11 @@ select
 
     cost_confidence,
     cost_allocation_method,
-    payment_fee_source
+    payment_fee_source,
+
+    -- conformed FKs pushed to order grain (redesign 2026-07-24)
+    country_sk,
+    customer_sk,
+    payment_method_sk,
+    order_status
 from joined

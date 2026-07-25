@@ -92,6 +92,27 @@ table fact_refund
 
 		annotation SummarizationSetBy = Automatic
 
+	column country_sk
+		dataType: string
+		isHidden
+		lineageTag: 08d4f8fc-32af-4080-82e7-7e62f9dc9ac6
+		summarizeBy: none
+		sourceColumn: country_sk
+
+	column customer_sk
+		dataType: string
+		isHidden
+		lineageTag: 1f00cefa-a027-4ca1-ad67-d267c506625f
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+	column payment_method_sk
+		dataType: string
+		isHidden
+		lineageTag: c3d1f4ae-e012-4561-8c41-bb45b8787021
+		summarizeBy: none
+		sourceColumn: payment_method_sk
+
 	partition fact_refund = m
 		mode: import
 		source =

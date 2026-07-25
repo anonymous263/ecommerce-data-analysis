@@ -37,6 +37,16 @@ fx as (
         upper(currency)    as currency,
         usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
+),
+
+order_keys as (
+    -- Conformed FKs (country/customer/payment) inherited from the order header,
+    -- the single source of truth for these surrogate keys. Pushing them down to
+    -- the line grain lets one country/customer/payment slicer propagate here
+    -- directly (no TREATAS bridge) and makes the relationships tests hold by
+    -- construction. An order has exactly one of each, so this never fans out.
+    select order_sk, country_sk, customer_sk, payment_method_sk
+    from {{ ref('fact_order') }}
 )
 
 select
@@ -45,6 +55,9 @@ select
     {{ dbt_utils.generate_surrogate_key(['i.site_code']) }}                      as site_sk,
     to_char(o.order_date, 'YYYYMMDD')::int                                       as date_sk,
     {{ dbt_utils.generate_surrogate_key(['i.site_code', 'i.woo_product_id']) }}  as product_sk,
+    ok.country_sk,
+    ok.customer_sk,
+    ok.payment_method_sk,
 
     i.woo_order_item_id           as woo_line_item_id,
     i.woo_product_id,
@@ -70,3 +83,5 @@ left join orders o
 left join fx
     on fx.currency = o.currency_source
    and fx.rate_date = o.order_date
+left join order_keys ok
+    on ok.order_sk = {{ dbt_utils.generate_surrogate_key(['i.site_code', 'i.woo_order_id']) }}

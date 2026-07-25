@@ -1,5 +1,5 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
   "name": "0e7a60cf8a5c5791a6c0",
   "position": {
     "x": 924,
@@ -16,25 +16,38 @@
           "projections": [
             {
               "field": {
-                "Aggregation": {
+                "Measure": {
                   "Expression": {
-                    "Column": {
-                      "Expression": {
-                        "SourceRef": {
-                          "Entity": "mart_country_profit"
-                        }
-                      },
-                      "Property": "revenue_usd"
+                    "SourceRef": {
+                      "Entity": "_Measures"
                     }
                   },
-                  "Function": 0
+                  "Property": "Revenue"
                 }
               },
-              "queryRef": "Sum(mart_country_profit.revenue_usd)",
-              "nativeQueryRef": "Sum of revenue_usd"
+              "queryRef": "_Measures.Revenue",
+              "nativeQueryRef": "Revenue"
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "_Measures"
+                  }
+                },
+                "Property": "Revenue"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
       }
     },
     "objects": {

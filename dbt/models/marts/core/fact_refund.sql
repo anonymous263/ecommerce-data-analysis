@@ -28,12 +28,23 @@ fx as (
         upper(currency)    as currency,
         usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
+),
+
+order_keys as (
+    -- conformed FKs inherited from the order header so refunds slice by
+    -- country/customer/payment directly ([Refund Rate] by country etc.);
+    -- one row per order_sk, no fan-out.
+    select order_sk, country_sk, customer_sk, payment_method_sk
+    from {{ ref('fact_order') }}
 )
 
 select
     {{ dbt_utils.generate_surrogate_key(['r.site_code', 'r.woo_refund_id']) }} as refund_sk,
     {{ dbt_utils.generate_surrogate_key(['r.site_code', 'r.woo_order_id']) }}  as order_sk,
     {{ dbt_utils.generate_surrogate_key(['r.site_code']) }}                    as site_sk,
+    ok.country_sk,
+    ok.customer_sk,
+    ok.payment_method_sk,
     cast(null as text)                                                         as order_item_sk,
     to_char(r.refund_date, 'YYYYMMDD')::int                                    as date_sk,
     r.woo_refund_id,
@@ -50,3 +61,5 @@ left join orders o
 left join fx
     on fx.currency = o.currency_source
    and fx.rate_date = r.refund_date
+left join order_keys ok
+    on ok.order_sk = {{ dbt_utils.generate_surrogate_key(['r.site_code', 'r.woo_order_id']) }}

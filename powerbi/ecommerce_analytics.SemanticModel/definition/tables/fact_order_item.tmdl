@@ -191,6 +191,27 @@ table fact_order_item
 
 		annotation SummarizationSetBy = Automatic
 
+	column country_sk
+		dataType: string
+		isHidden
+		lineageTag: d7dfc74e-a3c4-4158-99f0-52b31c035f87
+		summarizeBy: none
+		sourceColumn: country_sk
+
+	column customer_sk
+		dataType: string
+		isHidden
+		lineageTag: da98725e-b73a-4342-985a-502520b8c014
+		summarizeBy: none
+		sourceColumn: customer_sk
+
+	column payment_method_sk
+		dataType: string
+		isHidden
+		lineageTag: 4b7254fb-6425-4cbd-bee1-72a8c83f8958
+		summarizeBy: none
+		sourceColumn: payment_method_sk
+
 	partition fact_order_item = m
 		mode: import
 		source =

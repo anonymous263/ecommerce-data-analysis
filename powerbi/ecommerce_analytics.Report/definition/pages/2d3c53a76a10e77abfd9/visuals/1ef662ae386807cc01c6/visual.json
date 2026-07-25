@@ -1,5 +1,5 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
   "name": "1ef662ae386807cc01c6",
   "position": {
     "x": 924,
@@ -22,14 +22,32 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Revenue per Country"
+                  "Property": "Contribution Profit"
                 }
               },
-              "queryRef": "_Measures.Revenue per Country",
-              "nativeQueryRef": "Revenue per Country"
+              "queryRef": "_Measures.Contribution Profit",
+              "nativeQueryRef": "Contribution Profit"
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "_Measures"
+                  }
+                },
+                "Property": "Contribution Profit"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
       }
     },
     "objects": {

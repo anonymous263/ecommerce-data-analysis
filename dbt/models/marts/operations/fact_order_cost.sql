@@ -29,6 +29,13 @@ fx as (
         upper(currency)    as currency,
         usd_rate::numeric  as usd_rate
     from {{ ref('fx_rates') }}
+),
+
+order_keys as (
+    -- conformed FKs inherited from the order header so cost/recon marts can slice
+    -- by country/customer/payment consistently with the rest of the star.
+    select order_sk, country_sk, customer_sk, payment_method_sk
+    from {{ ref('fact_order') }}
 )
 
 select
@@ -36,6 +43,9 @@ select
     {{ dbt_utils.generate_surrogate_key(['c.site_code', 'c.woo_order_id']) }} as order_sk,
     {{ dbt_utils.generate_surrogate_key(['c.site_code']) }}                   as site_sk,
     to_char(o.order_date, 'YYYYMMDD')::int                                    as date_sk,
+    ok.country_sk,
+    ok.customer_sk,
+    ok.payment_method_sk,
 
     c.cogs_usd,
     c.design_fee_usd,
@@ -54,3 +64,5 @@ inner join orders o
     on o.site_code = c.site_code and o.woo_order_id = c.woo_order_id
 left join fx
     on fx.currency = upper(c.currency) and fx.rate_date = o.order_date
+left join order_keys ok
+    on ok.order_sk = {{ dbt_utils.generate_surrogate_key(['c.site_code', 'c.woo_order_id']) }}
