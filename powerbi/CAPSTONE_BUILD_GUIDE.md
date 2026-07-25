@@ -336,11 +336,11 @@ Acq Bar Color = IF ( YEAR ( MAX ( mart_customer_summary[first_order_date] ) ) = 
 Method Paid Orders = CALCULATE ( COUNTROWS ( fact_order ), fact_order[status] IN { "completed", "processing", "refunded" } )   -- #,0
 Method Approval Rate = DIVIDE ( [Method Paid Orders], [Order Attempts] )   -- 0.0%
 Method Lost = [Order Attempts] - [Method Paid Orders]                      -- #,0
-Method Payment Fee = [Payment Fee]   -- $#,0
--- mart_order_profit nối thẳng dim_payment_method sau redesign (§1.3) → dùng thẳng base measure, hết TREATAS.
--- Tổng 2 method = $7,131.11 khớp [Payment Fee]. ✓
+-- Payment fee KHÔNG cần measure riêng: sau redesign mart_order_profit nối thẳng
+-- dim_payment_method (§1.3) nên [Payment Fee] cắt trực tiếp theo method (đã build & validate:
+-- PayPal $4,081 · Stripe $2,914 · ppcp $136 · tổng $7,131.11 ✓). Dùng thẳng [Payment Fee], hết TREATAS.
 Method Fee Rate =
-DIVIDE ( [Method Payment Fee],
+DIVIDE ( [Payment Fee],
     CALCULATE ( SUM ( fact_order[order_total_usd] ), fact_order[status] IN { "completed", "processing", "refunded" } ) )   -- 0.00%
 ```
 > Kiểm chứng nhanh (theo artifact): Card 2,577 attempts → 1,866 paid (**72.4%**, mất 711) · PayPal 2,180 → 1,947 (**89.3%**) · fee Card **3.80%** vs PayPal **5.22%**.
@@ -627,7 +627,7 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 > **Payment composite (3 visual group lại — demo cũng vẽ đúng dạng này):**
 > 1. **100% stacked bar**: Axis `dim_payment_method[method_name]` · Values `[Method Paid Orders]` (màu method: Card `#0891B2`, PayPal `#E0A82E`) + `[Method Lost]` (màu `#F6E3E4`) · Data labels = % (hiện "72.4%" / "89.3%").
-> 2. **Matrix**: Rows `dim_payment_method[method_name]` · Values `[Order Attempts]`, `[Method Paid Orders]`, `[Method Lost]` (font đỏ), `[Method Fee Rate]` (Rules: Card green / PayPal red), `[Method Payment Fee]` (§2.9f).
+> 2. **Matrix**: Rows `dim_payment_method[method_name]` · Values `[Order Attempts]`, `[Method Paid Orders]`, `[Method Lost]` (font đỏ), `[Method Fee Rate]` (Rules: Card green / PayPal red), `[Payment Fee]` (§2.9f — cắt thẳng theo method sau redesign).
 > 3. **Text box** đỏ `#B02A30`: *"Card mất 711 attempts (27.6%) — sửa checkout card = cơ hội lớn nhất trang này"*.
 >
 > **Refund composite (4 visual group lại):**
@@ -700,7 +700,7 @@ Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Rati
 Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§2.9c)
 Markets: Revenue Share · **Top Market Name · Best Margin Major Market · International Share · Markets Served · Country Repeat %** (§2.9d) — sau redesign dùng thẳng base measure (`[Revenue]`, `[Profit Margin]`, `[Paid Orders]`, `[AOV]`) trên `dim_country`, không còn measure family "per Country" riêng
 Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share · **Seg Lifetime Revenue · Seg LTV · Seg Revenue per Order · Acq Bar Color** (§2.9e) (+ cột Recency Segment, CLV Bucket, Days Since Last Order, **Segment**)
-Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Payment Fee · Method Fee Rate** (§2.9f)
+Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Fee Rate** (§2.9f) — payment fee theo method dùng base `[Payment Fee]` (cắt thẳng qua `dim_payment_method` sau redesign), không cần measure riêng
 
 ---
 
