@@ -188,6 +188,13 @@ country_name  TEXT
 region        TEXT
 currency      TEXT
 ```
+Built from the DISTINCT billing countries actually present in orders, LEFT
+JOINed to seed `country_iso_map.csv` for name/region/currency. The seed
+covers **all ISO alpha-2 codes present in the data (61 countries, updated
+2026-07-26)**; any code absent from the seed keeps its raw code as name and
+`Unknown` region/currency, and a synthetic `XX` row absorbs orders with no
+billing country. `country_sk` is a surrogate over `country_code`, so
+enriching the seed is additive — it never changes keys or breaks fact FKs.
 
 ### 5.6 `dim_channel` (Phase 6)
 From GA4 + (optional) ads UTM.

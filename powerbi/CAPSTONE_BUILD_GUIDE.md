@@ -281,6 +281,16 @@ FUNCTION T12M_Icon = ( _measure : expr ) =>
 ```
 Measures KPI: `Revenue T12M Icon = T12M_Icon ( [Revenue] )` · tương tự cho `[Contribution Profit]`, `[Paid Orders]`. Màu chữ delta dùng `Delta_Color` sẵn có trong toolkit. (Bộ MoM/YoY Icon cũ giữ nguyên cho tooltip.)
 
+**(a2) Delta PoP — theo dõi bằng date slicer (thêm 2026-07-26).** T12M/MoM **neo cứng** vào tháng cuối có dữ liệu → đổi date slicer lắt nhắt trong cùng tháng KHÔNG làm delta đổi (đúng thiết kế: card đứng ổn định kể cả không có slicer). Khi cần delta **chạy theo range ngày đang chọn** (vùng chọn vs kỳ liền trước cùng độ dài) → dùng **PoP** (`PoP_Perc`/`PoP_Icon` có sẵn trong `udf_period_delta.txt`). Đã tạo sẵn 8 measure trong `_Measures`, folder **PoP**:
+
+| Icon (label) | Color (fx font) | Palette |
+|---|---|---|
+| `Revenue PoP Icon = PoP_Icon([Revenue])` | `Revenue PoP Color = Delta_Color(PoP_Perc([Revenue]))` | thường |
+| `Profit PoP Icon` · `Orders PoP Icon` | `… Delta_Color(PoP_Perc(…))` | thường |
+| `Total Cost PoP Icon` | `Total Cost PoP Color = Delta_Color_Inverse(PoP_Perc([Total Cost]))` | **inverse** (cost tăng = đỏ) |
+
+⚠️ PoP **cần một date slicer** trên trang; không có slicer (chọn cả lịch) → hiển thị "–" (đúng, không phải lỗi). Gắn: card → reference label = `[… PoP Icon]`, Font color → fx → Field value = `[… PoP Color]`. Dùng MoM/T12M cho cái nhìn cố định theo tháng, PoP cho cái nhìn theo range.
+
 **(b) Cost & Margin:**
 ```DAX
 COGS per Unit = DIVIDE ( [COGS], [Quantity Sold] )   -- $#,0.00  (line đỏ Unit cost trend; KHÁC [Cost per Unit] = all-in cost/unit)
@@ -415,6 +425,30 @@ DIVIDE ( [Payment Fee],
 
 > **Tabular numbers:** artifact dùng `font-variant-numeric:tabular-nums` cho mọi số. Trong Power BI, chọn font **"Segoe UI"** (mặc định đã là tabular với chữ số cùng bề rộng) — không cần chỉnh thêm; tránh font tỉ lệ cho cột số để số thẳng cột.
 
+> **Subtitle/hint = câu hỏi business (chuẩn 2026-07-26).** Text nhỏ cạnh title (`.hint`) phải nói **câu hỏi vận hành chart trả lời**, KHÔNG mô tả cơ chế dựng chart ("matrix · data bars · sparkline") và KHÔNG hardcode số (dashboard tương tác → số đổi theo filter, insight tĩnh sẽ sai; để số/insight ở phần "câu hỏi business" cuối artifact). Bộ subtitle đã áp trên artifact — dùng nguyên khi build PBI (chart title → Subtitle, hoặc text box nhỏ dưới title):
+> | Chart | Subtitle |
+> |---|---|
+> | Top markets | *Which markets carry the store — and are they stalling?* |
+> | Revenue → profit bridge | *How much of each revenue dollar survives to profit?* |
+> | Cost structure | *Where does each revenue dollar go?* |
+> | Margin & COGS ratio | *Are unit economics holding?* |
+> | Unit cost trend | *What's protecting margin — price or supplier cost?* |
+> | Lowest-margin products | *Which designs bleed margin?* |
+> | Revenue concentration (Pareto) | *How few products drive most of revenue?* |
+> | Top products by profit | *Which winning designs deserve more scale?* |
+> | Revenue vs margin — per design | *Which top sellers hide weak margins?* |
+> | Revenue map | *Where are customers — and are they profitable?* |
+> | Revenue vs margin by market | *Big markets vs the profitable ones?* |
+> | Market detail | *Which markets earn repeat customers?* |
+> | New customers — monthly | *Is new-customer growth slowing?* |
+> | Customer recency | *Is the customer base still warm?* |
+> | Orders per customer | *How deep does repeat buying go?* |
+> | Are repeat customers worth more? | *One-time vs repeat, head to head* |
+> | Order status breakdown | *Where do order attempts leak?* |
+> | Completed vs failed vs cancelled | *Is order fallout improving?* |
+> | Payment method — approval & fee | *Which gateway leaks orders — and which costs more?* |
+> | Refund health | *Are quality issues under control?* |
+
 ### 3.4.3 Màu semantic của con số KPI (`.kpi .val` variants)
 Con số KPI **không** đồng loạt màu `ink`; đổi màu theo ý nghĩa. Đặt ở **Callout value → Color** của từng New Card:
 | Loại KPI | Màu value | Ví dụ trong artifact |
@@ -543,6 +577,18 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 **Format matrix Top markets (3 bước, đúng demo):**
 1. **Data bars** cho `[Revenue]`: chọn value → Conditional formatting → Data bars → màu `#0891B2`.
+   > ⚠️ **Data bar native vẽ số ĐÈ lên thanh** (thanh là nền cell) → dòng dài nhất (US) số chồng lên thanh, và KHÔNG có track xám/bo góc như demo. 2 cách khắc phục:
+   > - **Nhanh (2 cột):** thêm measure `Revenue Bar = [Revenue]` kế bên → bật Data bars + **Show bar only = On** → thu hẹp cột, header rỗng. Số ở cột trái, thanh ở cột phải, hết đè.
+   > - **Đúng demo (SVG, có track + bo góc):** measure trả SVG, đặt **Data category = Image URL**, để cạnh cột số:
+   > ```DAX
+   > Revenue Bar SVG =
+   > VAR v = [Revenue]  VAR maxv = MAXX ( ALLSELECTED ( dim_country[country_name] ), [Revenue] )
+   > VAR w = 90  VAR fill = ROUND ( DIVIDE ( v, maxv ) * w, 0 )
+   > RETURN "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='" & w & "' height='15'>"
+   >   & "<rect width='" & w & "' height='15' rx='4' fill='%23F1F4F8'/>"
+   >   & "<rect width='" & fill & "' height='15' rx='4' fill='%230891B2'/></svg>"
+   > ```
+   > (`#`→`%23`; `maxv` = MAXX để scale theo dòng cao nhất đang hiển thị, không phải tổng.)
 2. **Margin heat** cho `[Profit Margin]`: Conditional formatting → **Background color → Rules** — ≥57% nền `#DCF2E4` chữ `#1E6B3C` · 55–57% nền `#EAF6EE` chữ `#1E6B3C` · 53–55% nền `#FBF1D6` chữ `#7A5B00` · <53% nền `#FBE1E2` chữ `#B02A30` (đúng 4 bucket demo — Rules, không dùng Gradient).
 3. **Sparkline 12-mo**: chọn ô `[Revenue]` trong Values → **Insert → Sparkline** → Y = `[Revenue]`, X = `dim_date[month_start_date]` → Filter sparkline 12 tháng gần nhất (relative date).
 
