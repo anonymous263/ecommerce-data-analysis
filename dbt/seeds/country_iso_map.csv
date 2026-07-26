@@ -4,3 +4,60 @@ GB,GB,United Kingdom,Europe,GBP
 US,US,United States,North America,USD
 CA,CA,Canada,North America,CAD
 DE,DE,Germany,Europe,EUR
+AU,AU,Australia,Oceania,AUD
+NL,NL,Netherlands,Europe,EUR
+FR,FR,France,Europe,EUR
+IT,IT,Italy,Europe,EUR
+ES,ES,Spain,Europe,EUR
+CH,CH,Switzerland,Europe,CHF
+BE,BE,Belgium,Europe,EUR
+IE,IE,Ireland,Europe,EUR
+AT,AT,Austria,Europe,EUR
+SE,SE,Sweden,Europe,SEK
+PL,PL,Poland,Europe,PLN
+DK,DK,Denmark,Europe,DKK
+NO,NO,Norway,Europe,NOK
+FI,FI,Finland,Europe,EUR
+CZ,CZ,Czechia,Europe,CZK
+NZ,NZ,New Zealand,Oceania,NZD
+SK,SK,Slovakia,Europe,EUR
+HU,HU,Hungary,Europe,HUF
+RO,RO,Romania,Europe,RON
+SI,SI,Slovenia,Europe,EUR
+PT,PT,Portugal,Europe,EUR
+HR,HR,Croatia,Europe,EUR
+LT,LT,Lithuania,Europe,EUR
+MT,MT,Malta,Europe,EUR
+LV,LV,Latvia,Europe,EUR
+EE,EE,Estonia,Europe,EUR
+GR,GR,Greece,Europe,EUR
+MX,MX,Mexico,North America,MXN
+LU,LU,Luxembourg,Europe,EUR
+BG,BG,Bulgaria,Europe,BGN
+JP,JP,Japan,Asia,JPY
+IS,IS,Iceland,Europe,ISK
+JE,JE,Jersey,Europe,GBP
+BA,BA,Bosnia and Herzegovina,Europe,BAM
+TW,TW,Taiwan,Asia,TWD
+RS,RS,Serbia,Europe,RSD
+NE,NE,Niger,Africa,XOF
+KR,KR,South Korea,Asia,KRW
+ID,ID,Indonesia,Asia,IDR
+AD,AD,Andorra,Europe,EUR
+SA,SA,Saudi Arabia,Asia,SAR
+IL,IL,Israel,Asia,ILS
+KZ,KZ,Kazakhstan,Asia,KZT
+EC,EC,Ecuador,South America,USD
+AX,AX,Aland Islands,Europe,EUR
+GF,GF,French Guiana,South America,EUR
+CO,CO,Colombia,South America,COP
+TR,TR,Turkey,Asia,TRY
+TH,TH,Thailand,Asia,THB
+MY,MY,Malaysia,Asia,MYR
+HK,HK,Hong Kong,Asia,HKD
+UA,UA,Ukraine,Europe,UAH
+PR,PR,Puerto Rico,North America,USD
+VA,VA,Vatican City,Europe,EUR
+CY,CY,Cyprus,Europe,EUR
+CW,CW,Curacao,North America,ANG
+PH,PH,Philippines,Asia,PHP
