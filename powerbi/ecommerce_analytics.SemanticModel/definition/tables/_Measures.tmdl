@@ -512,6 +512,46 @@ table _Measures
 		displayFolder: YoY
 		lineageTag: 61aea43a-8c39-48cd-986e-4df07c524337
 
+	/// Compact card label via UDF PoP_Icon: selected period vs previous equal-length period, artifact style '▲ 5.2% PoP'. FOLLOWS the date slicer (needs one — no slicer shows '–'). Pair with [Revenue PoP Color].
+	measure 'Revenue PoP Icon' = PoP_Icon ( [Revenue] )
+		displayFolder: PoP
+		lineageTag: d17ad960-648c-4ea7-bb7e-3be6123327a3
+
+	/// Hex for conditional font color of [Revenue PoP Icon]: up #2E8B4F, down #E5484D, blank #9AA3AF. Apply via Format > Font color > fx > Field value.
+	measure 'Revenue PoP Color' = Delta_Color ( PoP_Perc ( [Revenue] ) )
+		displayFolder: PoP
+		lineageTag: 14efd8c9-81f5-4e44-a8bf-a87c6bf89e40
+
+	/// Card label for profit PoP (selected vs previous equal period). Needs date slicer. Pair with [Profit PoP Color].
+	measure 'Profit PoP Icon' = PoP_Icon ( [Contribution Profit] )
+		displayFolder: PoP
+		lineageTag: c9278bd6-2da6-4a0a-8c08-62e622a2aba1
+
+	/// Hex for [Profit PoP Icon] font color.
+	measure 'Profit PoP Color' = Delta_Color ( PoP_Perc ( [Contribution Profit] ) )
+		displayFolder: PoP
+		lineageTag: 9e6eaa68-f15d-4e18-84f1-168edeee4615
+
+	/// Card label for orders PoP (selected vs previous equal period). Needs date slicer. Pair with [Orders PoP Color].
+	measure 'Orders PoP Icon' = PoP_Icon ( [Paid Orders] )
+		displayFolder: PoP
+		lineageTag: 14207476-7410-4964-8b41-31cb17953d30
+
+	/// Hex for [Orders PoP Icon] font color.
+	measure 'Orders PoP Color' = Delta_Color ( PoP_Perc ( [Paid Orders] ) )
+		displayFolder: PoP
+		lineageTag: 502af77b-e331-416a-a82e-c99e687c097c
+
+	/// Card label for cost PoP (selected vs previous equal period). Needs date slicer. Pair with [Total Cost PoP Color] (inverse palette).
+	measure 'Total Cost PoP Icon' = PoP_Icon ( [Total Cost] )
+		displayFolder: PoP
+		lineageTag: c53cf8be-fff8-4fef-a70a-e99ee634889c
+
+	/// INVERSE hex for [Total Cost PoP Icon]: cost up = red #E5484D, cost down = green #2E8B4F.
+	measure 'Total Cost PoP Color' = Delta_Color_Inverse ( PoP_Perc ( [Total Cost] ) )
+		displayFolder: PoP
+		lineageTag: 1f7f22dc-f574-41c6-9a07-b6719157395e
+
 	partition _Measures = m
 		mode: import
 		source =

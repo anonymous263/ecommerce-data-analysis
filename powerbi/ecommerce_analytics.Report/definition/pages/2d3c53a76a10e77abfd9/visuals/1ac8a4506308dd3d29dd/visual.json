@@ -1,19 +1,19 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
   "name": "1ac8a4506308dd3d29dd",
   "position": {
-    "x": 1584.5454545454545,
-    "y": 25.454545454545453,
-    "z": 5001,
-    "height": 72,
-    "width": 256,
-    "tabOrder": 7001
+    "x": 1435.5555555555554,
+    "y": 25.555555555555554,
+    "z": 5000,
+    "height": 73.333333333333329,
+    "width": 455.55555555555554,
+    "tabOrder": 4000
   },
   "visual": {
-    "visualType": "SuperDatePicker_BIsuperheroCZ",
+    "visualType": "dateSel4A1A0033E6F54D1B809B6E51058D54E3",
     "query": {
       "queryState": {
-        "dateColumn": {
+        "dateInput": {
           "projections": [
             {
               "field": {
@@ -52,84 +52,169 @@
       }
     },
     "objects": {
-      "selectionType": [
+      "general": [
         {
           "properties": {
-            "calendarType": {
+            "filter": {
+              "filter": {
+                "Version": 2,
+                "From": [
+                  {
+                    "Name": "d",
+                    "Entity": "dim_date",
+                    "Type": 0
+                  }
+                ],
+                "Where": [
+                  {
+                    "Condition": {
+                      "And": {
+                        "Left": {
+                          "Comparison": {
+                            "ComparisonKind": 2,
+                            "Left": {
+                              "Column": {
+                                "Expression": {
+                                  "SourceRef": {
+                                    "Source": "d"
+                                  }
+                                },
+                                "Property": "date_day"
+                              }
+                            },
+                            "Right": {
+                              "DateSpan": {
+                                "Expression": {
+                                  "Literal": {
+                                    "Value": "datetime'2020-01-01T00:00:00'"
+                                  }
+                                },
+                                "TimeUnit": 5
+                              }
+                            }
+                          }
+                        },
+                        "Right": {
+                          "Comparison": {
+                            "ComparisonKind": 4,
+                            "Left": {
+                              "Column": {
+                                "Expression": {
+                                  "SourceRef": {
+                                    "Source": "d"
+                                  }
+                                },
+                                "Property": "date_day"
+                              }
+                            },
+                            "Right": {
+                              "DateSpan": {
+                                "Expression": {
+                                  "Literal": {
+                                    "Value": "datetime'2030-12-31T00:00:00'"
+                                  }
+                                },
+                                "TimeUnit": 5
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "layout": [
+        {
+          "properties": {
+            "showCurrent": {
               "expr": {
                 "Literal": {
-                  "Value": "'dialog'"
+                  "Value": "true"
                 }
               }
             },
-            "defaultSelection": {
+            "showMove": {
               "expr": {
                 "Literal": {
-                  "Value": "'thisMonth'"
+                  "Value": "false"
+                }
+              }
+            },
+            "enableSlider": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "show2ndSlider": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showSlider": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showTooltip": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showExtendedTooltip": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showIconText": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showMore": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "showExpand": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
                 }
               }
             }
           }
         }
       ],
-      "mainInputbox": [
+      "style": [
         {
           "properties": {
-            "iconVersion": {
-              "expr": {
-                "Literal": {
-                  "Value": "1D"
-                }
-              }
-            },
-            "closeIconShow": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
-            "borderRadius": {
-              "expr": {
-                "Literal": {
-                  "Value": "12D"
-                }
-              }
-            },
-            "borderWidth": {
-              "expr": {
-                "Literal": {
-                  "Value": "2D"
-                }
-              }
-            },
-            "borderColor": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "ThemeDataColor": {
-                      "ColorId": 2,
-                      "Percent": 0.4
-                    }
-                  }
-                }
-              }
-            },
-            "iconShow": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
             "fontSize": {
               "expr": {
                 "Literal": {
-                  "Value": "14D"
+                  "Value": "15D"
                 }
               }
             },
-            "iconColor": {
+            "themeColor": {
               "solid": {
                 "color": {
                   "expr": {
@@ -140,104 +225,28 @@
                   }
                 }
               }
+            },
+            "themeMode": {
+              "expr": {
+                "Literal": {
+                  "Value": "'light'"
+                }
+              }
             }
           }
         }
       ],
-      "calendarDialog": [
+      "period": [
         {
           "properties": {
-            "calendarDividerColor": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#E2E8F0'"
-                    }
-                  }
-                }
-              }
-            },
-            "dialogUseCustomSize": {
+            "showPay": {
               "expr": {
                 "Literal": {
                   "Value": "false"
                 }
               }
             },
-            "dialogWidth": {
-              "expr": {
-                "Literal": {
-                  "Value": "520D"
-                }
-              }
-            }
-          }
-        }
-      ],
-      "calendarGrid": [
-        {
-          "properties": {
-            "calendarTodayColor": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "Literal": {
-                      "Value": "'#3B82F6'"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      ],
-      "presetRanges": [
-        {
-          "properties": {
-            "showToday": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
-            "showLastWeek": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
-            "showDaysUpToday": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
-                }
-              }
-            },
-            "showLastYear": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
-                }
-              }
-            },
-            "showLastMonth": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
-            "showThisMonth": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            },
-            "showThisYear": {
+            "showQuarter": {
               "expr": {
                 "Literal": {
                   "Value": "true"
@@ -245,24 +254,6 @@
               }
             }
           }
-        }
-      ],
-      "advancedSettings": [
-        {
-          "properties": {
-            "refreshInfo": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
-                }
-              }
-            }
-          }
-        }
-      ],
-      "general": [
-        {
-          "properties": {}
         }
       ]
     },
@@ -299,7 +290,19 @@
             "show": {
               "expr": {
                 "Literal": {
-                  "Value": "false"
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "ThemeDataColor": {
+                      "ColorId": 2,
+                      "Percent": 0
+                    }
+                  }
                 }
               }
             }
@@ -352,7 +355,7 @@
             "bottom": {
               "expr": {
                 "Literal": {
-                  "Value": "16D"
+                  "Value": "0D"
                 }
               }
             },
