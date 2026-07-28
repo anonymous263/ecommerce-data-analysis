@@ -98,7 +98,7 @@ FOS:
 sites:
   - site_code: FOS
     site_name: Fashion Open Studio
-    base_url: https://fashionopenstudio.com
+    base_url_env: WOO_FOS_BASE_URL   # URL storefront lấy từ .env, không commit
     key_env: WOO_FOS_KEY
     secret_env: WOO_FOS_SECRET
     default_currency: GBP

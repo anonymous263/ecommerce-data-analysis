@@ -1,7 +1,9 @@
 sites:
   - site_code: FOS
     site_name: Fashion Open Studio
-    base_url: https://fashionopenstudio.com
+    # Storefront URL and credentials are resolved from the environment by *name*
+    # so this committed config exposes no live endpoint and no secrets.
+    base_url_env: WOO_FOS_BASE_URL
     key_env: WOO_FOS_KEY
     secret_env: WOO_FOS_SECRET
     default_currency: GBP

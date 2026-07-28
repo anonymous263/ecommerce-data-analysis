@@ -28,7 +28,7 @@ from sqlalchemy import Engine, text
 
 from src.load.db import apply_sql_file, make_engine
 from src.load.upsert import DEFAULT_JSON_COLUMNS, _encode_row, build_upsert_sql, upsert_rows
-from src.utils.config import Site, load_sites, resolve_credentials
+from src.utils.config import Site, load_sites, resolve_base_url, resolve_credentials
 from src.utils.http import make_client, paginate
 from src.utils.logging import get_logger
 
@@ -235,11 +235,12 @@ def finish_run(
 def extract_site(site: Site, engine: Engine, *, full_refresh: bool = False) -> int:
     """Pull every entity for one site and land it. Returns total rows upserted."""
     creds = resolve_credentials(site)
+    base_url = resolve_base_url(site)
     start_ts = datetime.now(timezone.utc)
     run_id = start_run(engine, site.site_code, start_ts)
     rows_out = 0
     try:
-        with make_client(site.base_url, creds.key, creds.secret) as client:
+        with make_client(base_url, creds.key, creds.secret) as client:
             rows_out += _extract_orders_and_refunds(site, engine, client, full_refresh=full_refresh)
             rows_out += _extract_simple(site, engine, client, "products", to_product_row)
             rows_out += _extract_simple(site, engine, client, "customers", to_customer_row)

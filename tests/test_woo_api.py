@@ -156,7 +156,7 @@ def _site() -> Site:
     return Site(
         site_code="FOS",
         site_name="Fashion Open Studio",
-        base_url="https://example.test",
+        base_url_env="WOO_FOS_BASE_URL",
         key_env="WOO_FOS_KEY",
         secret_env="WOO_FOS_SECRET",
         default_currency="GBP",
@@ -170,6 +170,17 @@ def _site() -> Site:
 def test_resolve_credentials_reads_named_env_vars():
     creds = woo_api.resolve_credentials(_site(), env={"WOO_FOS_KEY": "ck_x", "WOO_FOS_SECRET": "cs_y"})
     assert (creds.key, creds.secret) == ("ck_x", "cs_y")
+
+
+def test_resolve_base_url_reads_named_env_var():
+    assert woo_api.resolve_base_url(_site(), env={"WOO_FOS_BASE_URL": "https://example.test"}) == (
+        "https://example.test"
+    )
+
+
+def test_resolve_base_url_fails_fast_when_missing():
+    with pytest.raises(KeyError):
+        woo_api.resolve_base_url(_site(), env={})
 
 
 def test_resolve_credentials_fails_fast_when_missing():
@@ -776,6 +787,7 @@ class _DummyClient:
 
 def test_extract_site_logs_successful_run(monkeypatch):
     monkeypatch.setattr(woo_api, "resolve_credentials", lambda site: SimpleNamespace(key="k", secret="s"))
+    monkeypatch.setattr(woo_api, "resolve_base_url", lambda site: "https://example.test")
     monkeypatch.setattr(woo_api, "make_client", lambda *a, **k: _DummyClient())
     monkeypatch.setattr(woo_api, "start_run", lambda engine, site_code, start_ts: "run-1")
     monkeypatch.setattr(
@@ -799,6 +811,7 @@ def test_extract_site_logs_successful_run(monkeypatch):
 
 def test_extract_site_logs_failed_run_and_reraises(monkeypatch):
     monkeypatch.setattr(woo_api, "resolve_credentials", lambda site: SimpleNamespace(key="k", secret="s"))
+    monkeypatch.setattr(woo_api, "resolve_base_url", lambda site: "https://example.test")
     monkeypatch.setattr(woo_api, "make_client", lambda *a, **k: _DummyClient())
     monkeypatch.setattr(woo_api, "start_run", lambda *a, **k: "run-1")
 

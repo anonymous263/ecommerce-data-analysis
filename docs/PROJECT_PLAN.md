@@ -125,7 +125,7 @@ Every raw/staging/mart row carries `site_code` (text) and/or `site_sk` (int). Or
 sites:
   - site_code: FOS
     site_name: Fashion Open Studio
-    base_url: https://fashionopenstudio.com
+    base_url_env: WOO_FOS_BASE_URL   # storefront URL resolved from .env, never committed
     key_env: WOO_FOS_KEY
     secret_env: WOO_FOS_SECRET
     default_currency: USD
@@ -138,8 +138,11 @@ sites:
 **`dbt/seeds/dim_site_seed.csv`** (dbt):
 ```
 site_code,site_name,domain,default_currency,timezone,reporting_timezone,is_active
-FOS,Fashion Open Studio,fashionopenstudio.com,USD,UTC,Asia/Bangkok,true
+FOS,Fashion Open Studio,,USD,UTC,Asia/Bangkok,true
 ```
+
+`domain` is left blank in the committed seed — the storefront URL is private and
+lives only in `.env` (see `base_url_env` above).
 
 Both files must list the same sites and timezone fields. `timezone` is the source site's WordPress/WooCommerce timezone. `reporting_timezone` is the business/dashboard timezone used for internal reporting.
 
