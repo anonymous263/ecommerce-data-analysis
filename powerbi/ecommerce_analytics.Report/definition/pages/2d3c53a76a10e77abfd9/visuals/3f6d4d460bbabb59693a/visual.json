@@ -187,6 +187,34 @@
             "id": "field-7e23cc37-b63e-0126-d3e2-7fd491d2bc06",
             "order": 0
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Orders PoP Icon"
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Paid Orders",
+            "id": "field-a468fda7-5a89-5ce3-1a6c-8e8c38a65c8b",
+            "order": 1
+          }
         }
       ],
       "referenceLabelTitle": [
@@ -390,6 +418,19 @@
       ],
       "referenceLabelValue": [
         {
+          "properties": {},
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Paid Orders"
+          }
+        },
+        {
           "properties": {
             "valueFontColor": {
               "solid": {
@@ -416,7 +457,39 @@
                 }
               }
             ],
-            "metadata": "_Measures.Paid Orders"
+            "metadata": "_Measures.Paid Orders",
+            "id": "field-7e23cc37-b63e-0126-d3e2-7fd491d2bc06"
+          }
+        },
+        {
+          "properties": {
+            "valueFontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Measure": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "_Measures"
+                        }
+                      },
+                      "Property": "Orders PoP Color"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Paid Orders",
+            "id": "field-a468fda7-5a89-5ce3-1a6c-8e8c38a65c8b"
           }
         }
       ]

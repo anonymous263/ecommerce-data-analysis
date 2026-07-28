@@ -229,9 +229,64 @@
             "id": "field-63335885-6e7c-dcbe-5bc1-91345294c731",
             "order": 1
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Revenue PoP Icon"
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Revenue",
+            "id": "field-d8c6b8a3-d2bc-f1ff-63b7-d6e658b8181a",
+            "order": 1
+          }
         }
       ],
       "referenceLabelValue": [
+        {
+          "properties": {},
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Revenue"
+          }
+        },
+        {
+          "properties": {
+            "valueFontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "10.5D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Revenue"
+          }
+        },
         {
           "properties": {
             "valueFontColor": {
@@ -259,21 +314,39 @@
                 }
               }
             ],
-            "metadata": "_Measures.Revenue"
+            "metadata": "_Measures.Revenue",
+            "id": "field-8d0560ae-c547-26e8-0b6e-c10927a692da"
           }
         },
         {
           "properties": {
-            "valueFontSize": {
-              "expr": {
-                "Literal": {
-                  "Value": "10.5D"
+            "valueFontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Measure": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "_Measures"
+                        }
+                      },
+                      "Property": "Revenue PoP Color"
+                    }
+                  }
                 }
               }
             }
           },
           "selector": {
-            "metadata": "_Measures.Revenue"
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Revenue",
+            "id": "field-d8c6b8a3-d2bc-f1ff-63b7-d6e658b8181a"
           }
         }
       ],

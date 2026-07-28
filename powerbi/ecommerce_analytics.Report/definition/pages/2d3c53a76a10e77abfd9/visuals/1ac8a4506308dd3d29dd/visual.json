@@ -86,7 +86,7 @@
                               "DateSpan": {
                                 "Expression": {
                                   "Literal": {
-                                    "Value": "datetime'2020-01-01T00:00:00'"
+                                    "Value": "datetime'2025-01-01T00:00:00'"
                                   }
                                 },
                                 "TimeUnit": 5
@@ -111,7 +111,7 @@
                               "DateSpan": {
                                 "Expression": {
                                   "Literal": {
-                                    "Value": "datetime'2030-12-31T00:00:00'"
+                                    "Value": "datetime'2025-12-31T00:00:00'"
                                   }
                                 },
                                 "TimeUnit": 5
@@ -371,5 +371,23 @@
       ]
     },
     "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "1e351ffb22420e1bd4e5",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "dim_date"
+              }
+            },
+            "Property": "date_day"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
   }
 }

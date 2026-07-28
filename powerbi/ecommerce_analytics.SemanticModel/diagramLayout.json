@@ -4,8 +4,8 @@
     {
       "ordinal": 0,
       "scrollPosition": {
-        "x": 780.52393311266542,
-        "y": 703.42211022061588
+        "x": 0,
+        "y": 0
       },
       "nodes": [
         {
@@ -164,10 +164,23 @@
             "width": 234
           },
           "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2731.4669531176114,
+            "y": 639.80950335500245
+          },
+          "nodeIndex": "Bridge",
+          "nodeLineageTag": "43d18c4e-4da7-4c66-be36-85d60535523e",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
         }
       ],
       "name": "All tables",
-      "zoomValue": 94.679992329374016,
+      "zoomValue": 53.44438736762325,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,

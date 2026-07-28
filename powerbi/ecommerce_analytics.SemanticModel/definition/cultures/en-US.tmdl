@@ -22124,67 +22124,65 @@ cultureInfo en-US
 			          }
 			        }
 			      ]
+			    },
+			    "entity__measure.revenue_bar": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Revenue Bar"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "revenue bar": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "income bar": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "profit bar": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "turnover bar": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "yield bar": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        }
+			      ]
 			    }
 			  },
 			  "Relationships": {
-			    "mart_order_profit_has_dim_site": {
-			      "Binding": {
-			        "ConceptualEntity": "mart_order_profit"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "mart_order_profit": {
-			          "Target": {
-			            "Entity": "mart_order_profit"
-			          }
-			        },
-			        "dim_site": {
-			          "Target": {
-			            "Entity": "dim_site"
-			          },
-			          "Nouns": [
-			            {
-			              "site sk": {
-			                "State": "Generated"
-			              }
-			            },
-			            {
-			              "sk": {
-			                "State": "Generated"
-			              }
-			            }
-			          ]
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "mart_order_profit"
-			            },
-			            "Object": {
-			              "Role": "dim_site"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "mart_order_profits_have_dim_sites"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_site"
-			            },
-			            "Object": {
-			              "Role": "mart_order_profit"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_sites_have_mart_order_profits"
-			        }
-			      ]
-			    },
 			    "mart_order_profit_has_dim_date": {
 			      "Binding": {
 			        "ConceptualEntity": "mart_order_profit"
@@ -23241,6 +23239,39 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "dim_dates_have_fact_orders"
+			        }
+			      ]
+			    },
+			    "fact_order_item_has_entity__measure_revenue_bar": {
+			      "Binding": {
+			        "ConceptualEntity": "fact_order_item"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_order_item": {
+			          "Target": {
+			            "Entity": "fact_order_item"
+			          }
+			        },
+			        "entity__measure.revenue_bar": {
+			          "Target": {
+			            "Entity": "entity__measure.revenue_bar"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_order_item"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.revenue_bar"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_order_items_have_revenue_bar"
 			        }
 			      ]
 			    },
@@ -30484,6 +30515,64 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "some_dim_dates_are_weekend_dim_dates"
+			        }
+			      ]
+			    },
+			    "mart_order_profit_has_dim_site": {
+			      "Binding": {
+			        "ConceptualEntity": "mart_order_profit"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "mart_order_profit": {
+			          "Target": {
+			            "Entity": "mart_order_profit"
+			          }
+			        },
+			        "dim_site": {
+			          "Target": {
+			            "Entity": "dim_site"
+			          },
+			          "Nouns": [
+			            {
+			              "site sk": {
+			                "State": "Generated"
+			              }
+			            },
+			            {
+			              "sk": {
+			                "State": "Generated"
+			              }
+			            }
+			          ]
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "mart_order_profit"
+			            },
+			            "Object": {
+			              "Role": "dim_site"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "mart_order_profits_have_dim_sites"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_site"
+			            },
+			            "Object": {
+			              "Role": "mart_order_profit"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_sites_have_mart_order_profits"
 			        }
 			      ]
 			    },

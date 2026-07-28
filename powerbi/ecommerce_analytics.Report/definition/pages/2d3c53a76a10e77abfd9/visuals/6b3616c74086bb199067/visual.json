@@ -187,6 +187,34 @@
             "id": "field-c5322ce5-a2f5-1909-a7af-bb50af3874d0",
             "order": 0
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Profit PoP Icon"
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Contribution Profit",
+            "id": "field-1600f845-3e9b-60b2-0965-2d147f3ea8b3",
+            "order": 1
+          }
         }
       ],
       "referenceLabelTitle": [
@@ -390,6 +418,19 @@
       ],
       "referenceLabelValue": [
         {
+          "properties": {},
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Contribution Profit"
+          }
+        },
+        {
           "properties": {
             "valueFontColor": {
               "solid": {
@@ -416,7 +457,39 @@
                 }
               }
             ],
-            "metadata": "_Measures.Contribution Profit"
+            "metadata": "_Measures.Contribution Profit",
+            "id": "field-c5322ce5-a2f5-1909-a7af-bb50af3874d0"
+          }
+        },
+        {
+          "properties": {
+            "valueFontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Measure": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "_Measures"
+                        }
+                      },
+                      "Property": "Profit PoP Color"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Contribution Profit",
+            "id": "field-1600f845-3e9b-60b2-0965-2d147f3ea8b3"
           }
         }
       ]

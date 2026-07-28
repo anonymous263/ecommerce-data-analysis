@@ -1,0 +1,37 @@
+/// Disconnected bridge for the profit waterfall. No relationships — it only supplies category rows that [Bridge Value] switches on.
+table Bridge
+	lineageTag: 43d18c4e-4da7-4c66-be36-85d60535523e
+
+	/// Waterfall category. Sorted by Bridge[Order] so the visual keeps P&L sequence, not alphabetical.
+	column Step
+		lineageTag: ea0628c5-fba1-48c5-b7e0-ef2b596c958a
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Step]
+		sortByColumn: Order
+
+	column Order
+		isHidden
+		formatString: 0
+		lineageTag: 3352ba2d-7927-4a06-b993-55f202e58e73
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Order]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Bridge = calculated
+		mode: import
+		source =
+				DATATABLE (
+				    "Step", STRING,
+				    "Order", INTEGER,
+				    {
+				        { "Net rev", 1 },
+				        { "COGS", 2 },
+				        { "Design", 3 },
+				        { "Payment fee", 4 },
+				        { "Profit", 5 }
+				    }
+				)
+

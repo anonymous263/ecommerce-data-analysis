@@ -552,6 +552,29 @@ table _Measures
 		displayFolder: PoP
 		lineageTag: 1f7f22dc-f574-41c6-9a07-b6719157395e
 
+	measure 'Revenue Bar' = [Revenue]
+		displayFolder: Sales
+		lineageTag: d9b9f43b-acb6-42e1-b762-0020c53e0d69
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	/// Signed value for one profit-waterfall step, switched off the disconnected Bridge[Step]. Positive = adds to the running total, negative = subtracts. Only meaningful when a single Bridge[Step] is in filter context. NOTE: the "Profit" step is the END value, not a delta - exclude it from the waterfall (use the visual's built-in Total instead) or the running total double-counts profit.
+	measure 'Bridge Value' =
+			
+			VAR CurrentStep = SELECTEDVALUE ( Bridge[Step] )
+			RETURN
+			    SWITCH (
+			        CurrentStep,
+			        "Net rev", [Profit Base Net Revenue],
+			        "COGS",   - [COGS],
+			        "Design", - [Design Fee],
+			        "Payment fee", - [Payment Fee],
+			        "Profit",  [Contribution Profit]
+			    )
+		formatString: \$#,0;(\$#,0)
+		displayFolder: Profit
+		lineageTag: 924e4f3c-50db-45aa-84c6-873c160718a3
+
 	partition _Measures = m
 		mode: import
 		source =
