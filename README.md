@@ -2,7 +2,26 @@
 
 > A private business warehouse first, a portfolio second. **WooCommerce REST API is the source of truth** for revenue, orders, products, customers, refunds, and customer shipping charge. A **manual Order Management sheet** provides initial cost + fulfillment enrichment — COGS (which already includes supplier fulfillment/shipping fee where applicable), design fee, supplier, tracking, and operational flags. **GA4 BigQuery** delivers website behavior. **dbt** owns transforms. **Ads is optional future**, not part of the MVP.
 
-**Status:** Phase 0 ~complete — environment live (Postgres + dbt + seeds green, `dbt build` PASS, pytest 12/12); entering Phase 1 (WooCommerce raw ingestion). Pipeline code not yet implemented. One owner action outstanding: rotate the leaked FOS Woo API key.
+**Status:** Phases 0–3 shipped, Phase 4 (Power BI) in progress. The warehouse runs end to end today — WooCommerce ingestion → 26 dbt models → profit marts → a Power BI semantic model. GA4 (Phase 6) and the synthetic public sample (Phase 7) are not started.
+
+![Executive Overview dashboard — KPI cards, monthly revenue/profit trend, top markets, and a revenue-to-profit waterfall](powerbi/screenshots/overview.png)
+
+<sub><b>Executive Overview</b> — the profit bridge on the lower right decomposes revenue into COGS, design fee, and payment fee to land on contribution profit. Note that <i>Net rev</i> ($72.1K) exceeds <i>Product Revenue</i> ($55.4K): customer shipping is counted as revenue, per the profit rule in §3. Dashboard is still in progress; figures shown are filtered to 2025–2026, not the full history.</sub>
+
+### What's built
+
+| Layer | Shipped |
+|---|---|
+| **Extract / Load** (Python 3.11) | Incremental WooCommerce pull with high-watermark state, idempotent upserts, and per-run logging (`src/extract/woo_api.py`); manual cost-sheet loader that drops PII at ingestion (`src/extract/csv_order_management.py`) |
+| **Warehouse** (Postgres 16) | `raw` → `staging` → `marts_core` / `marts_operations` / `marts_recon`, DDL in `sql/ddl/` |
+| **Transforms** (dbt) | **26 models** — 7 staging, 12 core marts (facts + conformed dims + `mart_order_profit`, `mart_product_profit`, `mart_customer_summary`), `fact_order_cost`, and **6 reconciliation models** that diff the warehouse against the operator's spreadsheet |
+| **Quality** | 7 seeds, 3 singular tests, schema tests, coverage-tier gates, and **90 passing pytest tests** |
+| **BI** | Power BI `.pbip` project committed as **TMDL text** (diffable, reviewable): 12-table semantic model, relationships, DAX measures, 6 report pages |
+
+Two details worth calling out for reviewers:
+
+- **The Power BI model is version-controlled as text, not a binary.** `.pbix` is gitignored precisely because it embeds a full data extract; the `.pbip`/TMDL project is the source of truth. See [`powerbi/`](powerbi/).
+- **Reconciliation is a first-class layer.** Six `recon_*` models continuously diff dbt output against the manually maintained sheet, so metric drift is detected rather than assumed away.
 
 ---
 
@@ -80,9 +99,9 @@ This project replaces ad-hoc reporting with a real warehouse that answers:
    └────────────────┘
 ```
 
-## 5. Planned Dashboards (Power BI)
+## 5. Dashboards (Power BI)
 
-Pages activate only when their source data is loaded:
+The Overview page is shown at the top of this README; the full report is six pages. Pages activate only when their source data is loaded:
 
 | Page | Activates after |
 |---|---|
@@ -125,12 +144,14 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detail.
 
 ## 8. Current Status
 
-- [x] Directory inspected, sources catalogued
-- [x] Strategy revised: WooCommerce-first + dbt + CSV cost-and-fulfillment enrichment + GA4 audit gate
-- [x] Phase 0 scaffold: privacy guards, `.env.example`, Docker/Postgres schema init, dbt project skeleton, site config, seed placeholders
-- [x] Phase 0 environment live: Python/dbt deps installed, `dbt deps` + `dbt debug` pass, `dbt seed` + `dbt build` green (7 seeds + 1 singular test), pytest 12/12, Maven data dictionary translated (`docs/MAVEN_DATA_DICTIONARY.md`)
-- [ ] Phase 0 owner action (security): rotate the FOS Woo API key (old key leaked to GitHub, force-scrubbed 2026-07-14), store in `.env`, curl-verify
-- [ ] Phase 1: WooCommerce raw ingestion + payload audit
+- [x] **Phase 0** — Docker/Postgres schemas, dbt project, privacy guards, `config/sites.yaml`, 7 seeds, Maven data dictionary translated (`docs/MAVEN_DATA_DICTIONARY.md`)
+- [x] **Phase 1** — WooCommerce raw ingestion (incremental + idempotent) and the payload audit that locks the variant parser, payment-fee parser, and refund grain (`docs/WOO_PAYLOAD_AUDIT.md`)
+- [x] **Phase 2** — dbt staging + core marts: orders, order items, products, customers, refunds, conformed dimensions
+- [x] **Phase 3** — manual cost enrichment → `fact_order_cost`, profit marts, and the `recon_*` drift models
+- [ ] **Phase 4** — Power BI MVP *(in progress: semantic model + report pages built, dashboard polish ongoing)*
+- [ ] **Phase 5** — fulfillment enrichment → `fact_fulfillment`
+- [ ] **Phase 6** — GA4 BigQuery modeling *(audit-gated: ≥85% `transaction_id` match required before attribution is enabled)*
+- [ ] **Phase 7** — synthetic public dataset + portfolio polish
 
 ## 9. Privacy / Ethics
 
@@ -141,19 +162,58 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detail.
 - Raw Woo customer data **never leaves the `raw` schema unhashed**. dbt staging hashes emails (SHA-256 with `PII_SALT`) and drops names/phones/addresses.
 - The **public repo ships only a fully synthetic dataset** (plus the Maven sample where useful). No sanitized real-customer data, ever.
 - BigQuery service account JSON, Woo consumer keys, and ads tokens live in `.env` (gitignored), never in source.
+- **`config/sites.yaml` holds no secrets and no live endpoints** — the storefront URL and credentials are referenced by env-var *name* (`base_url_env` / `key_env` / `secret_env`) and resolved at runtime. Regression tests in `tests/test_site_config_matches_seed.py` fail the build if a literal URL is ever committed.
+- The Power BI `.pbix` is gitignored because Import mode embeds a full data extract; only the TMDL text project is tracked.
 - All websites use **guest checkout** — customer linkage is via SHA-256(normalized billing email + `PII_SALT`). Known caveats: one person/two emails counts as two customers; typo emails create separate customers; shared inbox counts as one.
 
 See [docs/DATA_AUDIT.md](docs/DATA_AUDIT.md) for the PII inventory.
 
-## 10. Documentation Index
+## 10. Running It Locally
 
-- [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)
-- [docs/DATA_AUDIT.md](docs/DATA_AUDIT.md)
-- [docs/WOO_PAYLOAD_AUDIT.md](docs/WOO_PAYLOAD_AUDIT.md) — **Phase 1 deliverable**
-- [docs/DATA_MODEL.md](docs/DATA_MODEL.md)
-- [docs/METRICS_DEFINITION.md](docs/METRICS_DEFINITION.md)
-- [docs/PIPELINE_DESIGN.md](docs/PIPELINE_DESIGN.md)
-- [docs/DASHBOARD_SPEC.md](docs/DASHBOARD_SPEC.md)
+Requires Docker, Python 3.11, and (for the dashboard) Power BI Desktop.
+
+```bash
+cp .env.example .env          # then fill in POSTGRES_*, WOO_FOS_*, PII_SALT
+docker compose up -d postgres # Postgres 16
+pip install -r requirements.txt
+
+python -m src.extract.woo_api --apply-ddl   # land raw.woo_* (needs live Woo credentials)
+
+cd dbt
+dbt deps && dbt seed && dbt build           # raw → staging → marts, with tests
+dbt docs generate && dbt docs serve         # lineage graph
+
+pytest -q                                   # 90 tests, no database required
+```
+
+`PII_SALT` must be generated once and backed up offline — customer linkage is by hashed email, so losing the salt breaks every historical customer join.
+
+Open `powerbi/ecommerce_analytics.pbip` in Power BI Desktop to load the semantic model against your local Postgres.
+
+## 11. Documentation Index
+
+**Design & specs**
+- [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) — scope, site config, phased plan
+- [docs/DATA_MODEL.md](docs/DATA_MODEL.md) — schemas, grains, profit formula
+- [docs/PIPELINE_DESIGN.md](docs/PIPELINE_DESIGN.md) — EL design + dbt layout
+- [docs/METRICS_DEFINITION.md](docs/METRICS_DEFINITION.md) — metric and DAX definitions
+- [docs/METRIC_CHANGES.md](docs/METRIC_CHANGES.md) — versioned metric decisions and why they changed
+- [docs/DASHBOARD_SPEC.md](docs/DASHBOARD_SPEC.md) — pages + data-quality gating
 - [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/GA4_BIGQUERY_AUDIT.md](docs/GA4_BIGQUERY_AUDIT.md) — **Phase 6 deliverable**
-- [TASKS.md](TASKS.md)
+
+**Audits & gates**
+- [docs/WOO_PAYLOAD_AUDIT.md](docs/WOO_PAYLOAD_AUDIT.md) — **Phase 1 gate** (locks variant/payment-fee parsers, refund grain)
+- [docs/GA4_BIGQUERY_AUDIT.md](docs/GA4_BIGQUERY_AUDIT.md) — **Phase 6 gate** (attribution match rate)
+- [docs/DATA_AUDIT.md](docs/DATA_AUDIT.md) — PII inventory
+
+**Power BI**
+- [powerbi/BUILD_GUIDE.md](powerbi/BUILD_GUIDE.md) — model + report build notes
+- [powerbi/CAPSTONE_BUILD_GUIDE.md](powerbi/CAPSTONE_BUILD_GUIDE.md) — current dashboard build
+
+**Other**
+- [TASKS.md](TASKS.md) — authoritative checkbox-level task list
+- [docs/learning/](docs/learning/) — Vietnamese-language write-ups explaining each layer of the build
+
+## 12. License
+
+[MIT](LICENSE). The code and models are open; **no real store data is included in this repository** — see §9.

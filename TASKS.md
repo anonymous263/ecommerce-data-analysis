@@ -40,10 +40,10 @@
 - [x] `dbt seed` (all 7 seeds load via `--full-refresh`; `dbt build` green → PASS=8, 0 errors)
 
 ### WooCommerce credentials
-> ⚠️ **Security (2026-07-14):** the FOS key/secret had been hardcoded in `config/sites.yaml` and pushed to GitHub. Fixed in-repo (sanitized to env-var references, single root commit history-scrubbed, force-pushed), but the exposed pair must be treated as **compromised**. `sites.yaml` now references env-var *names* only; real values live in `.env`.
-- [x] Generate read-only consumer key/secret per site — **rotate FOS: the leaked key `ck_7d89f0…` must be revoked, not reused** _(owner action — needs WooCommerce login)_
-- [x] Store new `WOO_<SITECODE>_KEY` / `WOO_<SITECODE>_SECRET` in `.env` (currently placeholders)
-- [x] Verify with `curl 'https://<domain>/wp-json/wc/v3/orders?per_page=1' -u <key>:<secret>`
+> `config/sites.yaml` references the storefront URL and credentials by env-var **name** only (`base_url_env` / `key_env` / `secret_env`). Real values live in `.env`, which is gitignored and never committed.
+- [x] Generate read-only consumer key/secret per site
+- [x] Store `WOO_<SITECODE>_BASE_URL` / `_KEY` / `_SECRET` in `.env`
+- [x] Verify with `curl "$WOO_FOS_BASE_URL/wp-json/wc/v3/orders?per_page=1" -u <key>:<secret>`
 
 ---
 

@@ -6,7 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A private analytics warehouse (portfolio second) for several **WooCommerce POD stores** (print-on-demand apparel fulfilled by external suppliers). It turns orders, costs, and web behavior into a Kimball star schema and Power BI dashboards.
 
-**Current state: end of Phase 0 (~95%), entering Phase 1.** The foundation is live: git repo (pushed to GitHub), Postgres 16 in Docker (`ecommerce_postgres`, healthy, all six schemas created), dbt scaffolded and connective (`dbt debug` passes on dbt-core 1.10.21 / postgres 1.10.0; `dbt build` green with 7 seeds + 1 singular test), `config/sites.yaml` defining site `FOS`, and a Python + pytest scaffold (12 tests passing). **Still empty (Phase 1+):** all pipeline code — `src/**` is `.gitkeep` only — plus `sql/ddl/` and every staging/mart model. **Remaining Phase 0 gaps (non-blocking):** rotate the FOS Woo API key + curl-verify (owner action — the old key was leaked and force-scrubbed on 2026-07-14) and the optional Printify SLA fill. When implementing Phase 1+, read the relevant doc first, then create the files it describes.
+**Current state: Phases 0–3 complete, Phase 4 (Power BI) in progress.** Live and working:
+
+- **Infra** — Postgres 16 in Docker (`ecommerce_postgres`, all six schemas), dbt-core 1.10.21 / dbt-postgres 1.10.0, 7 seeds.
+- **Phase 1** — WooCommerce ingestion: `src/extract/woo_api.py` (incremental watermark, idempotent upsert, run logging) landing `raw.woo_*` via `sql/ddl/01_raw_woo.sql`; audit locked in `docs/WOO_PAYLOAD_AUDIT.md`.
+- **Phase 2–3** — 26 dbt models: 7 staging, 12 core marts (facts/dims + `mart_order_profit`, `mart_product_profit`, `mart_customer_summary`), `fact_order_cost`, and 6 reconciliation models. 3 singular tests, 2 macros.
+- **Phase 3 cost load** — `src/extract/csv_order_management.py` (PII columns dropped at ingestion).
+- **Phase 4** — Power BI `.pbip` project tracked as TMDL text: 12-table semantic model, relationships, DAX measures, 6 report pages. **This is the active work** — see `powerbi/CAPSTONE_BUILD_GUIDE.md`.
+- **Tests** — 90 pytest tests passing.
+
+**Not started:** Phase 5 (`fact_fulfillment`), Phase 6 (GA4 — `sql/ga4/` and GA4 staging are still empty), Phase 7 (synthetic public sample — `data/sample_raw/` is `.gitkeep` only). Optional deferred: Printify SLA fill in `dim_supplier_seed.csv`. When implementing a new phase, read the relevant doc first, then create the files it describes.
 
 ## Architecture (the big picture)
 
