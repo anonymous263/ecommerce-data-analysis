@@ -26,6 +26,8 @@ ref table mart_order_profit
 ref table mart_product_profit
 ref table _Measures
 ref table Bridge
+ref table CostType
+ref table ParetoBucket
 
 ref cultureInfo en-US
 

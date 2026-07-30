@@ -1,0 +1,23 @@
+table ParetoBucket
+	lineageTag: 5d117edb-575f-4c08-8f3c-b67bda924fff
+
+	column 'Percentage of products'
+		formatString: 0%;-0%;0%
+		lineageTag: 03336ca6-4d71-4a58-8645-f921f6178cb8
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Percentage of products]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition ParetoBucket = calculated
+		mode: import
+		source =
+				
+				SELECTCOLUMNS (
+				    GENERATESERIES ( 1, 100, 1 ),
+				    "Percentage of products", DIVIDE ( [Value], 100 )
+				)
+
+	annotation PBI_Id = d9193bc4375849dfbaebc24696656d26
+

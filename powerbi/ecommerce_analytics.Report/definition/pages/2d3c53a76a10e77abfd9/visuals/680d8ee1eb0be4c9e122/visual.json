@@ -4,10 +4,10 @@
   "position": {
     "x": 1072,
     "y": 710.66666666666663,
-    "z": 15001,
+    "z": 16000,
     "height": 340,
     "width": 818.66666666666663,
-    "tabOrder": 15001
+    "tabOrder": 16000
   },
   "visual": {
     "visualType": "waterfallChart",
@@ -184,20 +184,6 @@
             }
           ]
         }
-      },
-      {
-        "name": "57803f83a3c67416adc4",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Bridge Value"
-          }
-        },
-        "type": "Advanced"
       }
     ]
   }

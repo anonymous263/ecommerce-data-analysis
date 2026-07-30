@@ -344,12 +344,20 @@ table _Measures
 		lineageTag: 12f7b199-bab9-4bef-b543-9144ebe8bc8d
 
 	/// Pareto curve: cumulative revenue share by product rank. Top ~11% of SKUs reach 50%.
-	measure 'Cumulative Revenue %' =
+	measure 'Cumulative Revenue %' = ```
 			
-			DIVIDE (
-			    [Cumulative Revenue],
-			    CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) )
-			)
+			VAR CurrentRevenue = [Revenue]
+			RETURN
+			    IF (
+			        ISBLANK ( CurrentRevenue ),
+			        BLANK (),
+			        DIVIDE (
+			            [Cumulative Revenue],
+			            CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) )
+			        )
+			    )
+			
+			```
 		formatString: 0.0%
 		displayFolder: Products
 		lineageTag: ce1e3d6e-0a5b-43d0-a239-ceb278def160
@@ -574,6 +582,146 @@ table _Measures
 		formatString: \$#,0;(\$#,0)
 		displayFolder: Profit
 		lineageTag: 924e4f3c-50db-45aa-84c6-873c160718a3
+
+	measure 'Cost Structure Value' =
+			
+			VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
+			RETURN
+			    SWITCH (
+			        CurrentType,
+			        "COGS",        [COGS],
+			        "Payment fee", [Payment Fee],
+			        "Design fee",  [Design Fee],
+			        [Total Cost]                      -- fallback: dòng Total
+			    )
+		formatString: $#,0
+		displayFolder: Cost
+		lineageTag: 589361af-95b4-4add-acb2-2a9f17d48ccb
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Cost Structure %' =
+			
+			VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
+			RETURN
+			    SWITCH (
+			        CurrentType,
+			        "COGS",        [COGS Ratio],
+			        "Payment fee", DIVIDE ( [Payment Fee], [Profit Base Net Revenue] ),
+			        "Design fee",  DIVIDE ( [Design Fee],  [Profit Base Net Revenue] ),
+			        [Cost Ratio]                      -- fallback: dòng Total
+			    )
+		formatString: 0.0%
+		displayFolder: Cost
+		lineageTag: a511dd96-2c7b-4c6a-b535-db495825d9b0
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Cost Structure Value Bar' = [Cost Structure Value]
+		displayFolder: Cost
+		lineageTag: 96fc85a4-cc6a-4acf-86d6-538a3841a1ee
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'COGS per Unit' =
+			
+			DIVIDE ( [COGS], [Quantity Sold] )
+		formatString: $#,0.00
+		displayFolder: Cost
+		lineageTag: de729b0c-fab5-4fbf-a29b-aa3710411b56
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Median Margin' = ```
+			
+			MEDIANX (
+			    FILTER ( VALUES ( dim_product[product_name] ), [Product Net Revenue] > 100 ),
+			    [Product Margin]
+			)
+			
+			```
+		formatString: 0.0%
+		displayFolder: Cost
+		lineageTag: 8a1b6a4a-e23d-4479-8090-8e818c789bf8
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Margin vs Median' =
+			
+			VAR g = [Product Margin] - [Median Margin]
+			RETURN IF ( ISBLANK ( [Product Margin] ), BLANK (),
+			    IF ( g < 0, "▼ ", "▲ " ) & FORMAT ( ABS ( g ) * 100, "0.0" ) & "pp" )
+		displayFolder: Cost
+		lineageTag: 4b3c9394-ee30-4fd8-ace7-1f7cbd71782c
+
+	measure 'Margin vs Median Color' = ```
+			
+			IF ( [Product Margin] - [Median Margin] < 0, "#E5484D", "#2E8B4F" )
+			
+			```
+		displayFolder: Cost
+		lineageTag: bc7250ab-bd37-44a3-a3c4-654aa1af47a2
+
+	measure 'Median Margin Text' =
+			
+			"designs with >$100 revenue"
+		lineageTag: ddd64c2e-a29d-4599-948f-50b9923104df
+
+	measure 'Loss-making Designs' =
+			
+			COUNTROWS (
+			    FILTER ( VALUES ( dim_product[product_name] ), [Product Profit] < 0 )
+			)
+		formatString: #,0
+		displayFolder: Products
+		lineageTag: ba6539f9-cde2-4f06-9777-c089ab1fc4d3
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Scatter Color' =
+			
+			IF ( [Product Margin] < 0.52, "#E5484D", "#0891B2" )
+		displayFolder: Products
+		lineageTag: dae6c487-cd13-4241-bf2e-fcb5808025b9
+
+	measure 'Pareto Cum %' =
+			
+			VAR Pct   = SELECTEDVALUE ( ParetoBucket[Percentage of products] )
+			VAR Sold  = FILTER ( ALL ( dim_product[product_name] ), NOT ISBLANK ( [Revenue] ) )
+			VAR Total = CALCULATE ( [Revenue], Sold )
+			VAR K     = ROUNDUP ( COUNTROWS ( Sold ) * Pct, 0 )
+			VAR TopK  = TOPN ( K, Sold, [Revenue], DESC )
+			RETURN
+			    IF ( ISBLANK ( Pct ), BLANK (), DIVIDE ( CALCULATE ( [Revenue], TopK ), Total ) )
+		formatString: 0.0%
+		displayFolder: Products
+		lineageTag: f1dd3a84-cead-4605-931f-ae5f97d614be
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Pareto Pct at 50%' =
+			
+			MINX (
+			    FILTER ( ALL ( ParetoBucket[Percentage of products] ), [Pareto Cum %] >= 0.5 ),
+			    ParetoBucket[Percentage of products]
+			)
+		formatString: 0.0%
+		displayFolder: Products
+		lineageTag: b0050be7-a54e-41ee-a9eb-63b1ba0f4b20
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Pareto Pct at 80%' =
+			
+			MINX (
+			    FILTER ( ALL ( ParetoBucket[Percentage of products] ), [Pareto Cum %] >= 0.8 ),
+			    ParetoBucket[Percentage of products]
+			)
+		formatString: 0.0%
+		displayFolder: Products
+		lineageTag: de20edfc-676e-4033-a8ed-da62338c7d5d
+
+		annotation PBI_FormatHint = {"isCustom":true}
 
 	partition _Measures = m
 		mode: import

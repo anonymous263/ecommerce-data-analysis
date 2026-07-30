@@ -1,0 +1,38 @@
+table CostType
+	lineageTag: 70086410-14bb-42f2-b4c8-d2b235bb4614
+
+	column CostType
+		lineageTag: 93dc5839-0f24-4522-b3f1-05670c34c92b
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [CostType]
+		sortByColumn: Order
+
+		annotation SummarizationSetBy = Automatic
+
+	column Order
+		isHidden
+		formatString: 0
+		lineageTag: 414314b2-ceeb-40ab-9c9b-a66826a00dd1
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Order]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CostType = calculated
+		mode: import
+		source =
+				
+				DATATABLE (
+				    "CostType", STRING,
+				    "Order",    INTEGER,
+				    {
+				        { "COGS",        1 },
+				        { "Payment fee", 2 },
+				        { "Design fee",  3 }
+				    }
+				)
+
+	annotation PBI_Id = e852df3ddde540c7ac1d6fd8d7a33876
+
