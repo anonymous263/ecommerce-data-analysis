@@ -21,6 +21,14 @@ Hướng dẫn dựng **dashboard vận hành FOS** trong Power BI Desktop, kh�
 > - Trang Cost & Margin thêm **Unit cost trend**; Products thêm **scatter Revenue × margin**; Markets thêm cột **Repeat %**; Customers thay CLV distribution bằng **Segment value panel**; Operations dựng payment/refund dạng **composite** (nhiều visual group lại).
 > - Nhãn sửa sau audit: KPI Overview = **"Product revenue"**, line trend = **"Net revenue"** (2 cơ sở doanh thu — không dán chung nhãn "Revenue"); KPI Markets = **"Best-margin major market"** (sàn ≥ $2k revenue); Orders/customer ghi rõ basis **all order attempts**.
 
+> ### 🔄 Sửa sau build thật 2026-07-30
+> Ba mục dưới đây guide **ghi sai/thiếu**, phát hiện khi dựng thật trong Desktop:
+> - **Pareto dựng lại hoàn toàn** trên bảng disconnected `ParetoBucket` + trục Continuous. Bản cũ (trục `dim_product[product_name]`) treo visual và scroll ngang vô tận — xem PAGE 3.
+> - **Mốc "Top 11%" phải là measure động, không phải text box tĩnh** — nó chạy từ 8.1% (2023) đến 25.6% (2026) theo date slicer.
+> - **Bảng Lowest-margin products**: Rows phải là `product_name` và filter `> $300` là bắt buộc — xem cảnh báo ở PAGE 2.
+>
+> Thêm mới: Phụ lục C (bucket `woo_product_id = 0`), `CostType` dựng bằng calculated table, pattern 2 cột cho data bars.
+
 **Deliverables đi kèm:**
 - Theme: `powerbi/themes/fos_dashboard_theme.json`
 - Background canvas: `powerbi/backgrounds/background.png` (1920×1080)
@@ -306,7 +314,22 @@ Margin vs Median Color = IF ( [Product Margin] - [Median Margin] < 0, "#E5484D",
 ```DAX
 Loss-making Designs = COUNTROWS ( FILTER ( VALUES ( dim_product[product_name] ), [Product Profit] < 0 ) )   -- #,0
 Scatter Color = IF ( [Product Margin] < 0.52, "#E5484D", "#0891B2" )   -- marker color cho scatter (fx conditional formatting)
+
+-- Pareto (dựng lại 2026-07-30 trên bảng disconnected ParetoBucket — xem PAGE 3)
+Pareto Cum % =
+VAR Pct   = SELECTEDVALUE ( ParetoBucket[Percentage of products] )
+VAR Sold  = FILTER ( ALL ( dim_product[product_name] ), NOT ISBLANK ( [Revenue] ) )
+VAR Total = CALCULATE ( [Revenue], Sold )
+VAR K     = ROUNDUP ( COUNTROWS ( Sold ) * Pct, 0 )
+VAR TopK  = TOPN ( K, Sold, [Revenue], DESC )
+RETURN IF ( ISBLANK ( Pct ), BLANK (), DIVIDE ( CALCULATE ( [Revenue], TopK ), Total ) )   -- 0.0%
+
+Pareto Pct at 50% = MINX (
+    FILTER ( ALL ( ParetoBucket[Percentage of products] ), [Pareto Cum %] >= 0.5 ),
+    ParetoBucket[Percentage of products] )                                                 -- 0.0%
+Pareto Pct at 80% = -- y hệt, đổi 0.5 → 0.8
 ```
+`ALL ( dim_product[product_name] )` giữ mẫu số neo vào toàn catalog nên đường không tự chuẩn hóa lại khi visual bị filter; date slicer vẫn ăn bình thường vì `ALL` chỉ gỡ filter trên đúng cột đó.
 
 **(d) Markets:**
 ```DAX
@@ -601,38 +624,90 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| Cost structure | **Matrix** (không phải bar) | Rows = bảng disconnected `CostType` (Enter data: 3 dòng COGS / Payment fee / Design fee + cột `Order` 1-3 để sort) · Values = `[Cost Structure Value]` (data bars) + `[Cost Structure %]` (ghi chú dưới) |
+| Cost structure | **Matrix** (không phải bar) | Rows = bảng disconnected `CostType` (**calculated table** — xem note) · Values = `[Cost Structure Value]` + `[Cost Structure Value Bar]` (data bars, *Show bar only*) + `[Cost Structure %]` |
 | Margin & COGS ratio theo tháng | **Line chart** | Axis `dim_date[month_start_date]` · Values `[Profit Margin]` (green), `[COGS Ratio]` (red) |
 | Unit cost trend | **Line chart** + **Text box** | Axis `dim_date[month_start_date]` · Values **`[COGS per Unit]`** (đỏ, §2.9b), `[Cost per Order]` (sand), `[AOV]` (slate, **dashed**: Format → Lines → Line style per series) · Text box annotation góc phải dưới, chữ đỏ `#B02A30`: *"COGS/unit: ~$18 (2023) → ~$13 (2026)"* — group với chart |
 | Lowest-margin products | **Table** | Rows `dim_product[product_name]` · Values `[Product Net Revenue]`, **`[Product Profit]`**, **`[Product Margin]`** (§2.5b), **`[Margin vs Median]`** (§2.9b — font color = `[Margin vs Median Color]`) · Sort tăng theo `[Product Margin]`, filter `[Product Net Revenue] > 300`, Top 8 |
 
+> ⚠️ **Hai lỗi đã gặp thật ở bảng này** (phát hiện 2026-07-30 khi số không khớp artifact):
+> 1. **Rows phải là `product_name`, KHÔNG phải `woo_product_id`.** Dùng id thì bảng hiện `0` — đó là bucket design đã xoá (Phụ lục C), không phải sản phẩm lỗi.
+> 2. **Filter `[Product Net Revenue] > 300` là bắt buộc, không phải trang trí.** Thiếu nó, bảng sort tăng theo margin sẽ đứng đầu bằng design bán $0.02 lỗ $2.95 → margin **−14,379.9%**. Ngưỡng $300 tồn tại để chặn nhiễu chia-cho-gần-0. Filter card khai báo mà bỏ trống thì Power BI coi như không có filter — kiểm tra Filters pane có *điều kiện*, không chỉ có *tên*.
+>
+> Với filter đúng, 8 dòng phải ra margin 45.5% / 48.7% / 50.3% / 50.8% / 51.0% / 51.0% / 51.3% / 51.6% — khớp artifact từng dòng.
+
+> **Bảng disconnected `CostType`** — tạo bằng **Modeling → New table** (calculated table), không dùng *Enter data*: "Enter data" nhét một blob Power Query nén vào TMDL, không review được khi commit. Cùng pattern với `Bridge` (§Overview) và `ParetoBucket` (§Products).
+> ```DAX
+> CostType =
+> DATATABLE ( "CostType", STRING, "Order", INTEGER,
+>     { { "COGS", 1 }, { "Payment fee", 2 }, { "Design fee", 3 } } )
+> ```
+> Sau đó: cột `CostType` → **Sort by column → Order** (không có bước này matrix sort alphabet); cột `Order` → **Hide in report view**; Model view xác nhận **không có quan hệ nào** — dính quan hệ là `SELECTEDVALUE` bị filter chéo và mọi số sai.
+>
 > **Matrix Cost structure** — tái tạo "text % of net revenue" của demo bằng cột thay vì data label:
 > ```DAX
-> Cost Structure Value = SWITCH ( SELECTEDVALUE ( CostType[CostType] ),
->     "COGS", [COGS], "Payment fee", [Payment Fee], "Design fee", [Design Fee] )                 -- $#,0
-> Cost Structure % = SWITCH ( SELECTEDVALUE ( CostType[CostType] ),
+> Cost Structure Value =
+> VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
+> RETURN SWITCH ( CurrentType,
+>     "COGS", [COGS], "Payment fee", [Payment Fee], "Design fee", [Design Fee],
+>     [Total Cost] )                                                            -- $#,0
+> Cost Structure % =
+> VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
+> RETURN SWITCH ( CurrentType,
 >     "COGS", [COGS Ratio], "Payment fee", DIVIDE ( [Payment Fee], [Profit Base Net Revenue] ),
->     "Design fee", DIVIDE ( [Design Fee], [Profit Base Net Revenue] ) )                          -- 0.0%
+>     "Design fee", DIVIDE ( [Design Fee], [Profit Base Net Revenue] ),
+>     [Cost Ratio] )                                                            -- 0.0%
+> Cost Structure Value Bar = [Cost Structure Value]                             -- cột chỉ vẽ thanh
 > ```
-> Data bars cho `[Cost Structure Value]` (Conditional formatting). Tiêu đề cột: "Amount" / "% of net rev". Chart title: **"Cost structure — matrix · data bars · % of net revenue"**.
+> **Nhánh else cuối `SWITCH` là bắt buộc.** Ở dòng Total, filter context có cả 3 loại chi phí → `SELECTEDVALUE` trả BLANK → không match nhánh nào → cell Total trống. Nhánh else bắt đúng case đó và trả tổng thật ($70,944 / 45.0%).
+>
+> **Data bars đè lên số** — data bar native vẽ thanh làm *nền cell* nên không có chế độ "số bên cạnh thanh" trong cùng cột. Dùng 2 cột: `[Cost Structure Value]` (số, không data bar) rồi `[Cost Structure Value Bar]` kế bên bật **Conditional formatting → Data bars → Show bar only**, thu hẹp cột, header đổi thành một dấu cách. Cùng pattern với `[Revenue Bar]` ở matrix Top markets.
+>
+> Tiêu đề cột: "Amount" / "% of net rev". Chart title: **"Cost structure — matrix · data bars · % of net revenue"**.
+>
+> Kiểm chứng: COGS $61,257 / 38.9% · Payment fee $7,131 / 4.5% · Design fee $2,556 / 1.6% · **Total $70,944 / 45.0%** (khớp KPI card cùng trang).
 >
 > **Vì sao tên "Unit cost trend"** (đổi từ "Unit economics — COGS/unit vs AOV"): title nói *kết luận* — chi phí đơn vị đang rẻ đi — thay vì liệt kê cấu tạo chart; 3 series ghi ở subtitle. Insight: COGS/unit giảm ~28% trong khi AOV đi ngang → margin được bảo vệ bởi supplier cost, không phải pricing power.
 
 ### PAGE 3 — Products
-**KPI (4 card):** Distinct Products Sold (1,636) · "Top 11% of products = 50% of revenue" (**text box** — insight tĩnh từ Pareto, không cần measure) · **`[Median Margin]`** (§2.9b, label "designs with >$100 revenue") · **`[Loss-making Designs]`** (§2.9c, delta label "total loss only −$63 — catalog is safe").
+**KPI (4 card):** Distinct Products Sold (1,636) · **`[Pareto Pct at 50%]`** (label "of designs = 50% of revenue" — **card, KHÔNG phải text box**) · **`[Median Margin]`** (§2.9b, label "designs with >$100 revenue") · **`[Loss-making Designs]`** (§2.9c, delta label "total loss only −$63 — catalog is safe").
+
+> ⚠️ **KPI thứ hai từng là text box tĩnh ghi cứng "Top 11%"** — sai ngay khi có date slicer. Mốc này phụ thuộc kỳ đo rất mạnh: **2023 → 8.1% · 2024 → 13.2% · 2025 → 15.8% · 2026 → 25.6%** (toàn kỳ 10.9%). Lọc về 2026 mà vẫn ghi 11% là sai 2.4 lần. Phải là card gắn measure.
 
 | Visual | Loại | Field |
 |---|---|---|
-| Revenue concentration (Pareto) | **Line chart** | Axis `dim_product[product_name]` **sort desc theo `[Revenue]`** · Values `[Cumulative Revenue %]` (§2.5) · **Analytics pane → 2 constant lines Y = 50% & 80%** (màu `#E0A82E`, dashed) · 2 **text box** callout "Top 11% → 50%" / "Top 43% → 80%" group với chart |
+| Revenue concentration (Pareto) | **Line chart** | Axis `ParetoBucket[Percentage of products]` · **Format → X-axis → Type = Continuous** · Values `[Pareto Cum %]` (§2.9c) · **Analytics → 2 Y constant lines 0.5 & 0.8** (`#E0A82E`, dashed) + **2 X constant lines bind fx vào `[Pareto Pct at 50%]` / `[Pareto Pct at 80%]`** |
 | Top products by profit | **Table** | Rows `dim_product[product_name]` · Values `[Revenue]`, **`[Product Profit]`** (font green + bold qua conditional formatting), **`[Product Margin]`** (§2.5b) · Top 8 by `[Product Profit]` |
 | Revenue by ◈ FP2 | **Bar/Column chart** + **Button slicer** | Axis = **field parameter FP2** (§8.2: `print_location` / `size` / `fit_type`) · Values `[Revenue]` · Slicer Tile/Button ngang trên đầu chart |
 | Revenue vs margin — per design | **Scatter chart** | Values `dim_product[product_name]` · X = `[Product Net Revenue]` · Y = `[Product Margin]` · Filter **Top 60** by `[Product Net Revenue]` · Markers → fx color = `[Scatter Color]` (§2.9c: <52% đỏ) · **Analytics → Y constant line 0.56** (sand, dashed, label "median 56%") |
 
-> **Trục Pareto — khác demo một cách có chủ đích:** demo vẽ trục X = "% of products (by rank)"; Power BI line chart cần trục là cột thật nên dùng `product_name` sorted desc — **câu chuyện giữ nguyên** (đường cong tích lũy + 2 mốc 50/80%), chỉ nhãn trục khác. Đừng cố tạo calculated column rank % trên `dim_product` — 58k dòng variant (1,636 design bán được) làm rank nhiễu mà không thêm insight.
+> **Trục Pareto — dựng lại 2026-07-30, giờ khớp demo.** Bản cũ dùng `dim_product[product_name]` làm trục và **không dùng được**: `dim_product` có 58,112 tên phân biệt mà chỉ 1,636 design từng bán, nên (a) visual quay vô hạn và (b) kể cả khi hiện ra thì trục categorical dành ~20px/category = ~32,700px bề ngang → scroll ngang vô tận.
+>
+> Vì sao quay vô hạn: `[Cumulative Revenue %]` **không trả BLANK** cho design chưa bán. `[Revenue]` của chúng là BLANK, mà trong DAX `BLANK >= BLANK` ép thành `0 >= 0` = TRUE → `FILTER` giữ nguyên toàn catalog → cumulative = 100%, một giá trị hợp lệ. Power BI không prune được, giữ đủ 58,112 điểm, mỗi điểm lại quét 58,112 dòng ≈ **3.4 tỷ** lượt đánh giá. (Đã thêm guard `ISBLANK` vào `[Cumulative Revenue %]` — measure này giờ chỉ còn dùng cho table/tooltip.)
+>
+> **Cách hiện tại:** bảng disconnected `ParetoBucket` 100 dòng numeric + measure `[Pareto Cum %]` (§2.9c). Trục để **Continuous** → thoát ràng buộc 20px/category, 100 điểm vẽ gọn trong khung, hết scroll. Lợi thêm: trục **chính là** "% of products (by rank)" của demo, không còn lệch nhãn.
+> ```DAX
+> ParetoBucket =
+> SELECTCOLUMNS ( GENERATESERIES ( 1, 100, 1 ),
+>     "Percentage of products", DIVIDE ( [Value], 100 ) )     -- format 0%
+> ```
+> Ghi chú cũ "đừng tạo calculated column rank trên `dim_product`" vẫn đúng — cách này né hẳn, rank sống trong measure chứ không thành cột trên 58k dòng.
+>
+> **Kiểm chứng đường cong (toàn kỳ):** top 1% → 17.7% · 5% → 36.3% · **11% → 50.2%** · 20% → 62.5% · **43% → 80.0%** · 100% → 100%.
+>
+> **Vì sao vạch X phải bind fx, không ghi cứng:** mốc "top 11%" là số *đo được*, thay đổi theo kỳ lọc (8.1% năm 2023 → 25.6% năm 2026). Vạch Y 0.5/0.8 thì ngược lại — đó là *định nghĩa* Pareto, ghi cứng mới đúng. Data label của vạch X để **Value only**; đặt tên cứng "Top 11%" thì vạch chạy mà nhãn đứng yên, tệ hơn cả ghi cứng.
+>
+> **Hai giới hạn đã biết khi lọc kỳ ngắn** (33/41 tháng có dưới 100 design bán được, trung bình 72):
+> - **Đường thành bậc thang** — đúng, không phải lỗi render. Pareto trên 44 design *là* hàm bậc 44 nấc; đường mượt ở view toàn kỳ chỉ vì 1,636 nấc quá nhỏ.
+> - **Nhãn trục làm tròn tới ±1/N.** `ROUNDUP(N × pct)` ánh xạ nhiều bucket về cùng một K, nên bucket ghi "30%" có thể đang vẽ top 14/44 = 31.8%. Toàn kỳ sai ±0.06% (vô hình), tháng lẻ sai ±2.3%.
+>   Vì vậy `[Pareto Pct at 50%]` trả về **bucket đầu tiên mà đường cong đã chạm 50%**, không phải phân số K/N chính xác — để vạch luôn đứng trên một điểm đã vẽ và giao điểm khít ở mọi date range. Đổi lại con số báo ra bị làm tròn về bucket. Dùng K/N chính xác thì vạch trượt khỏi đường cong khi N nhỏ.
 >
 > **Sparkline "8-wk" đã bỏ khỏi bảng Top products** (demo cũ vẽ số giả). *Tùy chọn:* trong Power BI có thể thêm lại **sparkline thật** — chọn ô `[Revenue]` → Insert → Sparkline → X = `dim_date[date_day]`, filter 8 tuần gần nhất. Chỉ thêm nếu bạn muốn; demo hiện hành không có.
 >
-> **Scatter đọc thế nào:** mỗi chấm = 1 design; chấm **to bên phải + dưới đường median** (đỏ, <52%) = bán chạy nhưng định giá thấp → **danh sách tăng giá ưu tiên**. Hover tooltip hiện tên design + revenue + margin.
+> **Scatter đọc thế nào:** mỗi chấm = 1 design; chấm **to bên phải + dưới đường median** (đỏ, <52%) = bán chạy nhưng định giá thấp → **danh sách tăng giá ưu tiên**. Hover tooltip hiện tên design + revenue + margin. Hiện có 23/60 chấm dưới vạch median, trong đó 7 chấm đỏ.
+>
+> **Vạch median 0.56 ghi cứng là có chủ ý** — đừng bind fx vào `[Median Margin]`. Constant line đánh giá trong filter context của visual, mà scatter có filter **Top 60 by `[Product Net Revenue]`**: median của riêng Top 60 là **57.3%**, còn KPI card cùng trang ghi **56.2%** (median mọi design >$100). Bind fx → hai con số mâu thuẫn trên cùng một trang. Muốn động thật thì phải viết measure riêng bọc `REMOVEFILTERS` để thoát filter Top 60 — không đáng cho capstone.
+>
+> **Nhập giá trị constant line luôn là thập phân** — `0.56`, `0.5`, `0.8`, không phải `56`/`50`/`80`. Trục Y là measure trả phân số, chỉ được *format* thành `%`. Gõ `56` vẽ vạch ở 5600%, văng khỏi khung và trông như tính năng không chạy. **X-Axis Constant Line chỉ xuất hiện khi trục X là continuous** — trên trục categorical Power BI ẩn hẳn mục này.
 
 ### PAGE 4 — Markets
 **KPI (4 card):** `[Top Market Name]` (§2.9d, delta = "$53.1k · 44.5% of revenue") · **`[Best Margin Major Market]`** (§2.9d — label **"Best-margin major market"**, delta "58.0% · markets ≥ $2k rev") · `[International Share]` (§2.9d) · `[Markets Served]` (§2.9d).
@@ -742,8 +817,10 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 ## Phụ lục A — Index measure nhanh
 Sales: Revenue · Quantity Sold · Net Revenue · Profit Base Net Revenue · Paid Orders · AOV · Shipping Charged
 Profit: Contribution Profit · Profit Margin · (Delta: **T12M Icon** cho KPI §2.9a · MoM/YoY Icon+Color cho tooltip)
-Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit · **COGS per Unit · Median Margin · Margin vs Median (+Color)** (§2.9b)
-Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§2.9c)
+Cost: COGS · Design Fee · Payment Fee · Total Cost · Cost Ratio · COGS Ratio · Cost per Order · Cost per Unit · **COGS per Unit · Median Margin (+Text) · Margin vs Median (+Color)** (§2.9b) · **Cost Structure Value (+Bar) · Cost Structure %** (bảng disconnected `CostType`)
+Products: Distinct Products Sold · Avg Units per Order · Cumulative Revenue % (table/tooltip) · **Product Profit · Product Net Revenue · Product Margin** · **Loss-making Designs · Scatter Color** (§2.9c) · **Pareto Cum % · Pareto Pct at 50% · Pareto Pct at 80%** (bảng disconnected `ParetoBucket`)
+
+**Bảng disconnected** (không quan hệ với bảng nào, đều là calculated table qua `DATATABLE`/`GENERATESERIES`): `Bridge` (waterfall Overview) · `CostType` (matrix Cost structure) · `ParetoBucket` (đường Pareto Products).
 Markets: Revenue Share · **Top Market Name · Best Margin Major Market · International Share · Markets Served · Country Repeat %** (§2.9d) — sau redesign dùng thẳng base measure (`[Revenue]`, `[Profit Margin]`, `[Paid Orders]`, `[AOV]`) trên `dim_country`, không còn measure family "per Country" riêng
 Customers: Distinct Customers · Repeat Rate · One-time Share · Orders per Customer · New Customers · Lapsed Share · **Seg Lifetime Revenue · Seg LTV · Seg Revenue per Order · Acq Bar Color** (§2.9e) (+ cột Recency Segment, CLV Bucket, Days Since Last Order, **Segment**)
 Operations: Order Attempts · Completed/Failed/Cancelled Orders · Open Backlog · Paid Success Rate · Failed Rate · Cancellation Rate · Refunded Orders · Refund Amount · Refund Rate · Payment Fee Rate · **Method Paid Orders · Method Approval Rate · Method Lost · Method Fee Rate** (§2.9f) — payment fee theo method dùng base `[Payment Fee]` (cắt thẳng qua `dim_payment_method` sau redesign), không cần measure riêng
@@ -771,3 +848,27 @@ Capstone **cố ý giữ tên riêng**. Bảng này để khi bạn đọc doc e
 | — | Coverage Tier · Profit Visible Flag · các chip gating | ecom-only: capstone **không dùng tier-gating** (đã nêu ở đầu file). |
 
 **Bất biến dùng chung cho cả hai** (`CLAUDE.md` rule #1–#6): revenue sản phẩm sống ở `fact_order_item[line_revenue_usd]`, shipping khách trả sống ở `fact_order[shipping_charged_usd]` và **được tính là doanh thu**; `cogs_usd` là chi phí fulfil all-in (đã gồm phí ship của nhà cung cấp) nên **không bao giờ trừ shipping như một khoản chi phí**; **không tồn tại** `actual_shipping_cost_usd`; mẫu số margin luôn là `[Profit Base Net Revenue]`.
+
+---
+
+## Phụ lục C — `woo_product_id = 0`: bucket design đã xoá
+
+Ghi lại 2026-07-30 để lần sau nhìn thấy số `0` trên visual sản phẩm thì biết ngay đó là gì.
+
+`fact_order_item` có **7 dòng mang `woo_product_id = 0`** — sản phẩm đã bị xoá khỏi WooCommerce nên payload trả về id 0. `dim_product.sql` gom chúng theo `(site_code, woo_product_id)` rồi lấy `max(product_name_at_sale)`, nên **cả 7 dòng đội chung một dòng dimension duy nhất**.
+
+**Ảnh hưởng lên dashboard — đo rồi, rất nhỏ:**
+
+| | |
+|---|---|
+| Net revenue của bucket | $242.49 |
+| Contribution profit | $124.34 (margin 51.3%) |
+| Bảng Lowest-margin products | **không xuất hiện** — dưới ngưỡng `> $300` |
+| `[Median Margin]` | 56.239% thay vì 56.250% (lệch 0.011pp, hiển thị vẫn "56%") |
+| Mọi KPI trang Cost & Margin | **không đổi** — đều là order-grain |
+
+Nên nếu số trang Cost & Margin lệch artifact thì **không phải do đây** — kiểm tra cấu hình visual trước (mục PAGE 2).
+
+**Vấn đề còn treo (thuộc dbt, chưa sửa):** 7 dòng đó thực ra là **6 design khác nhau** — `Drake Evangelion…`, `How Wonderful Life Is…`, `Moira Rose…`, `Snoopy`, `Sometimes I Need To Be Alone…`, `Super Mario For Autism Awareness…` (×2). Gom hết vào một dòng khiến cả 6 mang chung nhãn `Super Mario For Autism Awareness Super Autismo T-Shirt` (đơn thuần vì đó là `max()` theo alphabet). Hệ quả: `[Distinct Products Sold]` = 1,636 thay vì 1,641, và riêng `Drake Evangelion…` còn tồn tại thật trong catalog với id 76498 nên doanh thu của nó bị tách làm hai chỗ. Nhánh `coalesce(product_name, '(unknown product)')` ở `dim_product.sql:65` **không bao giờ chạy** vì `product_name_at_sale` luôn có giá trị.
+
+Sửa được bằng cách gom thêm theo tên khi `woo_product_id = 0` (thành 6 dòng synthetic thay vì 1) — thay đổi dbt + rebuild, chưa làm.
