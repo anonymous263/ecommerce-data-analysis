@@ -1,0 +1,50 @@
+table 'Trend Metrics'
+	lineageTag: 0faa6e17-739e-42f4-8a2c-30196c6d42bc
+
+	column 'Trend Metrics'
+		lineageTag: 290f7abe-7d5b-4854-af27-ca12660dc85b
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Trend Metrics Order'
+
+		relatedColumnDetails
+			groupByColumn: 'Trend Metrics Fields'
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Trend Metrics Fields'
+		isHidden
+		lineageTag: a5399c3e-2c59-4f84-8fd2-426970f79fd9
+		summarizeBy: none
+		sourceColumn: [Value2]
+		sortByColumn: 'Trend Metrics Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Trend Metrics Order'
+		isHidden
+		formatString: 0
+		lineageTag: bb0cfd26-bcbf-4481-aacb-57599a0c079b
+		summarizeBy: sum
+		sourceColumn: [Value3]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Trend Metrics' = calculated
+		mode: import
+		source =
+				{
+				    ("Revenue", NAMEOF('_Measures'[Profit Base Net Revenue]), 0),
+				    ("Profit", NAMEOF('_Measures'[Contribution Profit]), 1),
+				    ("Orders", NAMEOF('_Measures'[Paid Orders]), 2),
+				    ("AOV", NAMEOF('_Measures'[AOV]), 3)
+				}
+
+	annotation PBI_Id = 86c7f7587bcf4989aaab9209f2433a31
+

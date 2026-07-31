@@ -49,7 +49,8 @@
     ]
   },
   "publicCustomVisuals": [
-    "dateSel4A1A0033E6F54D1B809B6E51058D54E3"
+    "dateSel4A1A0033E6F54D1B809B6E51058D54E3",
+    "htmlContent443BE3AD55E043BF878BED274D3A6855"
   ],
   "resourcePackages": [
     {
@@ -70,6 +71,11 @@
         {
           "name": "background5394362284502421.png",
           "path": "background5394362284502421.png",
+          "type": "Image"
+        },
+        {
+          "name": "banner_fhd22536953364882606.png",
+          "path": "banner_fhd22536953364882606.png",
           "type": "Image"
         },
         {

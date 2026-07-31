@@ -121,7 +121,7 @@ table mart_customer_summary
 		summarizeBy: none
 
 	column Segment =
-
+			
 			IF ( mart_customer_summary[is_repeat], "Repeat", "One-time" )
 		lineageTag: e59b1a85-c629-42c2-8d8a-17fc1d5d002a
 		summarizeBy: none

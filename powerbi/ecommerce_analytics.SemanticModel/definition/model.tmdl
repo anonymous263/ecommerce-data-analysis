@@ -28,6 +28,8 @@ ref table _Measures
 ref table Bridge
 ref table CostType
 ref table ParetoBucket
+ref table TooltipRow
+ref table 'Trend Metrics'
 
 ref cultureInfo en-US
 

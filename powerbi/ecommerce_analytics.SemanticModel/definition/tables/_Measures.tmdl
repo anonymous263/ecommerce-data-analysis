@@ -3,7 +3,7 @@ table _Measures
 
 	/// Gross product revenue ($119,261.71). Lives once at item grain (rule #1) - never read revenue from fact_order. Now slices by country/customer/payment too (conformed FKs pushed to fact_order_item, redesign 2026-07-24); plain [Revenue] on a country/payment axis is correct.
 	measure Revenue =
-
+			
 			CALCULATE (
 			    SUM ( fact_order_item[line_revenue_usd] ),
 			    fact_order_item[is_revenue_status] = TRUE ()
@@ -12,9 +12,17 @@ table _Measures
 		displayFolder: Sales
 		lineageTag: f208adad-a1e1-4f3e-8f0b-3fb9e873c7b2
 
+	/// Product-side net for SALES KPI display only ($117,669.69) = gross product revenue minus raw refunds. NOT the margin denominator - that is [Profit Base Net Revenue] (product + shipping - refund).
+	measure 'Net Revenue' =
+			
+			[Revenue] - [Refund Amount]
+		formatString: \$#,0
+		displayFolder: Sales
+		lineageTag: d05ebe4f-76c5-447b-bd18-bca998a40e4b
+
 	/// Units sold on revenue-status lines (4,309).
 	measure 'Quantity Sold' =
-
+			
 			CALCULATE (
 			    SUM ( fact_order_item[quantity] ),
 			    fact_order_item[is_revenue_status] = TRUE ()
@@ -23,57 +31,51 @@ table _Measures
 		displayFolder: Sales
 		lineageTag: 4c370e46-fc40-4d7c-8f1f-6a711b153ab8
 
-	/// Raw refunded value from fact_refund ($1,592.02). NOTE: the mart P&L uses capped effective_refund_usd ($1,582.49) - this raw figure is for the sales KPI and refund health only. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Refund Amount' =
-
-			SUM ( fact_refund[refund_amount_usd] )
-		formatString: \$#,0
-		displayFolder: Operations
-		lineageTag: 418c0cb7-f9c3-4470-bb22-32e19ddb6e96
-
-	/// Product-side net for SALES KPI display only ($117,669.69) = gross product revenue minus raw refunds. NOT the margin denominator - that is [Profit Base Net Revenue] (product + shipping - refund).
-	measure 'Net Revenue' =
-
-			[Revenue] - [Refund Amount]
-		formatString: \$#,0
-		displayFolder: Sales
-		lineageTag: d05ebe4f-76c5-447b-bd18-bca998a40e4b
-
-	/// The margin/cost-ratio denominator ($157,614.83) = product revenue + customer shipping - capped refund. Read straight from mart_order_profit so it reconciles. Not for display KPIs.
-	measure 'Profit Base Net Revenue' =
-
-			SUM ( mart_order_profit[net_revenue_usd] )
-		formatString: \$#,0
-		displayFolder: Sales
-		lineageTag: efe3aa94-b22d-4c98-8f5a-dfbc5f0ac57a
-
-	/// Orders in mart_order_profit (3,813 = completed 3,698 + processing 78 + refunded 37). The shared denominator for every cost/profit ratio.
-	measure 'Paid Orders' =
-
-			DISTINCTCOUNT ( mart_order_profit[order_sk] )
-		formatString: #,0
-		displayFolder: Sales
-		lineageTag: 575908bb-eec9-4dd7-91d5-ad2491796606
+		annotation PBI_FormatHint = {"isCustom":true}
 
 	/// Average order value $31.28 = gross revenue / paid orders. Now safe on country/payment axes - both numerator and denominator share the sliced population via conformed FKs (redesign 2026-07-24).
 	measure AOV =
-
+			
 			DIVIDE ( [Revenue], [Paid Orders] )
 		formatString: \$#,0.00
 		displayFolder: Sales
 		lineageTag: 922d5711-ad57-46db-9be7-8ff165976176
 
-	/// Customer shipping charge, all orders ($50,648.98). Counted as REVENUE under Approach A, never a cost; there is no actual_shipping_cost_usd anywhere.
-	measure 'Shipping Charged' =
+	/// All-in per-order fulfilment cost ($61,256.69) - ALREADY includes the supplier fulfillment/shipping fee (rule #6). Never add a shipping cost term on top.
+	measure COGS =
+			
+			SUM ( mart_order_profit[cogs_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: 427b11c2-40b1-4c54-8038-5ae18a51e438
 
-			SUM ( fact_order[shipping_charged_usd] )
+	/// Processor fees ($7,131.11) from mart_order_profit - the exact column [Contribution Profit] subtracts (coalesce of Woo fee + CSV fallback). Reading fact_order gives $7,069.77 and breaks reconciliation.
+	measure 'Payment Fee' =
+			
+			SUM ( mart_order_profit[payment_fee_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: 886c4486-4be6-4aec-8ab7-9e2dfff7854c
+
+	/// Design fee ($2,556.39), one of the three cost components of contribution profit.
+	measure 'Design Fee' =
+			
+			SUM ( mart_order_profit[design_fee_usd] )
+		formatString: \$#,0
+		displayFolder: Cost
+		lineageTag: a0e84259-1441-459a-87d7-39f60bb9f891
+
+	/// The margin/cost-ratio denominator ($157,614.83) = product revenue + customer shipping - capped refund. Read straight from mart_order_profit so it reconciles. Not for display KPIs.
+	measure 'Profit Base Net Revenue' =
+			
+			SUM ( mart_order_profit[net_revenue_usd] )
 		formatString: \$#,0
 		displayFolder: Sales
-		lineageTag: 28113a6b-e499-4efb-a8d2-5b6eef79df77
+		lineageTag: efe3aa94-b22d-4c98-8f5a-dfbc5f0ac57a
 
 	/// Contribution profit $86,670.64 = net_revenue - cogs - design_fee - payment_fee, pre-computed in mart_order_profit. Slices by date/site/country/customer/payment directly (mart_order_profit now carries those FKs). For BY-PRODUCT use [Product Profit] (line grain) - order grain has no product FK.
 	measure 'Contribution Profit' =
-
+			
 			SUM ( mart_order_profit[contribution_profit_usd] )
 		formatString: \$#,0
 		displayFolder: Profit
@@ -81,79 +83,81 @@ table _Measures
 
 	/// 55.0% = Contribution Profit / Profit Base Net Revenue (shipping-inclusive base). Using product-only [Net Revenue] as denominator is WRONG (gives 73.7% mixed-base nonsense).
 	measure 'Profit Margin' =
-
+			
 			DIVIDE ( [Contribution Profit], [Profit Base Net Revenue] )
 		formatString: 0.0%
 		displayFolder: Profit
 		lineageTag: edb1415b-66b6-4ad0-8a2f-4cea0c0b10c2
 
-	/// All-in per-order fulfilment cost ($61,256.69) - ALREADY includes the supplier fulfillment/shipping fee (rule #6). Never add a shipping cost term on top.
-	measure COGS =
-
-			SUM ( mart_order_profit[cogs_usd] )
+	/// Raw refunded value from fact_refund ($1,592.02). NOTE: the mart P&L uses capped effective_refund_usd ($1,582.49) - this raw figure is for the sales KPI and refund health only. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refund Amount' =
+			
+			SUM ( fact_refund[refund_amount_usd] )
 		formatString: \$#,0
-		displayFolder: Cost
-		lineageTag: 427b11c2-40b1-4c54-8038-5ae18a51e438
+		displayFolder: Operations
+		lineageTag: 418c0cb7-f9c3-4470-bb22-32e19ddb6e96
 
-	/// Design fee ($2,556.39), one of the three cost components of contribution profit.
-	measure 'Design Fee' =
+	/// 1.0% = 37 / 3,813 - refund health only; cancellations are reported separately by [Cancellation Rate]. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refund Rate' =
+			
+			DIVIDE ( [Refunded Orders], [Paid Orders] )
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: 45cd1a9d-7a51-49fa-80e1-2bdf3496481b
 
-			SUM ( mart_order_profit[design_fee_usd] )
+	/// 10.5% = 499 / 4,757 (funnel basis, additive with Paid/Failed rates). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Cancellation Rate' =
+			
+			DIVIDE ( [Cancelled Orders], [Order Attempts] )
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: 29001d67-9739-4dfe-ab59-273f7513a292
+
+	/// Full customer base (4,266) incl. guest/unknown-email checkouts (capstone decision 2026-07-22; ecom filtered to 4,263). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Distinct Customers' =
+			
+			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: 4473184f-f316-4437-a51b-c500a479e92c
+
+	/// Lifetime average 1.12 = 4,757 / 4,266. Lifetime-only: does NOT respond to the date slicer (mart_customer_summary has no dim_date relationship). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Orders per Customer' =
+			
+			DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
+		formatString: #,0.00
+		displayFolder: Customers
+		lineageTag: 75c0a0dc-9430-45da-857e-ddc8725e59cb
+
+	/// Orders in mart_order_profit (3,813 = completed 3,698 + processing 78 + refunded 37). The shared denominator for every cost/profit ratio.
+	measure 'Paid Orders' =
+			
+			DISTINCTCOUNT ( mart_order_profit[order_sk] )
+		formatString: #,0
+		displayFolder: Sales
+		lineageTag: 575908bb-eec9-4dd7-91d5-ad2491796606
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	/// Customer shipping charge, all orders ($50,648.98). Counted as REVENUE under Approach A, never a cost; there is no actual_shipping_cost_usd anywhere.
+	measure 'Shipping Charged' =
+			
+			SUM ( fact_order[shipping_charged_usd] )
 		formatString: \$#,0
-		displayFolder: Cost
-		lineageTag: a0e84259-1441-459a-87d7-39f60bb9f891
-
-	/// Processor fees ($7,131.11) from mart_order_profit - the exact column [Contribution Profit] subtracts (coalesce of Woo fee + CSV fallback). Reading fact_order gives $7,069.77 and breaks reconciliation.
-	measure 'Payment Fee' =
-
-			SUM ( mart_order_profit[payment_fee_usd] )
-		formatString: \$#,0
-		displayFolder: Cost
-		lineageTag: 886c4486-4be6-4aec-8ab7-9e2dfff7854c
+		displayFolder: Sales
+		lineageTag: 28113a6b-e499-4efb-a8d2-5b6eef79df77
 
 	/// $70,944.19. Reconciles exactly: [Profit Base Net Revenue] - [Total Cost] = [Contribution Profit].
 	measure 'Total Cost' =
-
+			
 			[COGS] + [Design Fee] + [Payment Fee]
 		formatString: \$#,0
 		displayFolder: Cost
 		lineageTag: 076d4f19-2aa6-4c85-a1fd-8ec8891567d1
 
-	/// 45.0%. Denominator MUST be [Profit Base Net Revenue]; the product-only base gives the stale pre-Approach-A 60.3%.
-	measure 'Cost Ratio' =
-
-			DIVIDE ( [Total Cost], [Profit Base Net Revenue] )
-		formatString: 0.0%
-		displayFolder: Cost
-		lineageTag: 5aa590ff-bfc6-4958-a76c-21087a5c9057
-
-	/// 38.9% (was 52.1% against the old product-only base).
-	measure 'COGS Ratio' =
-
-			DIVIDE ( [COGS], [Profit Base Net Revenue] )
-		formatString: 0.0%
-		displayFolder: Cost
-		lineageTag: e90f1872-f45c-4bd3-a63e-10b3a3d9e5e4
-
-	/// $18.61 = $70,944.19 / 3,813.
-	measure 'Cost per Order' =
-
-			DIVIDE ( [Total Cost], [Paid Orders] )
-		formatString: \$#,0.00
-		displayFolder: Cost
-		lineageTag: 1d25a82f-24c8-49f0-af8b-5b61d6adf168
-
-	/// $16.46 = $70,944.19 / 4,309.
-	measure 'Cost per Unit' =
-
-			DIVIDE ( [Total Cost], [Quantity Sold] )
-		formatString: \$#,0.00
-		displayFolder: Cost
-		lineageTag: 3a499d45-eb4d-47df-a48a-5facc1fd4b56
-
 	/// Distinct SKUs with at least one revenue-status line.
 	measure 'Distinct Products Sold' =
-
+			
 			CALCULATE (
 			    DISTINCTCOUNT ( fact_order_item[product_sk] ),
 			    fact_order_item[is_revenue_status] = TRUE ()
@@ -162,17 +166,115 @@ table _Measures
 		displayFolder: Products
 		lineageTag: 9306c1b2-2c71-42df-b449-4f6cb246590a
 
-	/// 1.13 = 4,309 / 3,813.
-	measure 'Avg Units per Order' =
-
-			DIVIDE ( [Quantity Sold], [Paid Orders] )
-		formatString: #,0.00
+	/// Line-grain contribution profit from mart_product_profit (has dim_product relationship; sums to $86,670.64). Use this - never [Contribution Profit] - on product visuals, which would silently show the grand total on every row.
+	measure 'Product Profit' =
+			
+			SUM ( mart_product_profit[line_profit_usd] )
+		formatString: \$#,0
 		displayFolder: Products
-		lineageTag: 1a659016-e389-4368-80d4-f0fc25835ebc
+		lineageTag: 94710e1a-f4db-4662-b3fc-537cc38e6d3a
+
+	/// Line-grain net revenue ($157,614.83 total, matches [Profit Base Net Revenue]). Denominator for [Product Margin]. Per CAPSTONE_BUILD_GUIDE 3.5b.
+	measure 'Product Net Revenue' =
+			
+			SUM ( mart_product_profit[line_net_revenue_usd] )
+		formatString: \$#,0
+		displayFolder: Products
+		lineageTag: 26a53e62-ecba-4160-8116-2bf1bc5d0ddb
+
+	/// Every order row regardless of status (4,757) - the checkout-funnel denominator. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Order Attempts' =
+			
+			COUNTROWS ( fact_order )
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 9cc4332d-76c4-43d4-acbc-089fb1606517
+
+	/// Status = completed (3,698). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Completed Orders' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "completed"
+			)
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 0d000558-2edd-4f91-85f0-4ec1ddf9a22d
+
+	/// Status = failed (437) - payment never settled. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Failed Orders' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "failed"
+			)
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: fa001892-557b-40c0-9e20-79ca8998d22a
+
+	/// Status = cancelled (499). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Cancelled Orders' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "cancelled"
+			)
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 1ca7eb54-8708-4769-b77f-3b7ddb3be836
+
+	/// Orders still in processing, awaiting fulfilment (90). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Open Backlog' =
+			
+			CALCULATE (
+			    COUNTROWS ( fact_order ),
+			    fact_order[status] = "processing"
+			)
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 6ae68e38-34e2-4cf5-b963-7c65d4ab4e68
+
+	/// Distinct orders with at least one refund row (34) - robust if an order ever gets multiple refunds. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Refunded Orders' =
+			
+			DISTINCTCOUNT ( fact_refund[order_sk] )
+		formatString: #,0
+		displayFolder: Operations
+		lineageTag: 12470660-1f93-4e9f-a1f2-c887f101fe5e
+
+	/// Effective processor rate over ALL order value. Deliberately fact_order on both sides - an ops rate per payment method, not a P&L line (P&L fee is [Payment Fee] from the mart). Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Payment Fee Rate' =
+			
+			DIVIDE (
+			    SUM ( fact_order[payment_fee_usd] ),
+			    SUM ( fact_order[order_total_usd] )
+			)
+		formatString: 0.0%
+		displayFolder: Operations
+		lineageTag: 5ec64c69-b49c-4b6c-899b-a4a37505b76c
+
+	/// Customers with more than one lifetime order (384). Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'Repeat Customers' =
+			
+			CALCULATE (
+			    COUNTROWS ( mart_customer_summary ),
+			    mart_customer_summary[is_repeat] = TRUE ()
+			)
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: dee130ee-b1eb-4391-a03c-95d8052ff03c
+
+	/// Use with mart_customer_summary[first_order_date] on the axis = new-customer acquisition per period. On a bare card it is simply the total base. Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'New Customers' =
+			
+			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
+		formatString: #,0
+		displayFolder: Customers
+		lineageTag: 0dd6047a-3b1b-450b-882f-2f79cceb197f
 
 	/// Pareto numerator: running revenue across products ranked descending. Place on a visual with dim_product[product_name].
 	measure 'Cumulative Revenue' =
-
+			
 			VAR CurrentRevenue = [Revenue]
 			RETURN
 			    CALCULATE (
@@ -186,9 +288,68 @@ table _Measures
 		displayFolder: Products
 		lineageTag: 12d3be24-1ac5-4f28-8013-2b46d28e4d12
 
+	/// 1.13 = 4,309 / 3,813.
+	measure 'Avg Units per Order' =
+			
+			DIVIDE ( [Quantity Sold], [Paid Orders] )
+		formatString: #,0.00
+		displayFolder: Products
+		lineageTag: 1a659016-e389-4368-80d4-f0fc25835ebc
+
+	/// 45.0%. Denominator MUST be [Profit Base Net Revenue]; the product-only base gives the stale pre-Approach-A 60.3%.
+	measure 'Cost Ratio' =
+			
+			DIVIDE ( [Total Cost], [Profit Base Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Cost
+		lineageTag: 5aa590ff-bfc6-4958-a76c-21087a5c9057
+
+	/// 38.9% (was 52.1% against the old product-only base).
+	measure 'COGS Ratio' =
+			
+			DIVIDE ( [COGS], [Profit Base Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Cost
+		lineageTag: e90f1872-f45c-4bd3-a63e-10b3a3d9e5e4
+
+	/// $18.61 = $70,944.19 / 3,813.
+	measure 'Cost per Order' =
+			
+			DIVIDE ( [Total Cost], [Paid Orders] )
+		formatString: \$#,0.00
+		displayFolder: Cost
+		lineageTag: 1d25a82f-24c8-49f0-af8b-5b61d6adf168
+
+	/// $16.46 = $70,944.19 / 4,309.
+	measure 'Cost per Unit' =
+			
+			DIVIDE ( [Total Cost], [Quantity Sold] )
+		formatString: \$#,0.00
+		displayFolder: Cost
+		lineageTag: 3a499d45-eb4d-47df-a48a-5facc1fd4b56
+
+	/// Line-grain margin, safe to slice by product. Use instead of [Profit Margin] on product visuals.
+	measure 'Product Margin' =
+			
+			DIVIDE ( [Product Profit], [Product Net Revenue] )
+		formatString: 0.0%
+		displayFolder: Products
+		lineageTag: 3be583d3-606b-4744-b20d-23a09854773b
+
+	/// Country share of gross revenue, built on base [Revenue] (now country-aware via fact_order_item.country_sk). Redesign 2026-07-24 — no more [Revenue per Country].
+	measure 'Revenue Share' =
+			
+			DIVIDE (
+			    [Revenue],
+			    CALCULATE ( [Revenue], ALLSELECTED ( dim_country[country_name] ) )
+			)
+		formatString: 0.0%
+		displayFolder: Markets
+		lineageTag: 12f7b199-bab9-4bef-b543-9144ebe8bc8d
+
 	/// Pareto curve: cumulative revenue share by product rank. Top ~11% of SKUs reach 50%.
 	measure 'Cumulative Revenue %' = ```
-
+			
 			VAR CurrentRevenue = [Revenue]
 			RETURN
 			    IF (
@@ -199,101 +360,39 @@ table _Measures
 			            CALCULATE ( [Revenue], ALLSELECTED ( dim_product[product_name] ) )
 			        )
 			    )
-
+			
 			```
 		formatString: 0.0%
 		displayFolder: Products
 		lineageTag: ce1e3d6e-0a5b-43d0-a239-ceb278def160
 
-	/// Line-grain contribution profit from mart_product_profit (has dim_product relationship; sums to $86,670.64). Use this - never [Contribution Profit] - on product visuals, which would silently show the grand total on every row.
-	measure 'Product Profit' =
-
-			SUM ( mart_product_profit[line_profit_usd] )
-		formatString: \$#,0
-		displayFolder: Products
-		lineageTag: 94710e1a-f4db-4662-b3fc-537cc38e6d3a
-
-	/// Line-grain net revenue ($157,614.83 total, matches [Profit Base Net Revenue]). Denominator for [Product Margin]. Per CAPSTONE_BUILD_GUIDE 3.5b.
-	measure 'Product Net Revenue' =
-
-			SUM ( mart_product_profit[line_net_revenue_usd] )
-		formatString: \$#,0
-		displayFolder: Products
-		lineageTag: 26a53e62-ecba-4160-8116-2bf1bc5d0ddb
-
-	/// Line-grain margin, safe to slice by product. Use instead of [Profit Margin] on product visuals.
-	measure 'Product Margin' =
-
-			DIVIDE ( [Product Profit], [Product Net Revenue] )
+	/// 80.2% = 3,813 / 4,757. With Failed 9.2% + Cancelled 10.5% the funnel rates are additive. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Paid Success Rate' =
+			
+			DIVIDE ( [Paid Orders], [Order Attempts] )
 		formatString: 0.0%
-		displayFolder: Products
-		lineageTag: 3be583d3-606b-4744-b20d-23a09854773b
+		displayFolder: Operations
+		lineageTag: a1bbd699-ae0f-436d-b56d-49e40715671c
 
-	/// Country share of gross revenue, built on base [Revenue] (now country-aware via fact_order_item.country_sk). Redesign 2026-07-24 — no more [Revenue per Country].
-	measure 'Revenue Share' =
-
-			DIVIDE (
-			    [Revenue],
-			    CALCULATE ( [Revenue], ALLSELECTED ( dim_country[country_name] ) )
-			)
+	/// 9.2% = 437 / 4,757 of checkout attempts lost to failed payment. Per CAPSTONE_BUILD_GUIDE 3.8.
+	measure 'Failed Rate' =
+			
+			DIVIDE ( [Failed Orders], [Order Attempts] )
 		formatString: 0.0%
-		displayFolder: Markets
-		lineageTag: 12f7b199-bab9-4bef-b543-9144ebe8bc8d
-
-	/// Full customer base (4,266) incl. guest/unknown-email checkouts (capstone decision 2026-07-22; ecom filtered to 4,263). Per CAPSTONE_BUILD_GUIDE 3.7.
-	measure 'Distinct Customers' =
-
-			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
-		formatString: #,0
-		displayFolder: Customers
-		lineageTag: 4473184f-f316-4437-a51b-c500a479e92c
-
-	/// Customers with more than one lifetime order (384). Per CAPSTONE_BUILD_GUIDE 3.7.
-	measure 'Repeat Customers' =
-
-			CALCULATE (
-			    COUNTROWS ( mart_customer_summary ),
-			    mart_customer_summary[is_repeat] = TRUE ()
-			)
-		formatString: #,0
-		displayFolder: Customers
-		lineageTag: dee130ee-b1eb-4391-a03c-95d8052ff03c
+		displayFolder: Operations
+		lineageTag: 39845d8b-da1f-42e6-b9ce-eba5f0c78907
 
 	/// 9.0% = 384 / 4,266. Per CAPSTONE_BUILD_GUIDE 3.7.
 	measure 'Repeat Rate' =
-
+			
 			DIVIDE ( [Repeat Customers], [Distinct Customers] )
 		formatString: 0.0%
 		displayFolder: Customers
 		lineageTag: 5cda2e61-6811-4c8b-a9bc-ffbceab64a58
 
-	/// ~91% never reordered - the headline retention weakness on the Customers page. Per CAPSTONE_BUILD_GUIDE 3.7.
-	measure 'One-time Share' =
-
-			1 - [Repeat Rate]
-		formatString: 0.0%
-		displayFolder: Customers
-		lineageTag: 3d32ee47-b1fc-44d5-8699-403d1eff0bae
-
-	/// Lifetime average 1.12 = 4,757 / 4,266. Lifetime-only: does NOT respond to the date slicer (mart_customer_summary has no dim_date relationship). Per CAPSTONE_BUILD_GUIDE 3.7.
-	measure 'Orders per Customer' =
-
-			DIVIDE ( SUM ( mart_customer_summary[total_orders] ), [Distinct Customers] )
-		formatString: #,0.00
-		displayFolder: Customers
-		lineageTag: 75c0a0dc-9430-45da-857e-ddc8725e59cb
-
-	/// Use with mart_customer_summary[first_order_date] on the axis = new-customer acquisition per period. On a bare card it is simply the total base. Per CAPSTONE_BUILD_GUIDE 3.7.
-	measure 'New Customers' =
-
-			DISTINCTCOUNT ( mart_customer_summary[customer_sk] )
-		formatString: #,0
-		displayFolder: Customers
-		lineageTag: 0dd6047a-3b1b-450b-882f-2f79cceb197f
-
 	/// ~67% of the base last ordered 12+ months ago. Depends on the [Recency Segment] calculated column, whose anchor is the dynamic MAX(last_order_date). Per CAPSTONE_BUILD_GUIDE 3.7.
 	measure 'Lapsed Share' =
-
+			
 			DIVIDE (
 			    CALCULATE (
 			        COUNTROWS ( mart_customer_summary ),
@@ -305,217 +404,122 @@ table _Measures
 		displayFolder: Customers
 		lineageTag: 858e14e1-cd14-4430-bc80-b7c6162867d7
 
-	/// Every order row regardless of status (4,757) - the checkout-funnel denominator. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Order Attempts' =
-
-			COUNTROWS ( fact_order )
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: 9cc4332d-76c4-43d4-acbc-089fb1606517
-
-	/// Status = completed (3,698). Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Completed Orders' =
-
-			CALCULATE (
-			    COUNTROWS ( fact_order ),
-			    fact_order[status] = "completed"
-			)
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: 0d000558-2edd-4f91-85f0-4ec1ddf9a22d
-
-	/// Status = failed (437) - payment never settled. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Failed Orders' =
-
-			CALCULATE (
-			    COUNTROWS ( fact_order ),
-			    fact_order[status] = "failed"
-			)
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: fa001892-557b-40c0-9e20-79ca8998d22a
-
-	/// Status = cancelled (499). Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Cancelled Orders' =
-
-			CALCULATE (
-			    COUNTROWS ( fact_order ),
-			    fact_order[status] = "cancelled"
-			)
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: 1ca7eb54-8708-4769-b77f-3b7ddb3be836
-
-	/// Orders still in processing, awaiting fulfilment (90). Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Open Backlog' =
-
-			CALCULATE (
-			    COUNTROWS ( fact_order ),
-			    fact_order[status] = "processing"
-			)
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: 6ae68e38-34e2-4cf5-b963-7c65d4ab4e68
-
-	/// 80.2% = 3,813 / 4,757. With Failed 9.2% + Cancelled 10.5% the funnel rates are additive. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Paid Success Rate' =
-
-			DIVIDE ( [Paid Orders], [Order Attempts] )
+	/// ~91% never reordered - the headline retention weakness on the Customers page. Per CAPSTONE_BUILD_GUIDE 3.7.
+	measure 'One-time Share' =
+			
+			1 - [Repeat Rate]
 		formatString: 0.0%
-		displayFolder: Operations
-		lineageTag: a1bbd699-ae0f-436d-b56d-49e40715671c
-
-	/// 9.2% = 437 / 4,757 of checkout attempts lost to failed payment. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Failed Rate' =
-
-			DIVIDE ( [Failed Orders], [Order Attempts] )
-		formatString: 0.0%
-		displayFolder: Operations
-		lineageTag: 39845d8b-da1f-42e6-b9ce-eba5f0c78907
-
-	/// 10.5% = 499 / 4,757 (funnel basis, additive with Paid/Failed rates). Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Cancellation Rate' =
-
-			DIVIDE ( [Cancelled Orders], [Order Attempts] )
-		formatString: 0.0%
-		displayFolder: Operations
-		lineageTag: 29001d67-9739-4dfe-ab59-273f7513a292
-
-	/// Distinct orders with at least one refund row (34) - robust if an order ever gets multiple refunds. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Refunded Orders' =
-
-			DISTINCTCOUNT ( fact_refund[order_sk] )
-		formatString: #,0
-		displayFolder: Operations
-		lineageTag: 12470660-1f93-4e9f-a1f2-c887f101fe5e
-
-	/// 1.0% = 37 / 3,813 - refund health only; cancellations are reported separately by [Cancellation Rate]. Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Refund Rate' =
-
-			DIVIDE ( [Refunded Orders], [Paid Orders] )
-		formatString: 0.0%
-		displayFolder: Operations
-		lineageTag: 45cd1a9d-7a51-49fa-80e1-2bdf3496481b
-
-	/// Effective processor rate over ALL order value. Deliberately fact_order on both sides - an ops rate per payment method, not a P&L line (P&L fee is [Payment Fee] from the mart). Per CAPSTONE_BUILD_GUIDE 3.8.
-	measure 'Payment Fee Rate' =
-
-			DIVIDE (
-			    SUM ( fact_order[payment_fee_usd] ),
-			    SUM ( fact_order[order_total_usd] )
-			)
-		formatString: 0.0%
-		displayFolder: Operations
-		lineageTag: 5ec64c69-b49c-4b6c-899b-a4a37505b76c
+		displayFolder: Customers
+		lineageTag: 3d32ee47-b1fc-44d5-8699-403d1eff0bae
 
 	/// Compact card label via UDF MoM_Icon, artifact style: '▲ 5.2% MoM' / '▼ 9.4% MoM' / '-'. Pair with [Revenue MoM Color] on font color fx.
 	measure 'Revenue MoM Icon' =
-
+			
 			MoM_Icon ( [Revenue] )
 		displayFolder: MoM
 		lineageTag: 56f150ae-36d6-4614-9016-38ab16a696e4
 
 	/// Hex for conditional font color of [Revenue MoM Icon]: up #2E8B4F, down #E5484D, blank #9AA3AF. Apply via Format > Font color > fx > Field value.
 	measure 'Revenue MoM Color' =
-
+			
 			MoM_Color ( [Revenue] )
 		displayFolder: MoM
 		lineageTag: 9948ace6-6103-4fd6-9515-9401ad09dd7a
 
 	/// Card label for profit MoM. Pair with [Profit MoM Color].
 	measure 'Profit MoM Icon' =
-
+			
 			MoM_Icon ( [Contribution Profit] )
 		displayFolder: MoM
 		lineageTag: 1d29bbd3-ef81-4765-8cf9-df2fe7d34e1d
 
 	/// Hex for [Profit MoM Icon] font color.
 	measure 'Profit MoM Color' =
-
+			
 			MoM_Color ( [Contribution Profit] )
 		displayFolder: MoM
 		lineageTag: e041102f-7610-4989-8a5c-1df8784dfc4e
 
 	/// Card label for orders MoM. Pair with [Orders MoM Color].
 	measure 'Orders MoM Icon' =
-
+			
 			MoM_Icon ( [Paid Orders] )
 		displayFolder: MoM
 		lineageTag: 21223076-8660-4db0-9e54-4c89861404ea
 
 	/// Hex for [Orders MoM Icon] font color.
 	measure 'Orders MoM Color' =
-
+			
 			MoM_Color ( [Paid Orders] )
 		displayFolder: MoM
 		lineageTag: 016425aa-0e77-4298-924e-e5cefa555be1
 
 	/// Card label for cost MoM. Pair with [Total Cost MoM Color] (inverse palette).
 	measure 'Total Cost MoM Icon' =
-
+			
 			MoM_Icon ( [Total Cost] )
 		displayFolder: MoM
 		lineageTag: 81d405c4-c8de-43ac-aff7-efbec1a98aaa
 
 	/// INVERSE hex for [Total Cost MoM Icon]: cost up = red #E5484D, cost down = green #2E8B4F.
 	measure 'Total Cost MoM Color' =
-
+			
 			Delta_Color_Inverse ( MoM_Perc ( [Total Cost] ) )
 		displayFolder: MoM
 		lineageTag: 18590212-bc08-4765-a2b8-3047e5fec8f8
 
 	/// Compact card label via UDF YoY_Icon: '▼ 9.4% YoY'. Pair with [Revenue YoY Color] on font color fx.
 	measure 'Revenue YoY Icon' =
-
+			
 			YoY_Icon ( [Revenue] )
 		displayFolder: YoY
 		lineageTag: 23ba0f4e-b60e-4d2e-ab4e-aeefd3c1410c
 
 	/// Hex for [Revenue YoY Icon] font color: up #2E8B4F, down #E5484D, blank #9AA3AF.
 	measure 'Revenue YoY Color' =
-
+			
 			YoY_Color ( [Revenue] )
 		displayFolder: YoY
 		lineageTag: 2d843c62-3058-4931-9446-2fe3eb380857
 
 	/// Card label for profit YoY. Pair with [Profit YoY Color].
 	measure 'Profit YoY Icon' =
-
+			
 			YoY_Icon ( [Contribution Profit] )
 		displayFolder: YoY
 		lineageTag: 0a20a0d2-1d49-4682-8ef4-a19765372ae8
 
 	/// Hex for [Profit YoY Icon] font color.
 	measure 'Profit YoY Color' =
-
+			
 			YoY_Color ( [Contribution Profit] )
 		displayFolder: YoY
 		lineageTag: aecd0467-7a08-46c1-8eaa-534facc00b9a
 
 	/// Card label for orders YoY. Pair with [Orders YoY Color].
 	measure 'Orders YoY Icon' =
-
+			
 			YoY_Icon ( [Paid Orders] )
 		displayFolder: YoY
 		lineageTag: 20b27fef-2988-4705-8727-181fc3f6411c
 
 	/// Hex for [Orders YoY Icon] font color.
 	measure 'Orders YoY Color' =
-
+			
 			YoY_Color ( [Paid Orders] )
 		displayFolder: YoY
 		lineageTag: f8384d48-64a6-456d-809c-29db69109ec3
 
 	/// Card label for cost YoY. Pair with [Total Cost YoY Color] (inverse palette).
 	measure 'Total Cost YoY Icon' =
-
+			
 			YoY_Icon ( [Total Cost] )
 		displayFolder: YoY
 		lineageTag: dcfc834d-79ea-48d5-9a05-7428ad9449da
 
 	/// INVERSE hex for [Total Cost YoY Icon]: cost up = red #E5484D, cost down = green #2E8B4F.
 	measure 'Total Cost YoY Color' =
-
+			
 			Delta_Color_Inverse ( YoY_Perc ( [Total Cost] ) )
 		displayFolder: YoY
 		lineageTag: 61aea43a-8c39-48cd-986e-4df07c524337
@@ -568,7 +572,7 @@ table _Measures
 
 	/// Signed value for one profit-waterfall step, switched off the disconnected Bridge[Step]. Positive = adds to the running total, negative = subtracts. Only meaningful when a single Bridge[Step] is in filter context. NOTE: the "Profit" step is the END value, not a delta - exclude it from the waterfall (use the visual's built-in Total instead) or the running total double-counts profit.
 	measure 'Bridge Value' =
-
+			
 			VAR CurrentStep = SELECTEDVALUE ( Bridge[Step] )
 			RETURN
 			    SWITCH (
@@ -584,7 +588,7 @@ table _Measures
 		lineageTag: 924e4f3c-50db-45aa-84c6-873c160718a3
 
 	measure 'Cost Structure Value' =
-
+			
 			VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
 			RETURN
 			    SWITCH (
@@ -601,7 +605,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Cost Structure %' =
-
+			
 			VAR CurrentType = SELECTEDVALUE ( CostType[CostType] )
 			RETURN
 			    SWITCH (
@@ -624,7 +628,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 	measure 'COGS per Unit' =
-
+			
 			DIVIDE ( [COGS], [Quantity Sold] )
 		formatString: $#,0.00
 		displayFolder: Cost
@@ -633,12 +637,12 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Median Margin' = ```
-
+			
 			MEDIANX (
 			    FILTER ( VALUES ( dim_product[product_name] ), [Product Net Revenue] > 100 ),
 			    [Product Margin]
 			)
-
+			
 			```
 		formatString: 0.0%
 		displayFolder: Cost
@@ -647,7 +651,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Margin vs Median' =
-
+			
 			VAR g = [Product Margin] - [Median Margin]
 			RETURN IF ( ISBLANK ( [Product Margin] ), BLANK (),
 			    IF ( g < 0, "▼ ", "▲ " ) & FORMAT ( ABS ( g ) * 100, "0.0" ) & "pp" )
@@ -655,21 +659,21 @@ table _Measures
 		lineageTag: 4b3c9394-ee30-4fd8-ace7-1f7cbd71782c
 
 	measure 'Margin vs Median Color' = ```
-
+			
 			IF ( [Product Margin] - [Median Margin] < 0, "#E5484D", "#2E8B4F" )
-
+			
 			```
 		displayFolder: Cost
 		lineageTag: bc7250ab-bd37-44a3-a3c4-654aa1af47a2
 
 	measure 'Median Margin Text' =
-
+			
 			"designs with >$100 revenue"
 		displayFolder: Text
 		lineageTag: ddd64c2e-a29d-4599-948f-50b9923104df
 
 	measure 'Loss-making Designs' =
-
+			
 			COUNTROWS (
 			    FILTER ( VALUES ( dim_product[product_name] ), [Product Profit] < 0 )
 			)
@@ -680,13 +684,13 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Scatter Color' =
-
+			
 			IF ( [Product Margin] < 0.52, "#E5484D", "#0891B2" )
 		displayFolder: Products
 		lineageTag: dae6c487-cd13-4241-bf2e-fcb5808025b9
 
 	measure 'Pareto Cum %' =
-
+			
 			VAR Pct   = SELECTEDVALUE ( ParetoBucket[Percentage of products] )
 			VAR Sold  = FILTER ( ALL ( dim_product[product_name] ), NOT ISBLANK ( [Revenue] ) )
 			VAR Total = CALCULATE ( [Revenue], Sold )
@@ -701,7 +705,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Pareto Pct at 50%' =
-
+			
 			MINX (
 			    FILTER ( ALL ( ParetoBucket[Percentage of products] ), [Pareto Cum %] >= 0.5 ),
 			    ParetoBucket[Percentage of products]
@@ -713,7 +717,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Pareto Pct at 80%' =
-
+			
 			MINX (
 			    FILTER ( ALL ( ParetoBucket[Percentage of products] ), [Pareto Cum %] >= 0.8 ),
 			    ParetoBucket[Percentage of products]
@@ -725,38 +729,38 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Top Market Name' = ```
-
+			
 			MAXX (
 			    TOPN ( 1, VALUES ( dim_country[country_name] ), [Revenue] ),
 			    dim_country[country_name]
 			)
-
+			
 			```
 		displayFolder: Markets
 		lineageTag: 94daf765-105a-47da-9b00-642466145c15
 
 	/// -- Sàn $2k là BẮT BUỘC: bỏ sàn thì Spain ($1.4k revenue, margin 58.1%) chiếm KPI thay Germany (58.0%) — thị trường quá nhỏ để gọi là "best".
-	///
+	/// 
 	measure 'Best Margin Major Market' = ```
-
+			
 			VAR majors =
 			    FILTER ( VALUES ( dim_country[country_name] ), [Revenue] >= 2000 )
 			RETURN
 			    MAXX ( TOPN ( 1, majors, [Profit Margin] ), dim_country[country_name] )
-
+			
 			```
 		displayFolder: Markets
 		lineageTag: 9bc56a93-bc22-43d4-b6ca-494fb779a73c
 
 	measure 'International Share' = ```
-
+			
 			1
 			    - DIVIDE (
 			        CALCULATE ( [Revenue], dim_country[country_name] = "United States" ),
 			        CALCULATE ( [Revenue], ALL ( dim_country ) )
 			    )
 			--
-
+			
 			```
 		formatString: 0.0%
 		displayFolder: Markets
@@ -765,9 +769,9 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Markets Served' = ```
-
+			
 			DISTINCTCOUNT ( fact_order[country_sk] )
-
+			
 			```
 		formatString: #,0
 		displayFolder: Markets
@@ -776,7 +780,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Country Repeat %' = ```
-
+			
 			VAR paidCustomers =
 			    CALCULATETABLE (
 			        VALUES ( fact_order[customer_sk] ),
@@ -793,7 +797,7 @@ table _Measures
 			    )
 			RETURN
 			    DIVIDE ( COUNTROWS ( FILTER ( t, [@orders] >= 2 ) ), COUNTROWS ( t ) )
-
+			
 			```
 		formatString: 0.0%
 		displayFolder: Markets
@@ -802,19 +806,19 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'International Share Text' =
-
+			
 			"revenue outside US"
 		displayFolder: Text
 		lineageTag: ebe4a325-a402-4a44-8df4-00d4371318d7
 
 	measure 'Market Served Text' =
-
+			
 			"countries with orders"
 		displayFolder: Text
 		lineageTag: 1f85d9f2-b5eb-42c7-b7fa-9eb7adee21ee
 
 	measure 'Map Margin Color' =
-
+			
 			SWITCH (
 			    TRUE (),
 			    [Profit Margin] >= 0.56, "#2E8B4F",   -- green
@@ -825,7 +829,7 @@ table _Measures
 		lineageTag: 3f43beb1-00c6-4731-b7fa-fabc7897f15e
 
 	measure 'Seg Lifetime Revenue' =
-
+			
 			SUM ( mart_customer_summary[total_revenue_usd] )
 		formatString: $#,0
 		displayFolder: Customers
@@ -834,7 +838,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Seg LTV' =
-
+			
 			DIVIDE ( [Seg Lifetime Revenue], [Distinct Customers] )
 		formatString: $#,0.00
 		displayFolder: Customers
@@ -843,9 +847,9 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Seg Revenue per Order' = ```
-
+			
 			DIVIDE ( [Seg Lifetime Revenue], SUM ( mart_customer_summary[total_orders] ) )
-
+			
 			```
 		formatString: $#,0.00
 		displayFolder: Customers
@@ -854,30 +858,30 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Acq Bar Color' = ```
-
+			
 			IF (
 			    YEAR ( MAX ( mart_customer_summary[first_order_date] ) ) = 2026,
 			    "#E5484D",
 			    "#0891B2"
 			)
-
+			
 			```
 		displayFolder: Customers
 		lineageTag: 42fef40c-bcad-4f4d-b183-6d5aa49cc899
 
 	measure 'Open Backlog Text' =
-
+			
 			"awaiting fulfilment"
 		displayFolder: Text
 		lineageTag: e0f50aa6-ce15-4d0e-88ef-2bfacd3c4465
 
 	measure 'Method Paid Orders' = ```
-
+			
 			CALCULATE (
 			    COUNTROWS ( fact_order ),
 			    fact_order[status] IN { "completed", "processing", "refunded" }
 			)
-
+			
 			```
 		formatString: #,0
 		displayFolder: Operations
@@ -886,9 +890,9 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Method Approval Rate' = ```
-
+			
 			DIVIDE ( [Method Paid Orders], [Order Attempts] )
-
+			
 			```
 		formatString: 0.0%
 		displayFolder: Operations
@@ -904,7 +908,7 @@ table _Measures
 		annotation PBI_FormatHint = {"isCustom":true}
 
 	measure 'Method Fee Rate' = ```
-
+			
 			DIVIDE (
 			    [Payment Fee],
 			    CALCULATE (
@@ -912,7 +916,7 @@ table _Measures
 			        fact_order[status] IN { "completed", "processing", "refunded" }
 			    )
 			)
-
+			
 			```
 		formatString: 0.00%
 		displayFolder: Operations
@@ -923,6 +927,169 @@ table _Measures
 	measure 'Tooltip Month Title' = FORMAT ( MAX ( dim_date[date_day] ), "MMMM yyyy" )
 		displayFolder: Text
 		lineageTag: db0594a3-9490-4a47-8e98-adc0b84be34b
+
+	measure 'Country Name Drillthrough' =
+			
+			SELECTEDVALUE(dim_country[country_name])
+		displayFolder: Text
+		lineageTag: c78f1a60-4a8e-439b-8fa5-ab2866f08127
+
+	/// Hero banner full-page cho trang Home (canvas 1920x1080), render bằng visual HTML Content. Menu ngang (Overview / Cost & Margin / Products / Markets / Customers / Operation), 2 cột: tiêu đề 92px + CTA 'XEM BÁO CÁO' bên trái, khung dashboard giả lập (Revenue / Growth / Customers + mini bar chart 8 tháng) bên phải. Nền gradient theme Cyan-Sand + glow góc trên. Footer hiển thị ngày dữ liệu mới nhất (MAX dim_date[date_day] có fact_order). Layout flex-column, min-height 1010px — đặt visual full page 1920x1080.
+	measure M_Home_Banner_HTML =
+			// ============================================================
+			// M_Home_Banner_HTML  —  Hero banner full-page (1920 x 1080)
+			// Visual: HTML Content (Daniel Marsh-Patrick), đặt full trang Home
+			// Palette: FOS Ops — Cyan / Sand (#0891B2 / #E0A82E / #1A2230)
+			// ============================================================
+			VAR LastData     = CALCULATE ( MAX ( dim_date[date_day] ), REMOVEFILTERS (), fact_order )
+			VAR LastDataText = FORMAT ( LastData, "dd/MM/yyyy" )
+			VAR RevAll       = CALCULATE ( [Revenue], REMOVEFILTERS () )
+			VAR CustAll      = CALCULATE ( [Distinct Customers], REMOVEFILTERS () )
+			VAR Rev12        = CALCULATE ( [Revenue], REMOVEFILTERS (), DATESINPERIOD ( dim_date[date_day], LastData, -12, MONTH ) )
+			VAR RevPrev12    = CALCULATE ( [Revenue], REMOVEFILTERS (), DATESINPERIOD ( dim_date[date_day], EDATE ( LastData, -12 ), -12, MONTH ) )
+			VAR GrowthPct    = DIVIDE ( Rev12 - RevPrev12, RevPrev12 )
+			VAR RevText      = FORMAT ( RevAll, "$#,0" )
+			VAR CustText     = FORMAT ( CustAll, "#,0" )
+			VAR GrowthText   = IF ( ISBLANK ( GrowthPct ), "–", FORMAT ( GrowthPct, "+0.0%;-0.0%;0.0%" ) )
+			VAR GrowthColor  = IF ( COALESCE ( GrowthPct, 0 ) < 0, "#FCA5A5", "#8CE8B8" )
+			VAR GrowthArrow  = IF ( COALESCE ( GrowthPct, 0 ) < 0, "▼", "▲" )
+			
+			// ---------- Mini chart: doanh thu 8 tháng gần nhất (viewBox 640 x 230) ----------
+			VAR BarBase =
+			    ADDCOLUMNS (
+			        GENERATESERIES ( -7, 0, 1 ),
+			        "@Y", YEAR ( EDATE ( LastData, [Value] ) ),
+			        "@M", MONTH ( EDATE ( LastData, [Value] ) ),
+			        "@Lbl", FORMAT ( EDATE ( LastData, [Value] ), "MMM" )
+			    )
+			VAR BarData =
+			    ADDCOLUMNS (
+			        BarBase,
+			        "@Rev",
+			            VAR _y = [@Y]
+			            VAR _m = [@M]
+			            RETURN
+			                COALESCE ( CALCULATE ( [Revenue], REMOVEFILTERS (), dim_date[year] = _y, dim_date[month] = _m ), 0 )
+			    )
+			VAR MaxBar = MAXX ( BarData, [@Rev] )
+			VAR BarsSvg =
+			    CONCATENATEX (
+			        BarData,
+			        VAR _i  = [Value] + 7
+			        VAR _h  = MAX ( 10, INT ( DIVIDE ( [@Rev], MaxBar ) * 150 ) )
+			        VAR _x  = _i * 78 + 20
+			        VAR _y0 = 186 - _h
+			        VAR _isLast = [Value] = 0
+			        RETURN
+			            "<rect x='" & FORMAT ( _x, "0" ) & "' y='" & FORMAT ( _y0, "0" )
+			                & "' width='46' height='" & FORMAT ( _h, "0" )
+			                & "' rx='11' fill='" & IF ( _isLast, "url(#gBarHot)", "url(#gBar)" ) & "'/>"
+			                & "<text x='" & FORMAT ( _x + 23, "0" ) & "' y='214' text-anchor='middle' font-size='19' fill='rgba(226,232,240,.55)' font-family='Segoe UI,Arial,sans-serif'>"
+			                & [@Lbl] & "</text>",
+			        "",
+			        [Value], ASC
+			    )
+			
+			// ---------- Thanh menu ngang ----------
+			VAR NavActive = "padding:12px 24px;border-radius:14px;font-size:20px;font-weight:600;color:#062A33;background:rgba(255,255,255,.92);box-shadow:0 4px 20px rgba(0,0,0,.18);"
+			VAR NavIdle   = "padding:12px 24px;border-radius:14px;font-size:20px;font-weight:500;color:rgba(226,232,240,.82);"
+			VAR NavBar =
+			    "<div style='display:flex;align-items:center;gap:6px;'>"
+			        & "<span style='" & NavActive & "'>Overview</span>"
+			        & "<span style='" & NavIdle   & "'>Cost &amp; Margin</span>"
+			        & "<span style='" & NavIdle   & "'>Products</span>"
+			        & "<span style='" & NavIdle   & "'>Markets</span>"
+			        & "<span style='" & NavIdle   & "'>Customers</span>"
+			        & "<span style='" & NavIdle   & "'>Operation</span>"
+			    & "</div>"
+			
+			// ---------- Ô số liệu ----------
+			VAR TileWrap = "flex:1;padding:22px 24px;border-radius:22px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);"
+			VAR TileCap  = "font-size:15px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(226,232,240,.62);"
+			VAR TileVal  = "font-size:40px;font-weight:700;margin-top:10px;"
+			VAR Tiles =
+			    "<div style='display:flex;gap:18px;margin-bottom:22px;'>"
+			        & "<div style='" & TileWrap & "'><div style='" & TileCap & "'>Revenue</div>"
+			            & "<div style='" & TileVal & "color:#FFFFFF;'>" & RevText & "</div></div>"
+			        & "<div style='" & TileWrap & "'><div style='" & TileCap & "'>Growth</div>"
+			            & "<div style='" & TileVal & "color:" & GrowthColor & ";'>"
+			            & "<span style='font-size:27px;'>" & GrowthArrow & "</span> " & GrowthText & "</div></div>"
+			        & "<div style='" & TileWrap & "'><div style='" & TileCap & "'>Customers</div>"
+			            & "<div style='" & TileVal & "color:#FFFFFF;'>" & CustText & "</div></div>"
+			    & "</div>"
+			
+			// ---------- Khung dashboard giả lập ----------
+			VAR MockPanel =
+			    "<div style='flex:1;min-width:660px;border-radius:30px;padding:28px;background:rgba(6,26,36,.42);border:1px solid rgba(255,255,255,.16);box-shadow:0 40px 90px rgba(0,0,0,.38), inset 0 2px 0 rgba(255,255,255,.14);'>"
+			        & "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;'>"
+			            & "<div style='display:flex;gap:11px;'>"
+			                & "<span style='width:16px;height:16px;border-radius:50%;background:#E5484D;display:inline-block;'></span>"
+			                & "<span style='width:16px;height:16px;border-radius:50%;background:#E0A82E;display:inline-block;'></span>"
+			                & "<span style='width:16px;height:16px;border-radius:50%;background:#2E8B4F;display:inline-block;'></span>"
+			            & "</div>"
+			            & "<span style='font-size:16px;letter-spacing:1.4px;color:rgba(226,232,240,.6);'>OVERVIEW · LIVE</span>"
+			        & "</div>"
+			        & Tiles
+			        & "<div style='padding:20px 18px 12px 18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);'>"
+			            & "<div style='display:flex;align-items:baseline;justify-content:space-between;padding:0 8px 10px 8px;'>"
+			                & "<span style='font-size:20px;font-weight:600;color:rgba(255,255,255,.88);'>Revenue trend</span>"
+			                & "<span style='font-size:16px;color:rgba(226,232,240,.55);'>8 tháng gần nhất</span>"
+			            & "</div>"
+			            & "<svg viewBox='0 0 640 230' preserveAspectRatio='xMidYMid meet' style='display:block;width:100%;height:240px;' xmlns='http://www.w3.org/2000/svg'>"
+			                & "<defs>"
+			                    & "<linearGradient id='gBar' x1='0' y1='0' x2='0' y2='1'>"
+			                        & "<stop offset='0%' stop-color='#67E8F9' stop-opacity='.95'/>"
+			                        & "<stop offset='100%' stop-color='#0891B2' stop-opacity='.45'/>"
+			                    & "</linearGradient>"
+			                    & "<linearGradient id='gBarHot' x1='0' y1='0' x2='0' y2='1'>"
+			                        & "<stop offset='0%' stop-color='#FBD87F'/>"
+			                        & "<stop offset='100%' stop-color='#E0A82E'/>"
+			                    & "</linearGradient>"
+			                & "</defs>"
+			                & "<line x1='12' y1='186.5' x2='628' y2='186.5' stroke='rgba(255,255,255,.16)' stroke-width='2'/>"
+			                & BarsSvg
+			            & "</svg>"
+			        & "</div>"
+			    & "</div>"
+			
+			// ---------- Cột trái ----------
+			VAR LeftCol =
+			    "<div style='flex:1.05;min-width:640px;'>"
+			        & "<div style='display:inline-block;padding:10px 22px;border-radius:999px;font-size:16px;letter-spacing:2.4px;font-weight:600;color:#C9F2FB;background:rgba(8,145,178,.28);border:1px solid rgba(103,232,249,.38);'>ECOMMERCE INTELLIGENCE · FY2026</div>"
+			        & "<div style='margin-top:34px;font-size:92px;line-height:1.04;font-weight:700;letter-spacing:-1.8px;text-shadow:0 10px 46px rgba(0,0,0,.38);'>"
+			            & "POWER YOUR<br/>DECISIONS<br/>WITH <span style='background:linear-gradient(90deg,#FBD87F,#E0A82E);-webkit-background-clip:text;background-clip:text;color:transparent;'>DATA</span>"
+			        & "</div>"
+			        & "<div style='margin-top:30px;max-width:760px;font-size:24px;line-height:1.68;color:rgba(226,232,240,.80);'>"
+			            & "Toàn cảnh doanh thu, chi phí, biên lợi nhuận và hành vi khách hàng trong một hệ báo cáo duy nhất — từ tổng quan tới từng SKU, từng thị trường."
+			        & "</div>"
+			        & "<div style='margin-top:44px;display:flex;align-items:center;gap:30px;'>"
+			            & "<span style='display:inline-block;padding:20px 46px;border-radius:18px;font-size:22px;font-weight:700;letter-spacing:1px;color:#08202B;background:linear-gradient(135deg,#FBD87F,#E0A82E);box-shadow:0 18px 46px rgba(224,168,46,.38);'>XEM BÁO CÁO &#8594;</span>"
+			            & "<span style='font-size:19px;color:rgba(226,232,240,.62);'>6 trang phân tích · cập nhật hằng ngày</span>"
+			        & "</div>"
+			    & "</div>"
+			
+			RETURN
+			    "<div style='position:relative;overflow:hidden;box-sizing:border-box;width:100%;height:100%;min-height:1010px;display:flex;flex-direction:column;padding:52px 88px 40px 88px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#F8FAFC;background:linear-gradient(125deg,#07121A 0%,#0B2A38 36%,#0E7490 74%,#0891B2 100%);'>"
+			        & "<div style='position:absolute;top:-460px;left:-260px;width:1250px;height:900px;background:radial-gradient(circle,rgba(34,211,238,.50) 0%,rgba(34,211,238,0) 68%);pointer-events:none;'></div>"
+			        & "<div style='position:absolute;top:-380px;left:36%;width:1050px;height:780px;background:radial-gradient(circle,rgba(224,168,46,.32) 0%,rgba(224,168,46,0) 70%);pointer-events:none;'></div>"
+			        & "<div style='position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.45),rgba(255,255,255,0));pointer-events:none;'></div>"
+			        & "<div style='position:relative;flex:none;display:flex;align-items:center;justify-content:space-between;padding-bottom:26px;border-bottom:1px solid rgba(255,255,255,.15);'>"
+			            & "<div style='display:flex;align-items:center;gap:18px;'>"
+			                & "<span style='width:54px;height:54px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:27px;font-weight:800;color:#06242E;background:linear-gradient(135deg,#67E8F9,#0891B2);box-shadow:0 0 34px rgba(103,232,249,.55);'>E</span>"
+			                & "<span style='font-size:29px;font-weight:600;letter-spacing:.3px;'>Ecommerce Analytics</span>"
+			            & "</div>"
+			            & NavBar
+			        & "</div>"
+			        & "<div style='position:relative;flex:1;display:flex;align-items:center;gap:60px;padding:40px 0 30px 0;'>"
+			            & LeftCol
+			            & MockPanel
+			        & "</div>"
+			        & "<div style='position:relative;flex:none;padding-top:22px;border-top:1px solid rgba(255,255,255,.12);font-size:19px;color:rgba(226,232,240,.68);'>"
+			            & "Ecommerce Analytics · Cập nhật dữ liệu: " & LastDataText
+			        & "</div>"
+			    & "</div>"
+		displayFolder: Text
+		lineageTag: 7839a391-edaf-4eb7-841d-6b30e2571b30
 
 	partition _Measures = m
 		mode: import

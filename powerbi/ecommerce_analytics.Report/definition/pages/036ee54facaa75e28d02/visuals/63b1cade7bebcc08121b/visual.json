@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
-  "name": "2c79111f73b17e40d0ab",
+  "name": "63b1cade7bebcc08121b",
   "position": {
     "x": 268.57142857142861,
-    "y": 290,
-    "z": 12000,
-    "height": 395.71428571428572,
-    "width": 947.14285714285722,
-    "tabOrder": 13000
+    "y": 360,
+    "z": 7000,
+    "height": 425.71428571428572,
+    "width": 845.71428571428578,
+    "tabOrder": 7000
   },
   "visual": {
     "visualType": "lineChart",
@@ -42,43 +42,11 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Profit Base Net Revenue"
+                  "Property": "Revenue"
                 }
               },
-              "queryRef": "_Measures.Profit Base Net Revenue",
-              "nativeQueryRef": "Revenue",
-              "displayName": "Revenue"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Contribution Profit"
-                }
-              },
-              "queryRef": "_Measures.Contribution Profit",
-              "nativeQueryRef": "Profit",
-              "displayName": "Profit"
-            }
-          ],
-          "fieldParameters": [
-            {
-              "parameterExpr": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Trend Metrics"
-                    }
-                  },
-                  "Property": "Trend Metrics"
-                }
-              },
-              "index": 0,
-              "length": 2
+              "queryRef": "_Measures.Revenue",
+              "nativeQueryRef": "Revenue"
             }
           ]
         }
@@ -103,30 +71,20 @@
       }
     },
     "objects": {
-      "legend": [
+      "dataPoint": [
         {
-          "properties": {
-            "show": {
-              "expr": {
-                "Literal": {
-                  "Value": "true"
+          "properties": {}
+        },
+        {
+          "properties": {},
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 1
                 }
               }
-            },
-            "legendMarkerRendering": {
-              "expr": {
-                "Literal": {
-                  "Value": "'markerCircleDefault'"
-                }
-              }
-            },
-            "showTitle": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
-                }
-              }
-            }
+            ]
           }
         }
       ],
@@ -136,24 +94,39 @@
             "areaShow": {
               "expr": {
                 "Literal": {
-                  "Value": "false"
-                }
-              }
-            },
-            "lineChartType": {
-              "expr": {
-                "Literal": {
-                  "Value": "'smooth'"
-                }
-              }
-            },
-            "lineStyle": {
-              "expr": {
-                "Literal": {
-                  "Value": "'solid'"
+                  "Value": "true"
                 }
               }
             }
+          }
+        },
+        {
+          "properties": {},
+          "selector": {
+            "data": [
+              {
+                "scopeId": {
+                  "Comparison": {
+                    "ComparisonKind": 0,
+                    "Left": {
+                      "Column": {
+                        "Expression": {
+                          "SourceRef": {
+                            "Entity": "dim_date"
+                          }
+                        },
+                        "Property": "month_start_date"
+                      }
+                    },
+                    "Right": {
+                      "Literal": {
+                        "Value": "datetime'2023-07-01T00:00:00'"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
           }
         }
       ]
@@ -165,7 +138,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Monthly trend'"
+                  "Value": "'Monthly revenue'"
                 }
               }
             }
@@ -181,6 +154,13 @@
                   "Value": "false"
                 }
               }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Which winning designs deserve more scale?'"
+                }
+              }
             }
           }
         }
@@ -192,20 +172,6 @@
               "expr": {
                 "Literal": {
                   "Value": "'1652d5829992e75e5c7b'"
-                }
-              }
-            },
-            "showTooltipFieldsOnly": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
-                }
-              }
-            },
-            "type": {
-              "expr": {
-                "Literal": {
-                  "Value": "'Canvas'"
                 }
               }
             }

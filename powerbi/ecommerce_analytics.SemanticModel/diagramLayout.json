@@ -4,7 +4,7 @@
     {
       "ordinal": 0,
       "scrollPosition": {
-        "x": 405.41215957437123,
+        "x": 1522.8167608057395,
         "y": 0
       },
       "nodes": [
@@ -201,6 +201,31 @@
             "width": 234
           },
           "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 3583.4669531176114,
+            "y": 603.80950335500245
+          },
+          "nodeIndex": "TooltipRow",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3867.4669531176114,
+            "y": 627.80950335500245
+          },
+          "nodeIndex": "Trend Metrics",
+          "nodeLineageTag": "0faa6e17-739e-42f4-8a2c-30196c6d42bc",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
         }
       ],
       "name": "All tables",

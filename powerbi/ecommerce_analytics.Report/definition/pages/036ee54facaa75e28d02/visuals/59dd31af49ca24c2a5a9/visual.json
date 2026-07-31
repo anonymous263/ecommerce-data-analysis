@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
-  "name": "2b225f1d0570b90a8e6d",
+  "name": "59dd31af49ca24c2a5a9",
   "position": {
-    "x": 1631.9999999999998,
-    "y": 122.30769230769231,
-    "z": 13000,
-    "height": 150,
-    "width": 258.57142857142861,
-    "tabOrder": 12000
+    "x": 597.14285714285711,
+    "y": 194.28571428571431,
+    "z": 12000,
+    "height": 150.66666666666666,
+    "width": 310.66666666666669,
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "cardVisual",
@@ -23,11 +23,12 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Repeat Rate"
+                  "Property": "Paid Orders"
                 }
               },
-              "queryRef": "_Measures.Repeat Rate",
-              "nativeQueryRef": "Repeat Rate"
+              "queryRef": "_Measures.Paid Orders",
+              "nativeQueryRef": "ORDERS",
+              "displayName": "ORDERS"
             }
           ]
         }
@@ -42,7 +43,7 @@
                     "Entity": "_Measures"
                   }
                 },
-                "Property": "Repeat Rate"
+                "Property": "Paid Orders"
               }
             },
             "direction": "Descending"
@@ -100,20 +101,6 @@
           },
           "selector": {
             "id": "default"
-          }
-        },
-        {
-          "properties": {
-            "text": {
-              "expr": {
-                "Literal": {
-                  "Value": "'REPEAT RATE'"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Measures.Repeat Rate"
           }
         }
       ],

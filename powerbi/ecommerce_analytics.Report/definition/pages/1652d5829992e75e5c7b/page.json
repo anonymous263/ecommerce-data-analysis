@@ -2,9 +2,9 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
   "name": "1652d5829992e75e5c7b",
   "displayName": "Month",
-  "displayOption": "ActualSize",
-  "height": 300,
-  "width": 400,
+  "displayOption": "FitToPage",
+  "height": 240,
+  "width": 320,
   "objects": {
     "background": [
       {
@@ -13,8 +13,9 @@
             "solid": {
               "color": {
                 "expr": {
-                  "Literal": {
-                    "Value": "'#111826'"
+                  "ThemeDataColor": {
+                    "ColorId": 0,
+                    "Percent": 0
                   }
                 }
               }
