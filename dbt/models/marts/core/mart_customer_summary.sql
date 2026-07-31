@@ -95,6 +95,14 @@ select
     {{ dbt_utils.generate_surrogate_key(['customer_hash']) }}          as customer_sk,
     customer_hash,
     first_order_date,
+    -- Acquisition month, pre-cut here rather than in DAX. Power BI's per-column
+    -- Year/Quarter/Month drill comes from Auto date/time, which this model keeps
+    -- OFF because dim_date is the marked date table -- so a raw date column plots
+    -- as discrete days with no Month level. Kept as a real date (not '2024-03'
+    -- text) so it sorts chronologically without a companion sort-by column, and
+    -- deliberately NOT wired to dim_date: the shared date slicer must not truncate
+    -- the acquisition axis, which exists to show the full trend.
+    date_trunc('month', first_order_date)::date                        as first_order_month,
     last_order_date,
     total_orders,
     total_revenue_usd,

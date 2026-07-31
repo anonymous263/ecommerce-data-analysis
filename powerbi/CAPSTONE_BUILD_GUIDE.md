@@ -727,7 +727,13 @@ Ký hiệu: **Card** = card visual (New card) · **Axis/Values/Legend** = field 
 
 | Visual | Loại | Field |
 |---|---|---|
-| New customers acquired — monthly | **Column** | Axis `mart_customer_summary[first_order_date]` (cấp Month) · Values `[New Customers]` · **Columns → fx → `[Acq Bar Color]`** (§2.9e: 2026 đỏ, còn lại cyan — làm nổi cú rơi 2026) |
+| New customers acquired — monthly | **Column** | Axis `mart_customer_summary[first_order_month]` · Values `[New Customers]` · **Columns → fx → `[Acq Bar Color]`** (§2.9e: 2026 đỏ, còn lại cyan — làm nổi cú rơi 2026) |
+
+> ⚠️ **Không dùng `first_order_date` với ghi chú "(cấp Month)"** — bản guide cũ ghi vậy là sai. Cấp Year/Quarter/Month trên một cột date thô do tính năng **Auto date/time** sinh ra (bảng `LocalDateTable` ẩn cho từng cột date), mà model này **tắt** nó vì đã có `dim_date` được mark làm date table. Kéo `first_order_date` vào trục sẽ ra **từng ngày rời rạc, không có menu drill**.
+>
+> Cột `mart_customer_summary[first_order_month]` (thêm 2026-07-31) là `date_trunc('month', first_order_date)` làm ở dbt — logic nằm trong SQL có test, không phải calculated column DAX. Nó là **date thật** nên tự sort đúng thứ tự thời gian, không cần "Sort by column" phụ (bẫy hay gặp nếu tự tạo cột text `"2024-03"`). Dữ liệu: **41 tháng, 2023-03 → 2026-07**.
+>
+> Cột này **cố ý không nối `dim_date`**: slicer ngày dùng chung sẽ cắt cụt trục acquisition, đúng thứ biểu đồ sinh ra để thể hiện. `[Acq Bar Color]` đọc `first_order_date` từ chính bảng này (không qua `dim_date`) nên vẫn tô màu đúng trên trục tháng — nhưng nó **hardcode năm 2026**, sẽ âm thầm sai khi dữ liệu sang 2027, cùng loại lỗi với "Top 11%" ở PAGE 3.
 | Customer recency | **Bar** | Axis `mart_customer_summary[Recency Segment]` · Values `[Distinct Customers]` · Data colors per point: Active `#2E8B4F` · 3-6mo `#E0A82E` · 6-12mo `#64748B` · Lapsed `#E5484D` |
 | Orders per customer | **Column** | Axis `mart_customer_summary[total_orders]` · Values `Count of customer_sk` · Subtitle "repeat depth · basis: all order attempts" |
 | Are repeat customers worth more? | **Matrix + 3 Text box** (composite, group lại) | Matrix: **Columns** = cột `Segment` (§2.9e) · **Values** = `[Distinct Customers]`, `[Seg Lifetime Revenue]`, `[Seg LTV]`, `[Seg Revenue per Order]` · Format → Values → **Switch values to rows = On** (metric thành dòng, One-time/Repeat thành 2 cột — đúng layout demo) |

@@ -272,6 +272,9 @@ models:
         tests: [not_null]
       - name: total_revenue_usd
         tests: [not_null]
+      - name: first_order_month
+        description: First-order month start; the acquisition axis for the Customers page (see model comment on why it is not a dim_date relationship).
+        tests: [not_null]
 
   # ============================================================ Phase 3 — cost
   # ------------------------------------------------------- staging: manual cost
