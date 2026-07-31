@@ -4,10 +4,10 @@
   "position": {
     "x": 1507.9999999999998,
     "y": 124,
-    "z": 18000,
+    "z": 12000,
     "height": 150.66666666666666,
     "width": 384,
-    "tabOrder": 11000
+    "tabOrder": 10000
   },
   "visual": {
     "visualType": "cardVisual",
@@ -466,23 +466,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "3e229459ec19a6679e6e",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Loss-making Designs"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

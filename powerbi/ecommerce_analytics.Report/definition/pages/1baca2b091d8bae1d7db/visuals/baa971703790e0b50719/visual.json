@@ -4,7 +4,7 @@
   "position": {
     "x": 1094.6666666666665,
     "y": 124,
-    "z": 17000,
+    "z": 10000,
     "height": 150.66666666666666,
     "width": 393.33333333333331,
     "tabOrder": 8000
@@ -535,23 +535,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "b29bc3f3d71e5c13e684",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Median Margin"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

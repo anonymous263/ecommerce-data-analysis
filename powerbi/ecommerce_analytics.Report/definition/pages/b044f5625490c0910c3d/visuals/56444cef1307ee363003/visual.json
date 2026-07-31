@@ -2,38 +2,37 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
   "name": "56444cef1307ee363003",
   "position": {
-    "x": 268,
-    "y": 290.66666666666669,
+    "x": 267.2,
+    "y": 289.6,
     "z": 7000,
-    "height": 361.33333333333331,
-    "width": 786.66666666666663,
+    "height": 360,
+    "width": 848,
     "tabOrder": 11000
   },
   "visual": {
-    "visualType": "pivotTable",
+    "visualType": "map",
     "query": {
       "queryState": {
-        "Rows": {
+        "Category": {
           "projections": [
             {
               "field": {
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "dim_product"
+                      "Entity": "dim_country"
                     }
                   },
-                  "Property": "woo_product_id"
+                  "Property": "country_name"
                 }
               },
-              "queryRef": "dim_product.woo_product_id",
-              "nativeQueryRef": "PRODUCT ID",
-              "active": true,
-              "displayName": "PRODUCT ID"
+              "queryRef": "dim_country.country_name",
+              "nativeQueryRef": "country_name",
+              "active": true
             }
           ]
         },
-        "Values": {
+        "Size": {
           "projections": [
             {
               "field": {
@@ -43,122 +42,72 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Product Net Revenue"
+                  "Property": "Revenue"
                 }
               },
-              "queryRef": "_Measures.Product Net Revenue",
-              "nativeQueryRef": "NET REVENUE",
-              "displayName": "NET REVENUE"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Product Profit"
-                }
-              },
-              "queryRef": "_Measures.Product Profit",
-              "nativeQueryRef": "PROFIT",
-              "displayName": "PROFIT"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Product Margin"
-                }
-              },
-              "queryRef": "_Measures.Product Margin",
-              "nativeQueryRef": "MARGIN",
-              "displayName": "MARGIN"
+              "queryRef": "_Measures.Revenue",
+              "nativeQueryRef": "Revenue"
             }
           ]
         }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "Product Net Revenue"
-              }
-            },
-            "direction": "Descending"
-          }
-        ]
       }
     },
     "objects": {
-      "subTotals": [
+      "dataPoint": [
         {
           "properties": {
-            "columnSubtotals": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
-                }
-              }
-            },
-            "rowSubtotals": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
+            "fillRule": {
+              "linearGradient2": {
+                "min": {
+                  "color": {
+                    "expr": {
+                      "Literal": {
+                        "Value": "'minColor'"
+                      }
+                    }
+                  }
+                },
+                "max": {
+                  "color": {
+                    "expr": {
+                      "Literal": {
+                        "Value": "'maxColor'"
+                      }
+                    }
+                  }
+                },
+                "nullColoringStrategy": {
+                  "strategy": {
+                    "expr": {
+                      "Literal": {
+                        "Value": "'asZero'"
+                      }
+                    }
+                  }
                 }
               }
             }
           }
-        }
-      ],
-      "columnHeaders": [
+        },
         {
           "properties": {
-            "columnAdjustment": {
-              "expr": {
-                "Literal": {
-                  "Value": "'growToFit'"
-                }
-              }
-            },
-            "defaultColumnWidth": {
-              "expr": {
-                "Literal": {
-                  "Value": "90D"
-                }
-              }
-            },
-            "alignment": {
-              "expr": {
-                "Literal": {
-                  "Value": "'Center'"
-                }
-              }
-            },
-            "titleAlignment": {
-              "expr": {
-                "Literal": {
-                  "Value": "'Center'"
+            "fill": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Measure": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "_Measures"
+                        }
+                      },
+                      "Property": "Map Margin Color"
+                    }
+                  }
                 }
               }
             }
-          }
-        }
-      ],
-      "values": [
-        {
-          "properties": {},
+          },
           "selector": {
             "data": [
               {
@@ -166,64 +115,53 @@
                   "matchingOption": 1
                 }
               }
-            ],
-            "metadata": "_Measures.Product Profit"
+            ]
           }
         }
       ],
-      "columnFormatting": [
+      "categoryLabels": [
         {
           "properties": {
-            "fontColor": {
-              "solid": {
-                "color": {
-                  "expr": {
-                    "ThemeDataColor": {
-                      "ColorId": 4,
-                      "Percent": 0
-                    }
-                  }
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "bubbles": [
+        {
+          "properties": {
+            "bubbleSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "-10L"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "mapStyles": [
+        {
+          "properties": {
+            "mapTheme": {
+              "expr": {
+                "Literal": {
+                  "Value": "'grayscale'"
                 }
               }
             },
-            "alignment": {
+            "showLabels": {
               "expr": {
                 "Literal": {
-                  "Value": "'Center'"
+                  "Value": "true"
                 }
               }
             }
-          },
-          "selector": {
-            "metadata": "_Measures.Product Profit"
-          }
-        },
-        {
-          "properties": {
-            "alignment": {
-              "expr": {
-                "Literal": {
-                  "Value": "'Center'"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Measures.Product Net Revenue"
-          }
-        },
-        {
-          "properties": {
-            "alignment": {
-              "expr": {
-                "Literal": {
-                  "Value": "'Center'"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Measures.Product Margin"
           }
         }
       ]

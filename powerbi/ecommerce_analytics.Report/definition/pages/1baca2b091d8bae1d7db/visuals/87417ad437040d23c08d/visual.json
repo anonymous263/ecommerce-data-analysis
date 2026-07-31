@@ -4,10 +4,10 @@
   "position": {
     "x": 268,
     "y": 290.66666666666669,
-    "z": 13000,
+    "z": 7000,
     "height": 361.33333333333331,
     "width": 786.66666666666663,
-    "tabOrder": 13000
+    "tabOrder": 11000
   },
   "visual": {
     "visualType": "pivotTable",
@@ -264,65 +264,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "403f7b68bd9010394d15",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "dim_product"
-              }
-            },
-            "Property": "woo_product_id"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "c2adbd9ab0cc60130350",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Net Revenue"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "0852ee0ce432a53532a3",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Profit"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "b8cbbf2090c9d10393ba",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Margin"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

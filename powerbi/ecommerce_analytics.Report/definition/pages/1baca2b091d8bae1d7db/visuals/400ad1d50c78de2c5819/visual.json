@@ -4,7 +4,7 @@
   "position": {
     "x": 268,
     "y": 124,
-    "z": 16500,
+    "z": 9000,
     "height": 149.33333333333334,
     "width": 393.33333333333331,
     "tabOrder": 7000
@@ -493,23 +493,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "abf9b370c215d6a004a8",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Distinct Products Sold"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

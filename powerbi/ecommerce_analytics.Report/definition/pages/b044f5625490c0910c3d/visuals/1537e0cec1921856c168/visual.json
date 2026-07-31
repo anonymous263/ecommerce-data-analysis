@@ -23,32 +23,17 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "COGS Ratio"
+                  "Property": "Best Margin Major Market"
                 }
               },
-              "queryRef": "_Measures.COGS Ratio",
-              "nativeQueryRef": "COGS RATIO",
-              "displayName": "COGS RATIO"
+              "queryRef": "_Measures.Best Margin Major Market",
+              "nativeQueryRef": "BEST MARGIN MAJOR MARKET",
+              "displayName": "BEST MARGIN MAJOR MARKET"
             }
           ]
         }
       },
       "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "COGS Ratio"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
         "isDefaultSort": true
       }
     },

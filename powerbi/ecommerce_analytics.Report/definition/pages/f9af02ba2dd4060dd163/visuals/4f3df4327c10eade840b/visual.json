@@ -93,10 +93,10 @@
                     "Entity": "_Measures"
                   }
                 },
-                "Property": "Product Margin"
+                "Property": "Product Net Revenue"
               }
             },
-            "direction": "Ascending"
+            "direction": "Descending"
           }
         ]
       }
@@ -152,99 +152,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "2f0e36008c291414617b",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Net Revenue"
-          }
-        },
-        "type": "Advanced",
-        "filter": {
-          "Version": 2,
-          "From": [
-            {
-              "Name": "_",
-              "Entity": "_Measures",
-              "Type": 0
-            }
-          ],
-          "Where": [
-            {
-              "Condition": {
-                "Comparison": {
-                  "ComparisonKind": 1,
-                  "Left": {
-                    "Measure": {
-                      "Expression": {
-                        "SourceRef": {
-                          "Source": "_"
-                        }
-                      },
-                      "Property": "Product Net Revenue"
-                    }
-                  },
-                  "Right": {
-                    "Literal": {
-                      "Value": "300L"
-                    }
-                  }
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "name": "41deda8421847e0140e0",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Profit"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "5b3aecf06e93a4314889",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Margin"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "72e883c7caa7143e9d06",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "dim_product"
-              }
-            },
-            "Property": "woo_product_id"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

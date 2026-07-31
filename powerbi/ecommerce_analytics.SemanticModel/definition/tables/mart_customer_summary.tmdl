@@ -3,7 +3,6 @@ table mart_customer_summary
 
 	column customer_sk
 		dataType: string
-		isHidden
 		lineageTag: edb71c10-e72b-4dba-82a9-9ec79fc9cf3d
 		summarizeBy: none
 		sourceColumn: customer_sk
@@ -121,6 +120,25 @@ table mart_customer_summary
 		lineageTag: a19fcbb0-03dc-4043-a235-fd0d2c02dc1d
 		summarizeBy: none
 
+	column Segment =
+
+			IF ( mart_customer_summary[is_repeat], "Repeat", "One-time" )
+		lineageTag: e59b1a85-c629-42c2-8d8a-17fc1d5d002a
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column first_order_month
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: dcab69b8-b357-46d7-bbcc-7802740ddae2
+		summarizeBy: none
+		sourceColumn: first_order_month
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
 	partition mart_customer_summary = m
 		mode: import
 		source =
@@ -128,7 +146,9 @@ table mart_customer_summary
 				  Source = PostgreSQL.Database("localhost:5432", "ecommerce"),
 				  #"Navigation 1" = Source{[Schema = "marts_core", Item = "mart_customer_summary"]}[Data]
 				in
-				  #"Navigation 1"
+				    #"Navigation 1"
 
 	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
 

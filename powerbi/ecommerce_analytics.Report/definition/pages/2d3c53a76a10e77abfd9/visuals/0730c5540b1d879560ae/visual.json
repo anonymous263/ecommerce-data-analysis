@@ -27,7 +27,7 @@
                 "name": {
                   "expr": {
                     "Literal": {
-                      "Value": "'svgviewer-png-output.png'"
+                      "Value": "'overview 1.png'"
                     }
                   }
                 },
@@ -36,7 +36,7 @@
                     "ResourcePackageItem": {
                       "PackageName": "RegisteredResources",
                       "PackageType": 1,
-                      "ItemName": "svgviewer-png-output49674922598645155.png"
+                      "ItemName": "overview_19139886005476442.png"
                     }
                   }
                 },

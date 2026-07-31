@@ -4,10 +4,10 @@
   "position": {
     "x": 268,
     "y": 668,
-    "z": 14000,
+    "z": 8000,
     "height": 382.66666666666669,
     "width": 786.66666666666663,
-    "tabOrder": 14000
+    "tabOrder": 12000
   },
   "visual": {
     "visualType": "scatterChart",
@@ -341,34 +341,6 @@
             }
           ]
         }
-      },
-      {
-        "name": "62c594001a71055a73b5",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Net Revenue"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "d26c1e07a0777d11337c",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Product Margin"
-          }
-        },
-        "type": "Advanced"
       }
     ]
   }

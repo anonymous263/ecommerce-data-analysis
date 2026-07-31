@@ -23,12 +23,12 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Loss-making Designs"
+                  "Property": "Markets Served"
                 }
               },
-              "queryRef": "_Measures.Loss-making Designs",
-              "nativeQueryRef": "LOSS-MAKING DESIGNS",
-              "displayName": "LOSS-MAKING DESIGNS"
+              "queryRef": "_Measures.Markets Served",
+              "nativeQueryRef": "MARKETS SERVED",
+              "displayName": "MARKETS SERVED"
             }
           ]
         }
@@ -43,7 +43,7 @@
                     "Entity": "_Measures"
                   }
                 },
-                "Property": "Loss-making Designs"
+                "Property": "Markets Served"
               }
             },
             "direction": "Descending"
@@ -125,6 +125,34 @@
           "selector": {
             "id": "default"
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Market Served Text"
+                }
+              }
+            }
+          },
+          "selector": {
+            "data": [
+              {
+                "dataViewWildcard": {
+                  "matchingOption": 0
+                }
+              }
+            ],
+            "metadata": "_Measures.Markets Served",
+            "id": "field-0711fe1e-73ba-28ec-74dc-dbfecf8f8523",
+            "order": 0
+          }
         }
       ],
       "referenceLabelTitle": [
@@ -140,6 +168,20 @@
           },
           "selector": {
             "id": "default"
+          }
+        },
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Markets Served"
           }
         }
       ],
@@ -309,6 +351,27 @@
           },
           "selector": {
             "id": "default"
+          }
+        }
+      ],
+      "referenceLabelValue": [
+        {
+          "properties": {
+            "valueFontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "ThemeDataColor": {
+                      "ColorId": 6,
+                      "Percent": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Markets Served"
           }
         }
       ]

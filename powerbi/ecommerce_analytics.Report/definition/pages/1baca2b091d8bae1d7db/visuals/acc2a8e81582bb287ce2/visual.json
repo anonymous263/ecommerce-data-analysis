@@ -4,7 +4,7 @@
   "position": {
     "x": 681.33333333333326,
     "y": 124,
-    "z": 17500,
+    "z": 11000,
     "height": 150.66666666666666,
     "width": 393.33333333333331,
     "tabOrder": 9000
@@ -466,23 +466,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "4655a13e99a557174338",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "COGS Ratio"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

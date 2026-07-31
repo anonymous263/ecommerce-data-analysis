@@ -15,6 +15,7 @@ table dim_country
 	column country_code
 		dataType: string
 		lineageTag: 97bfeb50-fe8a-4a3a-8018-3d66f74fb85d
+		dataCategory: Country
 		summarizeBy: none
 		sourceColumn: country_code
 
@@ -23,6 +24,7 @@ table dim_country
 	column country_name
 		dataType: string
 		lineageTag: 0a9bf87c-0267-4ddb-ad62-b5bcd81a9db8
+		dataCategory: Country
 		summarizeBy: none
 		sourceColumn: country_name
 

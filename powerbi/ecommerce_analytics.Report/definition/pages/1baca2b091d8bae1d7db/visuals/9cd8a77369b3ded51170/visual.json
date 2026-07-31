@@ -371,23 +371,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "af31c3b7541190226ea4",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "dim_date"
-              }
-            },
-            "Property": "date_day"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }

@@ -23,12 +23,12 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Median Margin"
+                  "Property": "International Share"
                 }
               },
-              "queryRef": "_Measures.Median Margin",
-              "nativeQueryRef": "MEDIAN MARGIN",
-              "displayName": "MEDIAN MARGIN"
+              "queryRef": "_Measures.International Share",
+              "nativeQueryRef": "INTERNATIONAL SHARE",
+              "displayName": "INTERNATIONAL SHARE"
             }
           ]
         }
@@ -43,7 +43,7 @@
                     "Entity": "_Measures"
                   }
                 },
-                "Property": "Median Margin"
+                "Property": "International Share"
               }
             },
             "direction": "Descending"
@@ -136,7 +136,7 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Median Margin Text"
+                  "Property": "International Share Text"
                 }
               }
             }
@@ -149,8 +149,8 @@
                 }
               }
             ],
-            "metadata": "_Measures.Median Margin",
-            "id": "field-768f2fc0-2c58-5e34-0ba6-5026935cc839",
+            "metadata": "_Measures.International Share",
+            "id": "field-a4ed7566-c2ac-7f39-0726-495540656aba",
             "order": 0
           }
         }
@@ -181,7 +181,7 @@
             }
           },
           "selector": {
-            "metadata": "_Measures.Median Margin"
+            "metadata": "_Measures.International Share"
           }
         }
       ],
@@ -361,23 +361,17 @@
               "solid": {
                 "color": {
                   "expr": {
-                    "Literal": {
-                      "Value": "'#9AA3AF'"
+                    "ThemeDataColor": {
+                      "ColorId": 6,
+                      "Percent": 0
                     }
                   }
-                }
-              }
-            },
-            "valueBold": {
-              "expr": {
-                "Literal": {
-                  "Value": "false"
                 }
               }
             }
           },
           "selector": {
-            "metadata": "_Measures.Median Margin"
+            "metadata": "_Measures.International Share"
           }
         }
       ]

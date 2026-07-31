@@ -23,32 +23,17 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Distinct Products Sold"
+                  "Property": "Top Market Name"
                 }
               },
-              "queryRef": "_Measures.Distinct Products Sold",
-              "nativeQueryRef": "PRODUCTS SOLD",
-              "displayName": "PRODUCTS SOLD"
+              "queryRef": "_Measures.Top Market Name",
+              "nativeQueryRef": "TOP MARKET NAME",
+              "displayName": "TOP MARKET NAME"
             }
           ]
         }
       },
       "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "Distinct Products Sold"
-              }
-            },
-            "direction": "Descending"
-          }
-        ],
         "isDefaultSort": true
       }
     },
@@ -98,20 +83,6 @@
           },
           "selector": {
             "id": "default"
-          }
-        },
-        {
-          "properties": {
-            "labelDisplayUnits": {
-              "expr": {
-                "Literal": {
-                  "Value": "1D"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "_Measures.Distinct Products Sold"
           }
         }
       ],
