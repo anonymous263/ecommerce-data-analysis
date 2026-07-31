@@ -231,29 +231,39 @@
 >
 > **Remaining Phase 4 work is GUI-only** (cannot be automated): connect/import, relationships, paste measures into `_Measures`, build the report pages, wire the tier-gating visuals, and save the `.pbix` — all per `BUILD_GUIDE.md`. Live gating state (2026-07-23): cost coverage **98.92% GREEN** (profit shown, no partial chip); payment-fee **98.03% (revenue-order basis) ≥80%** (payment-fee chip OFF; rebased 2026-07-16).
 
+> **State check 2026-07-31** — verified against the tracked `.pbip`, not from memory: 12 Import-mode tables + 4 calculated/disconnected tables, 28 relationships, 83 measures, **4 of 6 report pages actually built**. `Customers` and `Operations` exist as page shells with **no `visuals/` directory at all** — their measures are all authored, only the canvas is missing. That plus a leftover blank `Page 1` is the whole of the remaining Phase 4 GUI work.
+
 ### Connect & measures
-- [ ] Connect Power BI Desktop to Postgres `marts_core` + `marts_operations`
-- [ ] Relationships dim → fact, single direction
-- [ ] `_Measures` table
+- [x] Connect Power BI Desktop to Postgres `marts_core` + `marts_operations` — Import mode via `PostgreSQL.Database("localhost:5432", "ecommerce")`; **all 12 imported tables come from `marts_core`**. `marts_operations` has no models until Phase 5, so there is nothing to connect there yet. `Bridge`, `CostType`, `ParetoBucket` are disconnected calculated tables (no partition).
+- [x] Relationships dim → fact, single direction — **28 relationships** in `ecommerce_analytics.SemanticModel/definition/relationships.tmdl`
+- [x] `_Measures` table — **83 measures** in `_Measures.tmdl`, grown from the 48 exported to `powerbi/measures/dax_measures.txt` as the capstone pages were built
 - [x] Author DAX measures from `METRICS_DEFINITION.md` §A (incl. **A7 Shipping Charged to Customer**, **A8 Shipping Charged/Revenue**), §B (gated), §C, §G (incl. **G4 Shipping Charged Ratio by Country** — labeled "shipping charged to customer / revenue", not cost), §I, §H — **48 measures in `powerbi/measures/dax_measures.txt`** (paste into `_Measures` per BUILD_GUIDE.md)
 - [ ] Implement **tiered profit visibility** per [DASHBOARD_SPEC.md §K](docs/DASHBOARD_SPEC.md):
   - `< 80% Cost Coverage` → hide profit visuals + show "Profit unavailable" banner
   - `80–95%` → show with yellow "Partial cost coverage" chip
   - `≥ 95%` → fully trusted (no chip)
-- [ ] Add a second chip whenever **Payment Fee Coverage < 80%**: "Estimated payment fee — XX% from `seed_estimate` or `missing`"
-- [ ] Add the profit caveat banner: "Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds." (Approach A — see `docs/METRIC_CHANGES.md`.)
+
+  _Descoped for the capstone build — no gating measure exists in the model (verified: no `Coverage`/banner/chip measure in `_Measures.tmdl`). Live cost coverage is **98.92% GREEN**, so all three branches would render identically to "fully trusted". Re-open if the report is ever pointed at a lower-coverage dataset._
+- [ ] Add a second chip whenever **Payment Fee Coverage < 80%**: "Estimated payment fee — XX% from `seed_estimate` or `missing`" — _descoped, same reason: live payment-fee coverage is **98.03%** on the revenue-order basis, so the chip is OFF by construction_
+- [ ] Add the profit caveat banner: "Customer shipping charge is counted as revenue. COGS is the all-in per-order fulfilment cost (already includes supplier fulfillment/shipping fee), so shipping is never subtracted as a cost. Revenue is net of refunds." (Approach A — see `docs/METRIC_CHANGES.md`.) — _descoped from the canvas; the Approach A caveat is carried in `powerbi/CAPSTONE_BUILD_GUIDE.md` and `docs/METRIC_CHANGES.md` instead_
 
 ### Pages
-- [ ] Build **Executive Overview** with tier-gated profit + the Shipping Charged to Customer card
-- [ ] Build **Product Performance** with caveat tag for allocated profit
-- [ ] Build **Country / Market Performance** with the **Shipping Charged Ratio by Country** chart (revenue-side, not cost)
-- [ ] Build **Customer / Repeat Purchase** with guest-checkout disclosure
-- [ ] Build **Data Quality** sub-page (include payment fee source split + Woo vs CSV shipping-charged drift)
+
+The capstone redesign replaced the original MVP page list with 6 operational pages; `Cost & Margin` and `Operations` are additions, `Data Quality` was dropped. Visual counts below are from `ecommerce_analytics.Report/definition/pages/`.
+
+- [x] Build **Overview** (was "Executive Overview") — 24 visuals, incl. revenue→profit waterfall on the `Bridge` table, PoP/MoM/YoY delta indicators, Shipping Charged card
+- [x] Build **Product** (was "Product Performance") — 21 visuals, incl. Pareto on the disconnected `ParetoBucket` table and the lowest-margin table
+- [x] Build **Market** (was "Country / Market Performance") — 21 visuals
+- [x] Build **Cost & Margin** — 23 visuals, incl. the `CostType` matrix _(not in the original MVP list; added by the redesign)_
+- [ ] Build **Customers** (was "Customer / Repeat Purchase") — **page shell only, no `visuals/` directory**. Measures already authored: `Distinct Customers`, `Repeat Rate`, `One-time Share`, `New Customers`, `Lapsed Share`, `Orders per Customer`, `Seg *`. GUI build outstanding.
+- [ ] Build **Operations** — **page shell only, no `visuals/` directory**. Measures already authored: `Order Attempts`, `Paid Success Rate`, `Failed Rate`, `Cancellation Rate`, `Refunded Orders`, `Refund Rate`, `Refund Amount`, `Open Backlog`, `Payment Fee Rate`, `Method *`. GUI build outstanding.
+- [ ] Delete the leftover blank **"Page 1"** (1 stray visual) before publishing
+- [ ] Build **Data Quality** sub-page (payment fee source split + Woo vs CSV shipping-charged drift) — _dropped from the capstone canvas; both live in `marts_recon` and are reported in docs_
 
 ### Verify
-- [ ] Hand-calc 5 orders end-to-end → match cards
-- [ ] Save `.pbix` (manual GUI step per BUILD_GUIDE.md) — **DAX already exported to `powerbi/measures/dax_measures.txt` ✅ (48 measures, reviewed)**
-- [ ] Commit + push
+- [x] Hand-calc 5 orders end-to-end → match cards — `powerbi/VERIFY_5_orders.md`; the 5 sample orders were re-verified byte-identical against the warehouse on 2026-07-23. The aggregate cards in that file are frozen pre-cleanup; canonical aggregates live in `CAPSTONE_BUILD_GUIDE.md` §Kiểm chứng.
+- [x] Save `.pbix` — **superseded**: the tracked artifact is `.pbip` + TMDL (measures-as-code, diffable in git). `powerbi/ecommerce_analytics.pbix` is a stale 2026-07-17 binary snapshot, no longer the source of truth.
+- [x] Commit + push
 
 ---
 

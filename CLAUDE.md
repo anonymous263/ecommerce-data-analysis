@@ -12,7 +12,7 @@ A private analytics warehouse (portfolio second) for several **WooCommerce POD s
 - **Phase 1** — WooCommerce ingestion: `src/extract/woo_api.py` (incremental watermark, idempotent upsert, run logging) landing `raw.woo_*` via `sql/ddl/01_raw_woo.sql`; audit locked in `docs/WOO_PAYLOAD_AUDIT.md`.
 - **Phase 2–3** — 26 dbt models: 7 staging, 12 core marts (facts/dims + `mart_order_profit`, `mart_product_profit`, `mart_customer_summary`), `fact_order_cost`, and 6 reconciliation models. 3 singular tests, 2 macros.
 - **Phase 3 cost load** — `src/extract/csv_order_management.py` (PII columns dropped at ingestion).
-- **Phase 4** — Power BI `.pbip` project tracked as TMDL text: 12-table semantic model, relationships, DAX measures, 6 report pages. **This is the active work** — see `powerbi/CAPSTONE_BUILD_GUIDE.md`.
+- **Phase 4** — Power BI `.pbip` project tracked as TMDL text: semantic model of 12 Import tables from `marts_core` + 3 disconnected calculated tables (`Bridge`, `CostType`, `ParetoBucket`), 28 relationships, 83 measures in `_Measures`, and **4 of 6 report pages built** (`Overview`, `Product`, `Market`, `Cost & Margin`; `Customers` and `Operations` are empty shells whose measures are already authored). **This is the active work** — see `powerbi/CAPSTONE_BUILD_GUIDE.md` and TASKS.md Phase 4.
 - **Tests** — 90 pytest tests passing.
 
 **Not started:** Phase 5 (`fact_fulfillment`), Phase 6 (GA4 — `sql/ga4/` and GA4 staging are still empty), Phase 7 (synthetic public sample — `data/sample_raw/` is `.gitkeep` only). Optional deferred: Printify SLA fill in `dim_supplier_seed.csv`. When implementing a new phase, read the relevant doc first, then create the files it describes.
