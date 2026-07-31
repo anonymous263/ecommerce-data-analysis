@@ -42,7 +42,16 @@ referenced as (
     select
         i.site_code,
         i.woo_product_id,
-        max(i.product_name_at_sale) as product_name,
+        -- woo_product_id = 0 is Woo's placeholder for a DELETED product, so this
+        -- one group can hold several unrelated designs (7 line items spanning 6
+        -- designs as of the 2026-07 audit). max() would stamp all of them with
+        -- whichever name happens to sort last, which reads on the dashboard as a
+        -- real product that outsold its peers. Label the bucket for what it is.
+        -- A real id merely absent from the master still keeps its sold name.
+        case
+            when i.woo_product_id = 0 then '(deleted product)'
+            else max(i.product_name_at_sale)
+        end                         as product_name,
         max(i.sku)                  as sku
     from {{ ref('stg_woo_order_items') }} i
     left join catalog c
